@@ -1,199 +1,237 @@
-@import url('https://fonts.googleapis.com/css2?family=DynaPuff:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DynaPuff:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* Typography & Dynamic Font Scale (Mekaar_chat font_provider parity) */
-  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  /* Typography - Plus Jakarta Sans for all UI, DynaPuff exclusively for Crayon Avatar */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-crayon: 'DynaPuff', cursive, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --font-scale: 1;
 
-  /* Tri-Register Core Defaults (Light Mode + Sketch Aesthetic) */
-  --bg-primary: #FAF8F5;
-  --bg-secondary: #F2EFE9;
-  --bg-surface: #FFFFFF;
-  --bg-elevated: #FFFDF9;
-  --text-primary: #1C1B18;
-  --text-secondary: #5C5852;
-  --text-muted: #8C867E;
+  /* MEKAAR Clean Core Palettes (AppColors Single Source of Truth) */
+  --bg-primary: #FAF9F6;      /* Scaffold Background (Off-White / Cream Canvas) */
+  --bg-surface: #FFFFFF;      /* Card Surface */
+  --bg-secondary: #F1F5F9;    /* Secondary / Pill Container Background */
+  --bg-elevated: #FFFFFF;     /* Modals & Popups */
 
-  --accent-primary: #2563EB;
-  --accent-secondary: #DBEAFE;
-  --accent-emerald: #10B981;
-  --accent-amber: #F59E0B;
-  --accent-danger: #E11D48;
-  --accent-purple: #7C3AED;
+  --text-primary: #152641;    /* Dark Blue Primary Text */
+  --text-secondary: #5C6B85;  /* Muted Slate Text */
+  --text-muted: #9FB0C9;      /* Tertiary / Timestamp Text */
+  --text-on-blue: #FFFFFF;    /* Text on Primary Blue */
 
-  /* Sketch Card Border & Crayon Avatar Tokens (Mekaar_chat app_theme.dart parity) */
-  --sketch-border-color: #1C1B18;
-  --sketch-border-width: 2px;
-  --sketch-radius: 16px;
-  --sketch-radius-sm: 12px;
-  --sketch-radius-pill: 9999px;
-  --sketch-shadow: 3px 3px 0px #1C1B18;
-  --sketch-shadow-sm: 2px 2px 0px #1C1B18;
-  --sketch-shadow-lg: 5px 5px 0px #1C1B18;
-  --avatar-tilt: -25deg;
+  /* Functional & Semantic Brand Colors */
+  --brand-blue: #136CFC;      /* Primary Blue (Actions, Outgoing Bubbles, FAB) */
+  --brand-blue-hover: #0D59D6;
+  --brand-blue-light: #EFF6FF; /* Pale Blue for Keypad & Active Backgrounds */
+  --brand-blue-subtle: #DBEAFE;
+  --brand-green: #C3F84A;     /* Lime Accent */
 
-  /* Chat Bubble Tokens */
-  --bubble-self-bg: #DBEAFE;
-  --bubble-self-text: #1E3A8A;
+  /* Protective & Emergency Semantics */
+  --sos-coral: #FF5D5D;       /* SOS Glowing Coral */
+  --sos-deep: #D92632;        /* SOS Active Deep Crimson */
+  --safe-teal: #2DD4BF;       /* Aegis Protocol Badge */
+  --safe-teal-ink: #0C6B60;   /* High Contrast Text on Teal */
+  --safe-teal-bg: #ECFDF5;    /* Soft Teal Card Background */
+  --safe-teal-border: #A7F3D0;
+  --warn-amber: #FBBF24;      /* Warnings & Unsaved Notice */
+  --warn-amber-bg: #FEF3C7;
+
+  /* Card, Border & Shadow Tokens (Refined Citrea Style) */
+  --border-subtle: #DCE7F5;   /* Base 0.75px Card Outline */
+  --border-light: #E2E8F0;
+  --border-focus: #136CFC;
+  --sketch-charcoal: #1E293B; /* Fine Charcoal Sketch Ink */
+  --sketch-grey: #CBD5E1;     /* Architectural Corner Pencil Ticks */
+
+  --radius-card: 20px;
+  --radius-pill: 9999px;
+  --radius-button: 16px;
+  --radius-input: 9999px;
+
+  --shadow-card: 0 2px 10px rgba(21, 38, 65, 0.04);
+  --shadow-floating: 0 6px 20px rgba(21, 38, 65, 0.08);
+  --shadow-sos: 0 6px 18px rgba(255, 93, 93, 0.38);
+  --shadow-fab: 0 6px 18px rgba(19, 108, 252, 0.35);
+
+  /* Chat Bubbles */
+  --bubble-self-bg: #136CFC;
+  --bubble-self-text: #FFFFFF;
   --bubble-peer-bg: #FFFFFF;
-  --bubble-peer-text: #1C1B18;
+  --bubble-peer-border: 1px solid #E2E8F0;
+  --bubble-peer-text: #152641;
+  --bubble-date-bg: #E0F2FE;
+  --bubble-date-text: #0369A1;
+
+  /* Tri-Register Defaults */
+  --register-bg: var(--bg-primary);
+  --register-header: var(--bg-primary);
+  --register-accent: var(--brand-blue);
 }
 
-/* Dark Theme Parity */
+/* Dark Theme Support */
 [data-theme="dark"] {
   --bg-primary: #0F141C;
-  --bg-secondary: #171E29;
   --bg-surface: #1E2736;
-  --bg-elevated: #263142;
-  --text-primary: #F3F4F6;
-  --text-secondary: #9CA3AF;
-  --text-muted: #6B7280;
-  --sketch-border-color: #4B5563;
-  --sketch-shadow: 3px 3px 0px #090C10;
-  --sketch-shadow-sm: 2px 2px 0px #090C10;
-  --bubble-self-bg: #1D4ED8;
-  --bubble-self-text: #EFF6FF;
+  --bg-secondary: #171E29;
+  --bg-elevated: #243042;
+
+  --text-primary: #F4F9FF;
+  --text-secondary: #9FB0C9;
+  --text-muted: #6B7599;
+
+  --border-subtle: #25395B;
+  --border-light: #334155;
+  --brand-blue-light: #1E293B;
+
+  --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --shadow-floating: 0 6px 24px rgba(0, 0, 0, 0.35);
+
+  --bubble-self-bg: #136CFC;
+  --bubble-self-text: #FFFFFF;
   --bubble-peer-bg: #1E2736;
-  --bubble-peer-text: #F3F4F6;
+  --bubble-peer-border: 1px solid #334155;
+  --bubble-peer-text: #F4F9FF;
+  --bubble-date-bg: #1E3A8A;
+  --bubble-date-text: #93C5FD;
 }
 
-/* Tri-Register 1: CORE Register (Navigation, Contacts, Guardian, Settings, Vault) */
-[data-register="core"] {
-  --register-bg: var(--bg-primary);
-  --register-header: var(--bg-surface);
-  --register-accent: var(--accent-primary);
-}
-
-/* Tri-Register 2: ROOM Register (Active Chat Room with Custom Themes) */
-[data-register="room"] {
-  --register-bg: #EEF4FF;
-  --register-header: #FFFFFF;
-  --register-accent: #2563EB;
-}
-
-[data-register="room"][data-chat-theme="forest"] {
-  --register-bg: #ECFDF5;
-  --bubble-self-bg: #D1FAE5;
-  --bubble-self-text: #065F46;
-  --register-accent: #059669;
-}
-
-[data-register="room"][data-chat-theme="sunset"] {
-  --register-bg: #FFF7ED;
-  --bubble-self-bg: #FFEDD5;
-  --bubble-self-text: #9A3412;
-  --register-accent: #EA580C;
-}
-
-[data-register="room"][data-chat-theme="ocean"] {
-  --register-bg: #ECFEFF;
-  --bubble-self-bg: #CFFAFE;
-  --bubble-self-text: #155E75;
-  --register-accent: #0891B2;
-}
-
-[data-register="room"][data-chat-theme="midnight"] {
-  --register-bg: #111827;
-  --register-header: #1F2937;
-  --bubble-self-bg: #3730A3;
-  --bubble-self-text: #E0E7FF;
-  --bubble-peer-bg: #1F2937;
-  --bubble-peer-text: #F9FAFB;
-  --text-primary: #F9FAFB;
-  --text-secondary: #D1D5DB;
-}
-
-/* Tri-Register 3: SOS Register (High-Contrast Emergency Coral/Red) */
-[data-register="sos"] {
-  --register-bg: #FFF1F2;
-  --register-header: #FFE4E6;
-  --register-accent: #E11D48;
-  --sketch-border-color: #9F1239;
-  --sketch-shadow: 3px 3px 0px #881337;
-}
-
-* {
+/* Base Global Reset */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: var(--font-sans);
-  font-size: calc(15px * var(--font-scale));
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow-x: hidden;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-tap-highlight-color: transparent;
   user-select: none;
 }
 
-/* Sketch Card Utility (Identical to Mekaar_chat sketch card border) */
-.sketch-card {
-  background: var(--bg-surface);
-  border: var(--sketch-border-width) solid var(--sketch-border-color);
-  border-radius: var(--sketch-radius);
-  box-shadow: var(--sketch-shadow);
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
+button, input, textarea, select {
+  font-family: inherit;
+  color: inherit;
 }
 
-.sketch-card-interactive:hover {
-  transform: translate(-1px, -1px);
-  box-shadow: var(--sketch-shadow-lg);
-}
-
-.sketch-card-interactive:active {
-  transform: translate(1px, 1px);
-  box-shadow: var(--sketch-shadow-sm);
-}
-
-/* DynaPuff 25-degree tilted Crayon Avatar (Identical to Mekaar_chat avatar style) */
-.crayon-avatar {
+/* Clean Button Styles */
+.btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-crayon);
-  font-weight: 700;
-  border: 2px solid var(--sketch-border-color);
-  border-radius: 14px;
-  box-shadow: var(--sketch-shadow-sm);
-  position: relative;
-  overflow: hidden;
-  flex-shrink: 0;
+  gap: 8px;
+  background-color: var(--brand-blue);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  border: none;
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(19, 108, 252, 0.25);
 }
 
-.crayon-avatar span.tilted-glyph {
-  display: inline-block;
-  transform: rotate(var(--avatar-tilt));
-  letter-spacing: -0.02em;
+.btn-primary:active {
+  transform: scale(0.97);
+  background-color: var(--brand-blue-hover);
 }
 
-.sketch-badge {
+.btn-secondary {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 9px;
-  border-radius: var(--sketch-radius-pill);
-  border: 1.5px solid var(--sketch-border-color);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.sketch-input {
-  width: 100%;
-  padding: 10px 14px;
-  background: var(--bg-surface);
+  justify-content: center;
+  gap: 8px;
+  background-color: var(--bg-secondary);
   color: var(--text-primary);
-  border: var(--sketch-border-width) solid var(--sketch-border-color);
-  border-radius: var(--sketch-radius-sm);
-  box-shadow: var(--sketch-shadow-sm);
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
-  outline: none;
+  font-weight: 600;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  padding: 12px 24px;
+  cursor: pointer;
+  transition: all 0.15s ease;
 }
 
-.sketch-input:focus {
-  border-color: var(--accent-primary);
+.btn-secondary:active {
+  transform: scale(0.97);
+  background-color: #E2E8F0;
+}
+
+/* Citrea Architectural Card with Pencil Ticks */
+.clean-card {
+  background: var(--bg-surface);
+  border-radius: var(--radius-card);
+  border: 0.75px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  transition: box-shadow 0.2s ease;
+}
+
+.clean-card.with-ticks::before {
+  content: '⌜';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  color: var(--sketch-grey);
+  font-size: 14px;
+  font-family: monospace;
+  pointer-events: none;
+}
+
+.clean-card.with-ticks::after {
+  content: '⌟';
+  position: absolute;
+  bottom: -8px;
+  right: -8px;
+  color: var(--sketch-grey);
+  font-size: 14px;
+  font-family: monospace;
+  pointer-events: none;
+}
+
+/* Sliding Segment Pill Bar */
+.segment-bar {
+  display: flex;
+  background-color: var(--bg-secondary);
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  gap: 4px;
+}
+
+.segment-item {
+  flex: 1;
+  padding: 8px 16px;
+  text-align: center;
+  border-radius: var(--radius-pill);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.segment-item.active {
+  background-color: var(--brand-blue);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(19, 108, 252, 0.25);
+}
+
+/* Aegis Protocol Badge */
+.aegis-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-pill);
+  background-color: var(--safe-teal-bg);
+  border: 1px solid var(--safe-teal-border);
+  color: var(--safe-teal-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
 }

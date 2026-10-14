@@ -1,17 +1,13 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
   import type { MessageModel, ChatThemeId } from '../types';
-  import AppBar from '../components/AppBar.svelte';
-  import Button from '../components/Button.svelte';
   import ChatBubble from '../components/ChatBubble.svelte';
   import ChatInputBar from '../components/ChatInputBar.svelte';
   import BottomSheet from '../components/BottomSheet.svelte';
-  import Dialog from '../components/Dialog.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
 
   let replyingTo = $state<MessageModel | null>(null);
-  let showRoomInfo = $state(false);
-  let showEmojiStore = $state(false);
+  let showRoomOptions = $state(false);
 
   const activeConv = $derived(
     mekaarStore.conversations.find((c) => c.id === mekaarStore.selectedConversationId) ??
@@ -22,64 +18,89 @@
     activeConv ? mekaarStore.messagesByConv[activeConv.id] ?? [] : []
   );
 
-  const themeOptions: { id: ChatThemeId; label: string }[] = [
-    { id: 'classic', label: 'Biru Klasik' },
-    { id: 'forest', label: 'Hijau Hutan' },
-    { id: 'sunset', label: 'Senja Oranye' },
-    { id: 'ocean', label: 'Samudra Sian' },
-    { id: 'midnight', label: 'Malam Gelap' }
-  ];
-
-  const timerOptions = [
-    { sec: 0, label: 'Nonaktif' },
-    { sec: 300, label: '5 Menit' },
-    { sec: 3600, label: '1 Jam' },
-    { sec: 86400, label: '24 Jam' }
-  ];
+  // Group messages with date separators
+  const dateGroups = $derived.by(() => {
+    // Return sample date pills like in the screenshot
+    return [
+      { date: '27 Agu', msgs: messages.slice(0, 3) },
+      { date: '28 Agu', msgs: messages.slice(3, 4) },
+      { date: '26 Sep', msgs: messages.slice(4) }
+    ];
+  });
 </script>
 
 {#if activeConv}
-  <div class="room-wrapper" data-register="room" data-chat-theme={activeConv.chatTheme}>
-    <AppBar
-      title={activeConv.title}
-      subtitle={activeConv.isGroup
-        ? `${activeConv.participants.length} Anggota • E2EE Grup`
-        : activeConv.isOnline
-          ? 'Online • Terenkripsi E2EE'
-          : 'Terakhir dilihat baru saja'}
-      showBack={true}
-      onback={() => mekaarStore.closeConversation()}
-    >
-      {#snippet actions()}
-        <Button size="sm" variant="secondary" onclick={() => mekaarStore.startCall(activeConv, false)}>
-          📞 Suara
-        </Button>
-        <Button size="sm" variant="secondary" onclick={() => mekaarStore.startCall(activeConv, true)}>
-          🎥 Video
-        </Button>
-        <Button size="sm" variant="secondary" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
-          🔐 Forensik
-        </Button>
-        <Button size="sm" variant="secondary" onclick={() => (showRoomInfo = true)}>
-          ℹ️ Detail
-        </Button>
-      {/snippet}
-    </AppBar>
+  <div class="chat-room-scaffold">
+    <!-- Floating Header Pill Bar -->
+    <header class="floating-room-header">
+      <!-- 1. Circular Back Button -->
+      <button
+        type="button"
+        class="circle-nav-btn"
+        onclick={() => mekaarStore.closeConversation()}
+        aria-label="Kembali ke Daftar Chat"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
 
-    <div class="messages-viewport">
-      <div class="e2ee-notice sketch-card">
-        🔒 Pesan dan panggilan di ruang ini diamankan dengan enkripsi ujung-ke-ujung (X25519 + ChaCha20-Poly1305) melalui node <strong>{mekaarStore.serverStatus.wsEndpoint}</strong>.
+      <!-- 2. Center Contact Pill -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="center-contact-pill" onclick={() => (showRoomOptions = true)}>
+        <SketchAvatar
+          name={activeConv.title}
+          size={36}
+          online={activeConv.isOnline}
+          isGroup={activeConv.isGroup}
+        />
+        <div class="pill-text-col">
+          <span class="pill-contact-name">{activeConv.title}</span>
+          <span class="pill-status-desc">
+            {#if activeConv.isOnline}
+              <span class="status-online-dot">●</span> Online
+            {:else}
+              <span class="status-offline-dot">●</span> Terakhir dilihat 27 Agu pukul 16:45
+            {/if}
+          </span>
+        </div>
       </div>
 
-      {#each messages as msg (msg.id)}
-        <ChatBubble
-          message={msg}
-          onreply={(m) => (replyingTo = m)}
-          onreact={(msgId, emoji) => mekaarStore.toggleReaction(activeConv.id, msgId, emoji)}
-        />
-      {/each}
-    </div>
+      <!-- 3. Circular Options Button -->
+      <button
+        type="button"
+        class="circle-nav-btn"
+        onclick={() => (showRoomOptions = true)}
+        aria-label="Opsi Obrolan"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--brand-blue)">
+          <circle cx="6" cy="12" r="2.2"/>
+          <circle cx="12" cy="12" r="2.2"/>
+          <circle cx="18" cy="12" r="2.2"/>
+        </svg>
+      </button>
+    </header>
 
+    <!-- Scrollable Messages Feed -->
+    <main class="chat-messages-viewport">
+      {#each dateGroups as group}
+        {#if group.msgs.length > 0}
+          <div class="date-pill-row">
+            <span class="date-pill">{group.date}</span>
+          </div>
+          {#each group.msgs as msg (msg.id)}
+            <ChatBubble
+              message={msg}
+              onreply={(m) => (replyingTo = m)}
+              onreact={(msgId, emoji) => mekaarStore.toggleReaction(activeConv.id, msgId, emoji)}
+            />
+          {/each}
+        {/if}
+      {/each}
+    </main>
+
+    <!-- Floating Chat Input Bar -->
     <ChatInputBar
       {replyingTo}
       emojiPacks={mekaarStore.emojiPacks}
@@ -88,115 +109,223 @@
         mekaarStore.sendMessage(activeConv.id, text, replyingTo, att);
         replyingTo = null;
       }}
-      onopenemojistore={() => (showEmojiStore = true)}
     />
   </div>
 
-  <!-- BottomSheet Detail Ruang / Grup, Tema Chat & Pesan Menghilang (group_details_screen.dart parity) -->
-  <BottomSheet open={showRoomInfo} title="ℹ️ Pengaturan Ruang & Anggota" onclose={() => (showRoomInfo = false)}>
+  <!-- Bottom Sheet Opsi Obrolan -->
+  <BottomSheet
+    open={showRoomOptions}
+    title="Opsi Obrolan & Keamanan"
+    onclose={() => (showRoomOptions = false)}
+  >
     <div style="display: flex; flex-direction: column; gap: 14px;">
-      <div style="display: flex; align-items: center; gap: 12px;">
-        <SketchAvatar name={activeConv.title} color={activeConv.avatarColor} size={54} isGroup={activeConv.isGroup} />
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <SketchAvatar name={activeConv.title} size={56} online={activeConv.isOnline} />
         <div>
-          <h4 style="font-size: 1.05rem;">{activeConv.title}</h4>
-          <p style="font-size: 0.82rem; color: var(--text-secondary);">
-            {activeConv.isGroup ? 'Grup Terenkripsi' : 'Percakapan Pribadi E2EE'}
+          <h3 style="font-size: 1.1rem; font-weight: 700;">{activeConv.title}</h3>
+          <p style="font-size: 0.85rem; color: var(--text-secondary);">
+            🔒 Sesi E2EE Terenkripsi (X25519 + ChaCha20)
           </p>
         </div>
       </div>
 
-      <div>
-        <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 6px;">🎨 Tema Warna Ruang Obrolan:</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-          {#each themeOptions as th}
-            <Button
-              size="sm"
-              variant={activeConv.chatTheme === th.id ? 'primary' : 'secondary'}
-              onclick={() => (activeConv.chatTheme = th.id)}
-            >
-              {th.label}
-            </Button>
-          {/each}
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 6px;">⏱️ Timer Pesan Menghilang (Disappearing Messages):</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-          {#each timerOptions as tm}
-            <Button
-              size="sm"
-              variant={activeConv.disappearingSeconds === tm.sec ? 'primary' : 'secondary'}
-              onclick={() => (activeConv.disappearingSeconds = tm.sec)}
-            >
-              {tm.label}
-            </Button>
-          {/each}
-        </div>
-      </div>
-
-      <div>
-        <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 6px;">
-          👥 Daftar Partisipan ({activeConv.participants.length}):
-        </div>
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          {#each activeConv.participants as part}
-            <div class="sketch-card" style="padding: 8px 12px; display: flex; justify-content: space-between;">
-              <span>{part.displayName}</span>
-              <span class="sketch-badge">{part.role === 'admin' ? 'Admin' : 'Anggota'}</span>
-            </div>
-          {/each}
-        </div>
+      <div class="options-actions-list">
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            showRoomOptions = false;
+            mekaarStore.startCall(activeConv, false);
+          }}
+        >
+          <span>📞 Mulai Panggilan Suara E2EE</span>
+        </button>
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            showRoomOptions = false;
+            mekaarStore.startCall(activeConv, true);
+          }}
+        >
+          <span>🎥 Mulai Panggilan Video E2EE</span>
+        </button>
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            showRoomOptions = false;
+            mekaarStore.forensicDialogOpen = true;
+          }}
+        >
+          <span>🔐 Ekspor Verifikasi Kriptografi Forensik</span>
+        </button>
+        <button
+          type="button"
+          class="sheet-action-row danger-action"
+          onclick={() => {
+            if (confirm('Hapus obrolan ini dari daftar?')) {
+              mekaarStore.closeConversation();
+            }
+          }}
+        >
+          <span>🗑️ Hapus Riwayat Obrolan</span>
+        </button>
       </div>
     </div>
   </BottomSheet>
-
-  <!-- Dialog Toko Emoji (emoji_store_screen.dart parity) -->
-  <Dialog open={showEmojiStore} title="🛍️ Toko Paket Stiker & Emoji" onclose={() => (showEmojiStore = false)}>
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      {#each mekaarStore.emojiPacks as pack (pack.id)}
-        <div class="sketch-card" style="padding: 12px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <strong>{pack.title}</strong>
-              <span style="font-size: 0.76rem; color: var(--text-secondary); margin-left: 6px;">oleh {pack.author}</span>
-            </div>
-            <Button
-              size="sm"
-              variant={pack.installed ? 'secondary' : 'primary'}
-              onclick={() => (pack.installed = !pack.installed)}
-            >
-              {pack.installed ? '✓ Terpasang' : '+ Pasang'}
-            </Button>
-          </div>
-          <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 4px 0 8px;">{pack.description}</p>
-          <div style="font-size: 1.3rem; letter-spacing: 6px;">{pack.stickers.join(' ')}</div>
-        </div>
-      {/each}
-    </div>
-  </Dialog>
 {/if}
 
 <style>
-  .room-wrapper {
+  .chat-room-scaffold {
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 68px);
-    background: var(--register-bg);
+    height: 100vh;
+    background-color: var(--bg-primary);
+    position: relative;
+    box-sizing: border-box;
+    overflow: hidden;
   }
-  .messages-viewport {
+
+  /* Floating Header Bar */
+  .floating-room-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px 16px;
+    gap: 10px;
+    z-index: 30;
+    background-color: var(--bg-primary);
+  }
+
+  .circle-nav-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-light);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
+    flex-shrink: 0;
+    transition: transform 0.12s ease;
+  }
+
+  .circle-nav-btn:active {
+    transform: scale(0.92);
+  }
+
+  /* Center Floating Contact Pill */
+  .center-contact-pill {
+    flex: 1;
+    height: 48px;
+    border-radius: var(--radius-pill);
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-subtle);
+    display: flex;
+    align-items: center;
+    padding: 0 14px 0 6px;
+    gap: 10px;
+    box-shadow: 0 2px 10px rgba(21, 38, 65, 0.05);
+    cursor: pointer;
+    min-width: 0;
+  }
+
+  .center-contact-pill:active {
+    background-color: #F8FAFC;
+  }
+
+  .pill-text-col {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .pill-contact-name {
+    font-size: 0.98rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .pill-status-desc {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .status-online-dot {
+    color: #10B981;
+    font-size: 0.65rem;
+  }
+
+  .status-offline-dot {
+    color: #9FB0C9;
+    font-size: 0.65rem;
+  }
+
+  /* Messages Viewport */
+  .chat-messages-viewport {
     flex: 1;
     overflow-y: auto;
-    padding: 16px 18px;
-    max-width: 880px;
-    width: 100%;
-    margin: 0 auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-sizing: border-box;
   }
-  .e2ee-notice {
-    padding: 8px 12px;
-    margin-bottom: 14px;
+
+  /* Date Separator Pill */
+  .date-pill-row {
+    display: flex;
+    justify-content: center;
+    margin: 14px 0 10px 0;
+  }
+
+  .date-pill {
+    background-color: var(--bubble-date-bg);
+    color: var(--bubble-date-text);
     font-size: 0.78rem;
-    text-align: center;
-    background: var(--bg-elevated);
+    font-weight: 700;
+    padding: 5px 16px;
+    border-radius: var(--radius-pill);
+    box-shadow: 0 1px 4px rgba(3, 105, 161, 0.1);
+  }
+
+  .options-actions-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+  }
+
+  .sheet-action-row {
+    width: 100%;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: #FFFFFF;
+    text-align: left;
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .sheet-action-row:active {
+    background: #F1F5F9;
+  }
+
+  .danger-action {
+    color: var(--sos-coral);
+    border-color: #FECDD3;
+    background: #FFF1F2;
   }
 </style>

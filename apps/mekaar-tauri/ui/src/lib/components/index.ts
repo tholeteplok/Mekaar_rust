@@ -11,3 +11,4 @@ export { default as HoldToConfirmButton } from './HoldToConfirmButton.svelte';
 export { default as MekaarScaffold } from './MekaarScaffold.svelte';
 export { default as SketchAvatar } from './SketchAvatar.svelte';
 export { default as BrandIcon } from './BrandIcon.svelte';
+export { default as SosButton } from './SosButton.svelte';

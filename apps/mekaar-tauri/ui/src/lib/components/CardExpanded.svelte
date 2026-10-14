@@ -10,31 +10,108 @@
   }
 
   let { title, subtitle = '', badgeText = '', defaultOpen = false, children }: Props = $props();
-  let open = $state(defaultOpen);
+  let open = $state(false);
+  $effect(() => {
+    open = defaultOpen;
+  });
 </script>
 
-<div class="sketch-card" style="padding: 14px; margin-bottom: 12px;">
+<div class="clean-card with-ticks" style="padding: 16px; margin-bottom: 12px;">
+  <span class="pencil-tick tick-bl">⌞</span>
+  <span class="pencil-tick tick-tr">⌝</span>
   <button
     type="button"
     onclick={() => (open = !open)}
-    style="width: 100%; display: flex; align-items: center; justify-content: space-between; background: none; border: none; color: inherit; cursor: pointer; text-align: left;"
+    class="card-header-btn"
   >
     <div>
-      <div style="font-weight: 700; font-size: 0.98rem;">{title}</div>
+      <div class="card-title">{title}</div>
       {#if subtitle}
-        <div style="font-size: 0.82rem; color: var(--text-secondary);">{subtitle}</div>
+        <div class="card-subtitle">{subtitle}</div>
       {/if}
     </div>
     <div style="display: flex; align-items: center; gap: 8px;">
       {#if badgeText}
-        <span class="sketch-badge" style="background: var(--accent-secondary);">{badgeText}</span>
+        <span class="aegis-badge">{badgeText}</span>
       {/if}
-      <span style="font-weight: 700;">{open ? '▲' : '▼'}</span>
+      <span class="expand-caret {open ? 'open' : ''}">▼</span>
     </div>
   </button>
   {#if open && children}
-    <div style="margin-top: 12px; padding-top: 12px; border-top: 1.5px dashed var(--sketch-border-color);">
+    <div class="card-expand-body">
       {@render children()}
     </div>
   {/if}
 </div>
+
+<style>
+  .clean-card {
+    background: var(--bg-surface);
+    border-radius: var(--radius-card);
+    border: 0.75px solid var(--border-subtle);
+    box-shadow: var(--shadow-card);
+    position: relative;
+    box-sizing: border-box;
+  }
+
+  .pencil-tick {
+    position: absolute;
+    color: var(--sketch-grey);
+    font-size: 13px;
+    font-family: monospace;
+    line-height: 1;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .tick-bl {
+    bottom: -6px;
+    left: -6px;
+  }
+
+  .tick-tr {
+    top: -6px;
+    right: -6px;
+  }
+
+  .card-header-btn {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: none;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+  }
+
+  .card-title {
+    font-weight: 700;
+    font-size: 0.98rem;
+    color: var(--text-primary);
+  }
+
+  .card-subtitle {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .expand-caret {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    transition: transform 0.2s ease;
+  }
+
+  .expand-caret.open {
+    transform: rotate(180deg);
+  }
+
+  .card-expand-body {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-light);
+  }
+</style>

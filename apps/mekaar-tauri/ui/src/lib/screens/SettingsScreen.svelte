@@ -2,251 +2,493 @@
   import { mekaarStore, TAILSCALE_HTTP, TAILSCALE_WS, LOCAL_HTTP, LOCAL_WS } from '../stores';
   import AppBar from '../components/AppBar.svelte';
   import Card from '../components/Card.svelte';
-  import CardExpanded from '../components/CardExpanded.svelte';
-  import Button from '../components/Button.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
-  import BrandIcon from '../components/BrandIcon.svelte';
+  import Dialog from '../components/Dialog.svelte';
 
-  let wipeConfirmInput = $state('');
-  let wipeStatusMessage = $state('');
-
-  function triggerRemoteWipeTest() {
-    if (wipeConfirmInput !== 'WIPE-MEKAAR') {
-      wipeStatusMessage = 'Ketik WIPE-MEKAAR dengan benar untuk menguji kunci darurat.';
-      return;
-    }
-    wipeStatusMessage = '✅ Brankas lokal dikunci & token wipe diverifikasi.';
-    wipeConfirmInput = '';
-    mekaarStore.vaultUnlocked = false;
-  }
+  let showFontModal = $state(false);
+  let showTailscaleModal = $state(false);
 </script>
 
-<AppBar title="Pengaturan & Keamanan" subtitle="Node teplok-pc (8085), Tema, Privasi Layar, Notifikasi & Device Lost" />
+<AppBar title="Pengaturan" />
 
-<div class="settings-container">
-  <!-- Profil & Identitas Kriptografi -->
-  <Card padding="16px">
-    <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
-      <div style="display: flex; align-items: center; gap: 14px;">
-        <SketchAvatar name={mekaarStore.currentUser.displayName} color={mekaarStore.currentUser.avatarColor} size={58} online={true} />
-        <div>
-          <h3 style="font-size: 1.08rem;">{mekaarStore.currentUser.displayName}</h3>
-          <div style="font-size: 0.84rem; color: var(--text-secondary);">{mekaarStore.currentUser.username} • {mekaarStore.currentUser.bio}</div>
-          <div style="font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); margin-top: 2px;">
-            🔑 {mekaarStore.currentUser.publicKeyFingerprint}
-          </div>
-        </div>
-      </div>
-      <div style="display: flex; gap: 8px;">
-        <Button size="sm" variant="secondary" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
-          🔐 Ekspor Forensik
-        </Button>
-        <Button size="sm" variant="danger" onclick={() => (mekaarStore.vaultUnlocked = false)}>
-          🔒 Kunci Vault
-        </Button>
-      </div>
-    </div>
-  </Card>
-
-  <div style="height: 14px;"></div>
-
-  <!-- 1. Konfigurasi Server teplok-pc (Tailscale & Local 8085) -->
-  <CardExpanded
-    title="🛰️ Koneksi Server Relay (teplok-pc • Port 8085)"
-    subtitle="Tailscale 100.101.96.120:8085 & Local 127.0.0.1:8085"
-    badgeText={mekaarStore.serverStatus.online ? 'Terhubung' : 'Siaga'}
-    defaultOpen={true}
-  >
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      <div class="sketch-card" style="padding: 10px 12px; background: var(--bg-secondary); font-size: 0.83rem;">
-        <div><strong>Service:</strong> {mekaarStore.serverStatus.service} v{mekaarStore.serverStatus.version} (SQLite WAL • ~1.3 MB RAM)</div>
-        <div><strong>HTTP Health:</strong> <code>{mekaarStore.serverStatus.httpEndpoint}</code> ({mekaarStore.serverStatus.latencyMs} ms)</div>
-        <div><strong>WebSocket Relay:</strong> <code>{mekaarStore.serverStatus.wsEndpoint}</code></div>
-      </div>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <Button
-          size="sm"
-          variant={mekaarStore.serverStatus.mode === 'tailscale' ? 'primary' : 'secondary'}
-          onclick={() => mekaarStore.checkServerHealth('tailscale')}
-        >
-          🌐 Gunakan Tailscale ({TAILSCALE_WS})
-        </Button>
-        <Button
-          size="sm"
-          variant={mekaarStore.serverStatus.mode === 'local' ? 'primary' : 'secondary'}
-          onclick={() => mekaarStore.checkServerHealth('local')}
-        >
-          💻 Gunakan Localhost ({LOCAL_WS})
-        </Button>
-        <Button size="sm" variant="secondary" onclick={() => mekaarStore.checkServerHealth()}>
-          🔄 Verifikasi Ulang Endpoint
-        </Button>
-      </div>
-    </div>
-  </CardExpanded>
-
-  <!-- 2. Tema & Tampilan (theme_settings_screen.dart & chat_settings_screen.dart parity) -->
-  <CardExpanded title="🎨 Tema, Tipografi & Pengaturan Chat" subtitle="Mode Terang/Gelap, Font DynaPuff/Plus Jakarta, Skala Teks">
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <span>Mode Tampilan</span>
-        <div style="display: flex; gap: 6px;">
-          <Button
-            size="sm"
-            variant={mekaarStore.themeMode === 'light' ? 'primary' : 'secondary'}
-            onclick={() => (mekaarStore.themeMode = 'light')}
-          >
-            ☀️ Terang
-          </Button>
-          <Button
-            size="sm"
-            variant={mekaarStore.themeMode === 'dark' ? 'primary' : 'secondary'}
-            onclick={() => (mekaarStore.themeMode = 'dark')}
-          >
-            🌙 Gelap
-          </Button>
-        </div>
-      </div>
-
-      <div style="display: flex; align-items: center; justify-content: space-between;">
-        <span>Jenis Huruf Utama (`font_provider.dart` parity)</span>
-        <div style="display: flex; gap: 6px;">
-          <Button
-            size="sm"
-            variant={mekaarStore.fontFamily === 'Plus Jakarta Sans' ? 'primary' : 'secondary'}
-            onclick={() => (mekaarStore.fontFamily = 'Plus Jakarta Sans')}
-          >
-            Plus Jakarta Sans
-          </Button>
-          <Button
-            size="sm"
-            variant={mekaarStore.fontFamily === 'DynaPuff' ? 'primary' : 'secondary'}
-            onclick={() => (mekaarStore.fontFamily = 'DynaPuff')}
-          >
-            DynaPuff (Krayon)
-          </Button>
-        </div>
-      </div>
-
-      <label style="font-size: 0.85rem; font-weight: 600;">
-        Skala Ukuran Huruf ({Math.round(mekaarStore.fontScale * 100)}%)
-        <input
-          type="range"
-          min="0.9"
-          max="1.2"
-          step="0.05"
-          bind:value={mekaarStore.fontScale}
-          style="width: 100%; margin-top: 4px;"
+<div class="settings-page-container">
+  <!-- Section: Akun -->
+  <div class="settings-group">
+    <span class="group-title">Akun</span>
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="clean-card with-ticks account-card"
+      onclick={() => mekaarStore.setTab('profile')}
+    >
+      <span class="pencil-tick tick-bl">⌞</span>
+      <span class="pencil-tick tick-tr">⌝</span>
+      <div class="account-card-left">
+        <SketchAvatar
+          name={mekaarStore.currentUser.displayName || 'Mika'}
+          size={52}
+          online={true}
         />
-      </label>
-
-      <label style="display: flex; justify-content: space-between; align-items: center;">
-        <span>✓✓ Kirim Laporan Baca (Read Receipts)</span>
-        <input type="checkbox" bind:checked={mekaarStore.readReceipts} />
-      </label>
-      <label style="display: flex; justify-content: space-between; align-items: center;">
-        <span>✍️ Tampilkan Indikator Sedang Mengetik</span>
-        <input type="checkbox" bind:checked={mekaarStore.typingIndicator} />
-      </label>
-    </div>
-  </CardExpanded>
-
-  <!-- 3. Keamanan, Screen Protection & Daftar Blokir (security_settings_screen.dart parity) -->
-  <CardExpanded title="🛡️ Keamanan, Proteksi Layar & Log Audit" subtitle="Blokir Screenshot, Blur Fokus, 2FA & Pengguna Diblokir">
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      <label style="display: flex; justify-content: space-between; align-items: center;">
-        <span>📵 Blokir Tangkapan Layar OS (`screenshotBlockProvider`)</span>
-        <input type="checkbox" bind:checked={mekaarStore.screenshotBlock} />
-      </label>
-      <label style="display: flex; justify-content: space-between; align-items: center;">
-        <span>🙈 Samarkan Layar Saat Jendela Tidak Fokus (Screen Shield)</span>
-        <input type="checkbox" bind:checked={mekaarStore.privacyBlurOnUnfocus} />
-      </label>
-      <label style="display: flex; justify-content: space-between; align-items: center;">
-        <span>🔔 Notifikasi Tersamar (Sembunyikan Nama & Isi Pesan)</span>
-        <input type="checkbox" bind:checked={mekaarStore.disguisedNotifications} />
-      </label>
-
-      <div style="font-weight: 700; font-size: 0.85rem; margin-top: 6px;">📋 Log Keamanan Terbaru:</div>
-      {#each mekaarStore.securityLogs as log (log.id)}
-        <div class="sketch-card" style="padding: 8px 12px; font-size: 0.8rem;">
-          <div style="display: flex; justify-content: space-between;">
-            <strong>{log.eventTitle}</strong>
-            <span style="color: var(--text-muted);">{log.timestamp}</span>
-          </div>
-          <div style="color: var(--text-secondary);">{log.deviceInfo} • Kategori: {log.eventCategory}</div>
+        <div class="account-info">
+          <span class="account-name">{mekaarStore.currentUser.displayName}</span>
+          <span class="account-email">servisio.apk@gmail.com</span>
         </div>
-      {/each}
-
-      <div style="font-weight: 700; font-size: 0.85rem; margin-top: 6px;">
-        🚫 Daftar Pengguna Diblokir ({mekaarStore.blockedUsers.length}):
       </div>
-      {#each mekaarStore.blockedUsers as blk (blk.id)}
-        <div class="sketch-card" style="padding: 8px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 0.82rem;">
+      <div class="arrow-circle">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"></polyline>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section: Tampilan -->
+  <div class="settings-group">
+    <span class="group-title">Tampilan</span>
+    <div class="clean-card with-ticks list-tile-card">
+      <span class="pencil-tick tick-bl">⌞</span>
+      <span class="pencil-tick tick-tr">⌝</span>
+
+      <!-- Tampilan & Font -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={() => (showFontModal = true)}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
+            </svg>
+          </div>
+          <span class="item-title">Tampilan & Font</span>
+        </div>
+        <div class="item-right">
+          <span class="item-value">{mekaarStore.fontFamily}</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Tema & Wallpaper Chat -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={() => (mekaarStore.themeMode = mekaarStore.themeMode === 'light' ? 'dark' : 'light')}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+            </svg>
+          </div>
+          <span class="item-title">Tema & Wallpaper Chat</span>
+        </div>
+        <div class="item-right">
+          <span class="item-value">{mekaarStore.themeMode === 'light' ? 'Mode Terang' : 'Mode Gelap'}</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section: Privasi -->
+  <div class="settings-group">
+    <span class="group-title">Privasi</span>
+    <div class="clean-card with-ticks list-tile-card">
+      <span class="pencil-tick tick-bl">⌞</span>
+      <span class="pencil-tick tick-tr">⌝</span>
+
+      <!-- Proteksi Layar -->
+      <div class="setting-item-row">
+        <div class="item-left">
+          <div class="item-icon-circle icon-teal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+              <line x1="12" y1="18" x2="12.01" y2="18"></line>
+            </svg>
+          </div>
+          <span class="item-title">Proteksi Layar</span>
+        </div>
+        <div class="item-right">
+          <span class="item-value">{mekaarStore.privacyBlurOnUnfocus ? 'Aktif' : 'Nonaktif'}</span>
+          <label class="switch-toggle">
+            <input type="checkbox" bind:checked={mekaarStore.privacyBlurOnUnfocus} />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Sembunyikan Notifikasi Darurat -->
+      <div class="setting-item-row">
+        <div class="item-left">
+          <div class="item-icon-circle icon-orange">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+            </svg>
+          </div>
+          <span class="item-title">Sembunyikan Notifikasi Darurat</span>
+        </div>
+        <div class="item-right">
+          <span class="item-value">{mekaarStore.disguisedNotifications ? 'Aktif' : 'Nonaktif'}</span>
+          <label class="switch-toggle">
+            <input type="checkbox" bind:checked={mekaarStore.disguisedNotifications} />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Terakhir Dilihat & Online -->
+      <div class="setting-item-row">
+        <div class="item-left">
+          <div class="item-icon-circle icon-blue-subtle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </div>
+          <span class="item-title">Terakhir Dilihat & Online</span>
+        </div>
+        <div class="item-right">
+          <span class="item-value">Kontak saya</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Bukti Baca (Read Receipt) -->
+      <div class="setting-item-row">
+        <div class="item-left">
+          <div class="item-icon-circle icon-lime">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </div>
+          <span class="item-title">Bukti Baca (Read Receipt)</span>
+        </div>
+        <div class="item-right">
+          <span class="item-value">{mekaarStore.readReceipts ? 'Aktif' : 'Nonaktif'}</span>
+          <label class="switch-toggle">
+            <input type="checkbox" bind:checked={mekaarStore.readReceipts} />
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section: Server Relay teplok-pc & Forensik -->
+  <div class="settings-group">
+    <span class="group-title">Sistem & Keamanan Tingkat Lanjut</span>
+    <div class="clean-card with-ticks list-tile-card">
+      <span class="pencil-tick tick-bl">⌞</span>
+      <span class="pencil-tick tick-tr">⌝</span>
+
+      <!-- teplok-pc Relay Node -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={() => (showTailscaleModal = true)}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="2" y1="12" x2="22" y2="12"></line>
+              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+            </svg>
+          </div>
           <div>
-            <strong>{blk.displayName}</strong> ({blk.username}) — {blk.reason}
+            <div class="item-title">Node teplok-pc (Tailscale)</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">100.101.96.120:8085 • {mekaarStore.serverStatus.latencyMs}ms</div>
           </div>
-          <Button
-            size="sm"
-            variant="secondary"
-            onclick={() => (mekaarStore.blockedUsers = mekaarStore.blockedUsers.filter((b) => b.id !== blk.id))}
-          >
-            Buka Blokir
-          </Button>
         </div>
-      {/each}
-    </div>
-  </CardExpanded>
-
-  <!-- 4. Mode Perangkat Hilang / Remote Wipe (device_lost_screen.dart parity) -->
-  <CardExpanded title="📱 Mode Perangkat Hilang (Device Lost Protection)" subtitle="Penghapusan Brankas Darurat & Batas Percobaan PIN">
-    <div style="display: flex; flex-direction: column; gap: 10px;">
-      <div style="font-size: 0.84rem; color: var(--text-secondary);">
-        Guardian Pemulihan: <strong>{mekaarStore.deviceLost.recoveryEmailOrPeer}</strong> • Auto-wipe setelah
-        <strong>{mekaarStore.deviceLost.autoWipeAfterFailedPinAttempts}x</strong> salah PIN.
-      </div>
-      <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-        <input
-          type="text"
-          class="sketch-input"
-          style="flex: 1;"
-          placeholder="Ketik WIPE-MEKAAR untuk menguji kunci darurat..."
-          bind:value={wipeConfirmInput}
-        />
-        <Button variant="danger" onclick={triggerRemoteWipeTest}>Kunci & Hapus Sesi Lokal</Button>
-      </div>
-      {#if wipeStatusMessage}
-        <div style="font-size: 0.82rem; font-weight: 700;">{wipeStatusMessage}</div>
-      {/if}
-    </div>
-  </CardExpanded>
-
-  <div style="height: 14px;"></div>
-
-  <!-- 5. Informasi & Identitas Aplikasi MEKAAR -->
-  <Card padding="16px">
-    <div style="display: flex; align-items: center; gap: 14px;">
-      <BrandIcon size={46} variant="sketch" alt="MEKAAR Brand Logo" />
-      <div>
-        <h4 style="font-family: var(--font-crayon); font-size: 1.12rem; margin-bottom: 2px;">
-          MEKAAR Native Engine
-        </h4>
-        <div style="font-size: 0.82rem; color: var(--text-secondary);">
-          Versi 0.1.0 • Rust + Tauri v2 + Svelte 5 • E2EE Ed25519 & XChaCha20-Poly1305
+        <div class="item-right">
+          <span class="aegis-badge">Terhubung</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
         </div>
-        <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 3px;">
-          Node Relay: teplok-pc (Tailscale Mesh 100.101.96.120:8085)
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Ekspor Bukti Forensik -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+            </svg>
+          </div>
+          <span class="item-title">Ekspor Bukti Forensik Terenkripsi</span>
+        </div>
+        <div class="item-right">
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
         </div>
       </div>
     </div>
-  </Card>
+  </div>
 </div>
 
+<!-- Modal Dialog Font & Tampilan -->
+<Dialog
+  open={showFontModal}
+  title="Pilih Jenis Huruf Utama"
+  onclose={() => (showFontModal = false)}
+>
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <button
+      type="button"
+      class="font-option-btn {mekaarStore.fontFamily === 'Plus Jakarta Sans' ? 'active' : ''}"
+      onclick={() => {
+        mekaarStore.fontFamily = 'Plus Jakarta Sans';
+        showFontModal = false;
+      }}
+    >
+      <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Plus Jakarta Sans (Standar Citrea)</span>
+      {#if mekaarStore.fontFamily === 'Plus Jakarta Sans'}<span>✓</span>{/if}
+    </button>
+    <button
+      type="button"
+      class="font-option-btn {mekaarStore.fontFamily === 'DynaPuff' ? 'active' : ''}"
+      onclick={() => {
+        mekaarStore.fontFamily = 'DynaPuff';
+        showFontModal = false;
+      }}
+    >
+      <span style="font-family: 'DynaPuff', cursive; font-weight: 700;">DynaPuff (Gaya Sketsa Krayon)</span>
+      {#if mekaarStore.fontFamily === 'DynaPuff'}<span>✓</span>{/if}
+    </button>
+  </div>
+</Dialog>
+
+<!-- Modal Dialog Endpoint Tailscale -->
+<Dialog
+  open={showTailscaleModal}
+  title="Konfigurasi Server Relay"
+  onclose={() => (showTailscaleModal = false)}
+>
+  <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.88rem;">
+    <p style="color: var(--text-secondary);">
+      Aplikasi terhubung ke relay <strong>teplok-pc</strong> Linux via Tailscale Mesh.
+    </p>
+    <div style="background: #F1F5F9; padding: 12px; border-radius: 12px; font-family: var(--font-mono); font-size: 0.8rem;">
+      <div>HTTP: {TAILSCALE_HTTP}</div>
+      <div>WS: {TAILSCALE_WS}</div>
+      <div>Status: Terhubung ({mekaarStore.serverStatus.latencyMs} ms)</div>
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
+      <button type="button" class="btn-primary" onclick={() => (showTailscaleModal = false)}>
+        Tutup
+      </button>
+    </div>
+  </div>
+</Dialog>
+
 <style>
-  .settings-container {
-    padding: 16px 18px;
-    max-width: 880px;
-    width: 100%;
-    margin: 0 auto;
+  .settings-page-container {
+    padding: 0 16px 28px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .settings-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .group-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-left: 4px;
+  }
+
+  .account-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px;
+    cursor: pointer;
+  }
+
+  .account-card-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .account-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .account-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+  }
+
+  .account-email {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .arrow-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: #F1F5F9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .list-tile-card {
+    padding: 6px 16px;
+  }
+
+  .setting-item-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0;
+    cursor: pointer;
+  }
+
+  .item-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .item-icon-circle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .icon-purple { background-color: #F3E8FF; }
+  .icon-blue { background-color: #EFF6FF; }
+  .icon-teal { background-color: #CCFBF1; }
+  .icon-orange { background-color: #FFEDD5; }
+  .icon-blue-subtle { background-color: #E0F2FE; }
+  .icon-lime { background-color: #DCFCE7; }
+
+  .item-title {
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--text-primary);
+  }
+
+  .item-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .item-value {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+  }
+
+  .item-divider {
+    height: 1px;
+    background-color: var(--border-light);
+    margin: 0;
+  }
+
+  /* iOS / Flutter style pill switch toggle */
+  .switch-toggle {
+    position: relative;
+    display: inline-block;
+    width: 46px;
+    height: 26px;
+  }
+
+  .switch-toggle input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background-color: #CBD5E1;
+    transition: 0.2s;
+    border-radius: 34px;
+  }
+
+  .slider:before {
+    position: absolute;
+    content: "";
+    height: 20px;
+    width: 20px;
+    left: 3px;
+    bottom: 3px;
+    background-color: white;
+    transition: 0.2s;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  input:checked + .slider {
+    background-color: var(--brand-blue);
+  }
+
+  input:checked + .slider:before {
+    transform: translateX(20px);
+  }
+
+  .font-option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-radius: 12px;
+    border: 1px solid var(--border-subtle);
+    background: #FFFFFF;
+    cursor: pointer;
+    font-size: 0.95rem;
+  }
+
+  .font-option-btn.active {
+    border-color: var(--brand-blue);
+    background-color: #EFF6FF;
+    color: var(--brand-blue);
   }
 </style>

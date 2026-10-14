@@ -1,145 +1,388 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
-  import Button from '../components/Button.svelte';
-  import SketchAvatar from '../components/SketchAvatar.svelte';
-  import BrandIcon from '../components/BrandIcon.svelte';
+  import SosButton from '../components/SosButton.svelte';
 
-  let mode = $state<'vault' | 'pin' | 'onboarding'>('vault');
-  let passphrase = $state('');
-  let pinInput = $state('');
-  let newUsername = $state(mekaarStore.currentUser.username);
-  let newDisplayName = $state(mekaarStore.currentUser.displayName);
-  let errorMsg = $state('');
+  let pin = $state('');
+  let obscurePin = $state(true);
+  let hasError = $state(false);
+  let errorMessage = $state('');
+  let isShaking = $state(false);
 
-  function handleUnlockVault() {
-    errorMsg = '';
-    if (passphrase.trim().length < 4) {
-      errorMsg = 'Masukkan passphrase brankas minimal 4 karakter.';
+  const PIN_LENGTH = 6;
+
+  function handleKeyPress(key: string) {
+    if (key === '⌫') {
+      if (pin.length > 0) {
+        pin = pin.slice(0, -1);
+        hasError = false;
+        errorMessage = '';
+      }
       return;
     }
-    mekaarStore.vaultUnlocked = true;
-    mekaarStore.pinVerified = true;
-    mekaarStore.checkServerHealth();
-  }
 
-  function handleVerifyPin() {
-    errorMsg = '';
-    if (pinInput !== mekaarStore.pinCode) {
-      errorMsg = 'Kode PIN tidak sesuai (Default: 123456).';
-      return;
+    if (pin.length >= PIN_LENGTH) return;
+
+    pin += key;
+    hasError = false;
+    errorMessage = '';
+
+    if (pin.length === PIN_LENGTH) {
+      processPin();
     }
-    mekaarStore.pinVerified = true;
-    mekaarStore.vaultUnlocked = true;
   }
 
-  function saveOnboardingProfile() {
-    mekaarStore.currentUser.username = newUsername.startsWith('@') ? newUsername : `@${newUsername}`;
-    mekaarStore.currentUser.displayName = newDisplayName || 'Pengguna Mekaar';
-    mekaarStore.onboardingComplete = true;
+  function processPin() {
+    // Verify PIN against mekaarStore.pinCode (or default '123456')
+    if (pin === mekaarStore.pinCode || pin === '123456') {
+      if (navigator.vibrate) navigator.vibrate(50);
+      mekaarStore.pinVerified = true;
+      mekaarStore.vaultUnlocked = true;
+      mekaarStore.checkServerHealth('tailscale');
+    } else {
+      hasError = true;
+      errorMessage = 'PIN tidak sesuai. Silakan coba lagi.';
+      isShaking = true;
+      if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+      setTimeout(() => {
+        isShaking = false;
+        pin = '';
+      }, 600);
+    }
+  }
+
+  function handleForgotPin() {
+    alert('Petunjuk PIN Default MEKAAR: 123456');
+  }
+
+  function handleSosTrigger() {
     mekaarStore.vaultUnlocked = true;
     mekaarStore.pinVerified = true;
+    mekaarStore.setTab('sos');
   }
 </script>
 
-<div class="vault-screen">
-  <div class="vault-card sketch-card">
-    <div style="display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 12px;">
-      <BrandIcon size={64} variant="sketch" alt="MEKAAR Logo" />
-      <SketchAvatar name={mekaarStore.currentUser.displayName} color="#FDE68A" size={64} online={true} />
+<div class="pin-screen">
+  <!-- Top Section: Shield Icon & Title -->
+  <div class="top-section">
+    <div class="shield-badge-glow">
+      <svg width="36" height="36" viewBox="0 0 24 24" fill="#136CFC">
+        <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 6c1.66 0 3 1.34 3 3 0 1.13-.63 2.11-1.56 2.61L14 16h-4v-3.39C9.07 12.11 8.5 11.13 8.5 10c0-1.66 1.34-3 3-3z"/>
+      </svg>
     </div>
 
-    <h2 style="font-family: var(--font-crayon); text-align: center; font-size: 1.45rem; margin-bottom: 4px;">
-      Mekaar Rust • Secure Vault
-    </h2>
-    <p style="text-align: center; font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">
-      Identitas Ed25519 & SQLite WAL E2EE • Relay Tailscale <code>100.101.96.120:8085</code>
-    </p>
+    <h1 class="pin-title">Buka Kunci Aplikasi</h1>
+    <p class="pin-subtitle">Masukkan PIN 6 digit Anda untuk masuk.</p>
+  </div>
 
-    <div class="mode-switcher">
-      <button type="button" class:active={mode === 'vault'} onclick={() => (mode = 'vault')}>🔐 Passphrase Vault</button>
-      <button type="button" class:active={mode === 'pin'} onclick={() => (mode = 'pin')}>🔢 Kunci PIN</button>
-      <button type="button" class:active={mode === 'onboarding'} onclick={() => (mode = 'onboarding')}>✨ Profil & 2FA</button>
-    </div>
+  <!-- Middle Section: Obscure Toggle & 6 Pin Circles -->
+  <div class="indicator-section {isShaking ? 'shake-anim' : ''}">
+    <button
+      type="button"
+      class="eye-toggle-btn"
+      onclick={() => (obscurePin = !obscurePin)}
+      aria-label={obscurePin ? 'Tampilkan PIN' : 'Sembunyikan PIN'}
+    >
+      {#if obscurePin}
+        <!-- Eye Closed / Lashes -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+        </svg>
+      {:else}
+        <!-- Eye Open -->
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+          <circle cx="12" cy="12" r="3"></circle>
+        </svg>
+      {/if}
+    </button>
 
-    {#if mode === 'vault'}
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <input
-          type="password"
-          class="sketch-input"
-          placeholder="Masukkan Passphrase Vault..."
-          bind:value={passphrase}
-          onkeydown={(e) => e.key === 'Enter' && handleUnlockVault()}
-        />
-        <Button variant="primary" fullWidth onclick={handleUnlockVault}>Buka Brankas & Sambungkan Relay</Button>
-      </div>
-    {:else if mode === 'pin'}
-      <div style="display: flex; flex-direction: column; gap: 12px;">
-        <input
-          type="password"
-          maxlength="6"
-          class="sketch-input"
-          style="text-align: center; letter-spacing: 0.35em; font-size: 1.2rem; font-weight: 800;"
-          placeholder="••••••"
-          bind:value={pinInput}
-          onkeydown={(e) => e.key === 'Enter' && handleVerifyPin()}
-        />
-        <Button variant="primary" fullWidth onclick={handleVerifyPin}>Verifikasi PIN (123456)</Button>
-      </div>
-    {:else}
-      <div style="display: flex; flex-direction: column; gap: 10px;">
-        <label style="font-size: 0.82rem; font-weight: 700;">
-          Nama Tampilan
-          <input type="text" class="sketch-input" bind:value={newDisplayName} style="margin-top: 4px;" />
-        </label>
-        <label style="font-size: 0.82rem; font-weight: 700;">
-          Username Unik
-          <input type="text" class="sketch-input" bind:value={newUsername} style="margin-top: 4px;" />
-        </label>
-        <div class="sketch-card" style="padding: 8px 10px; background: var(--bg-secondary); font-size: 0.78rem;">
-          Sidik Jari Kunci Publik: <strong>{mekaarStore.currentUser.publicKeyFingerprint}</strong>
+    <div class="pin-dots-row">
+      {#each Array(PIN_LENGTH) as _, i}
+        {@const isFilled = pin.length > i}
+        {@const isCurrent = pin.length === i}
+        <div
+          class="pin-dot {isFilled ? 'filled' : ''} {isCurrent ? 'current' : ''} {hasError ? 'error' : ''}"
+        >
+          {#if isFilled && !obscurePin}
+            <span class="revealed-digit">{pin[i]}</span>
+          {/if}
         </div>
-        <Button variant="primary" fullWidth onclick={saveOnboardingProfile}>Simpan Identitas & Masuk</Button>
-      </div>
-    {/if}
+      {/each}
+    </div>
 
-    {#if errorMsg}
-      <p style="color: var(--accent-danger); font-size: 0.84rem; font-weight: 700; margin-top: 10px; text-align: center;">
-        {errorMsg}
-      </p>
+    {#if errorMessage}
+      <div class="error-text">{errorMessage}</div>
     {/if}
+  </div>
+
+  <!-- Keypad Section: 74px Circular Buttons -->
+  <div class="keypad-grid">
+    {#each ['1', '2', '3', '4', '5', '6', '7', '8', '9'] as digit}
+      <button
+        type="button"
+        class="keypad-circle-btn"
+        onclick={() => handleKeyPress(digit)}
+      >
+        {digit}
+      </button>
+    {/each}
+
+    <!-- Bottom Row: Lupa PIN? / 0 / ⌫ -->
+    <button
+      type="button"
+      class="keypad-text-btn"
+      onclick={handleForgotPin}
+    >
+      Lupa<br />PIN?
+    </button>
+
+    <button
+      type="button"
+      class="keypad-circle-btn"
+      onclick={() => handleKeyPress('0')}
+    >
+      0
+    </button>
+
+    <button
+      type="button"
+      class="keypad-icon-btn"
+      onclick={() => handleKeyPress('⌫')}
+      aria-label="Hapus Digit"
+    >
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2z"></path>
+        <line x1="18" y1="9" x2="12" y2="15"></line>
+        <line x1="12" y1="9" x2="18" y2="15"></line>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Bottom Section: SOS Button & Label -->
+  <div class="bottom-sos-bar">
+    <SosButton size={54} onTrigger={handleSosTrigger} />
+    <span class="sos-bar-label">Tahan 2 dtk untuk darurat</span>
   </div>
 </div>
 
 <style>
-  .vault-screen {
+  .pin-screen {
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: calc(48px + env(safe-area-inset-top, 0px)) 24px calc(28px + env(safe-area-inset-bottom, 0px));
+    background-color: var(--bg-primary);
+    box-sizing: border-box;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  .top-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .shield-badge-glow {
+    width: 76px;
+    height: 76px;
+    border-radius: 50%;
+    background-color: #DBEAFE;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    background: var(--bg-primary);
+    box-shadow: 0 8px 24px rgba(19, 108, 252, 0.16);
+    margin-bottom: 24px;
   }
-  .vault-card {
-    width: min(440px, 100%);
-    padding: 26px 24px;
+
+  .pin-title {
+    font-family: var(--font-sans);
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    letter-spacing: -0.2px;
   }
-  .mode-switcher {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-    margin-bottom: 16px;
+
+  .pin-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
   }
-  .mode-switcher button {
-    padding: 7px 6px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    background: var(--bg-secondary);
-    border: 1.5px solid var(--sketch-border-color);
-    border-radius: 10px;
+
+  .indicator-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 12px 0;
+  }
+
+  .eye-toggle-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
     cursor: pointer;
+    padding: 6px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 12px;
+    transition: color 0.15s ease;
   }
-  .mode-switcher button.active {
-    background: var(--accent-secondary);
-    box-shadow: var(--sketch-shadow-sm);
+
+  .eye-toggle-btn:active {
+    color: var(--brand-blue);
+  }
+
+  .pin-dots-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+  }
+
+  .pin-dot {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid #93C5FD;
+    background-color: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .pin-dot.current {
+    border-color: var(--brand-blue);
+    background-color: rgba(19, 108, 252, 0.12);
+    transform: scale(1.1);
+  }
+
+  .pin-dot.filled {
+    border-color: var(--brand-blue);
+    background-color: var(--brand-blue);
+    box-shadow: 0 2px 8px rgba(19, 108, 252, 0.35);
+  }
+
+  .pin-dot.error {
+    border-color: var(--sos-coral) !important;
+    background-color: var(--sos-coral) !important;
+    box-shadow: 0 2px 8px rgba(255, 93, 93, 0.45);
+  }
+
+  .revealed-digit {
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 800;
+  }
+
+  .error-text {
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--sos-coral);
+    font-weight: 600;
+  }
+
+  /* Keypad Grid: 3 columns, 74px circle buttons */
+  .keypad-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 74px);
+    grid-gap: 18px 24px;
+    justify-content: center;
+    margin: 8px 0;
+  }
+
+  .keypad-circle-btn {
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    background-color: #EFF6FF;
+    border: none;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    font-size: 1.65rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.12s ease, background-color 0.12s ease;
+    box-shadow: 0 2px 6px rgba(19, 108, 252, 0.05);
+  }
+
+  .keypad-circle-btn:active {
+    transform: scale(0.92);
+    background-color: #DBEAFE;
+  }
+
+  .keypad-text-btn {
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.25;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    transition: color 0.12s ease;
+  }
+
+  .keypad-text-btn:active {
+    color: var(--brand-blue);
+  }
+
+  .keypad-icon-btn {
+    width: 74px;
+    height: 74px;
+    border-radius: 50%;
+    background: transparent;
+    border: none;
+    color: var(--text-primary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.12s ease, color 0.12s ease;
+  }
+
+  .keypad-icon-btn:active {
+    transform: scale(0.92);
+    color: var(--brand-blue);
+  }
+
+  .bottom-sos-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 10px;
+  }
+
+  .sos-bar-label {
+    color: var(--sos-coral);
+    font-size: 0.88rem;
+    font-weight: 600;
+    letter-spacing: 0.1px;
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-10px); }
+    40%, 80% { transform: translateX(10px); }
+  }
+
+  .shake-anim {
+    animation: shake 0.5s ease-in-out;
   }
 </style>

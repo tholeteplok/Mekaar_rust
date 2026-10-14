@@ -6,12 +6,14 @@
   import {
     VaultScreen,
     ConversationListScreen,
+    ContactListScreen,
+    ProfileScreen,
+    SettingsScreen,
     ChatRoomScreen,
     CallScreen,
     MapScreen,
     GuardianScreen,
-    SosScreen,
-    SettingsScreen
+    SosScreen
   } from './lib/screens';
 
   onMount(() => {
@@ -29,22 +31,24 @@
 
 {#if !mekaarStore.vaultUnlocked || !mekaarStore.pinVerified}
   <VaultScreen />
+{:else if mekaarStore.selectedConversationId}
+  <ChatRoomScreen />
 {:else}
   <MekaarScaffold>
     {#if mekaarStore.activeTab === 'chat'}
-      {#if mekaarStore.selectedConversationId}
-        <ChatRoomScreen />
-      {:else}
-        <ConversationListScreen />
-      {/if}
-    {:else if mekaarStore.activeTab === 'map'}
-      <MapScreen />
-    {:else if mekaarStore.activeTab === 'guardian'}
-      <GuardianScreen />
-    {:else if mekaarStore.activeTab === 'sos'}
-      <SosScreen />
+      <ConversationListScreen />
+    {:else if mekaarStore.activeTab === 'contacts'}
+      <ContactListScreen />
+    {:else if mekaarStore.activeTab === 'profile'}
+      <ProfileScreen />
     {:else if mekaarStore.activeTab === 'settings'}
       <SettingsScreen />
+    {:else if mekaarStore.activeTab === 'sos'}
+      <SosScreen />
+    {:else if mekaarStore.activeTab === 'guardian'}
+      <GuardianScreen />
+    {:else if mekaarStore.activeTab === 'map'}
+      <MapScreen />
     {/if}
   </MekaarScaffold>
 

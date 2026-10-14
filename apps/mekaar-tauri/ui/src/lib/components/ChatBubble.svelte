@@ -3,196 +3,187 @@
 
   interface Props {
     message: MessageModel;
-    onreply: (msg: MessageModel) => void;
-    onreact: (msgId: string, emoji: string) => void;
+    onreply?: (msg: MessageModel) => void;
+    onreact?: (msgId: string, emoji: string) => void;
   }
 
   let { message, onreply, onreact }: Props = $props();
-  let showQuickReactions = $state(false);
-  const quickEmojis = ['👍', '❤️', '🔥', '🛡️', '🫡', '✨'];
 </script>
 
 <div class="bubble-row {message.isSelf ? 'self' : 'peer'}">
-  <div class="bubble-box sketch-card">
-    {#if !message.isSelf}
-      <div class="sender-label">{message.senderName}</div>
+  <div class="bubble-container {message.isSelf ? 'bubble-self' : 'bubble-peer'}">
+    {#if !message.isSelf && message.senderName}
+      <div class="sender-name">{message.senderName}</div>
     {/if}
 
     {#if message.replyPreviewText}
-      <div class="reply-quote">
-        <span style="font-weight: 700;">↩ {message.replySenderName ?? 'Pesan'}:</span>
-        <span>{message.replyPreviewText}</span>
+      <div class="reply-box {message.isSelf ? 'reply-self' : 'reply-peer'}">
+        <span class="reply-author">{message.replySenderName ?? 'Pesan'}:</span>
+        <span class="reply-text">{message.replyPreviewText}</span>
       </div>
     {/if}
 
     {#if message.attachment}
-      <div class="attachment-card">
-        <span>
+      <div class="attachment-box {message.isSelf ? 'att-self' : 'att-peer'}">
+        <span class="att-icon">
           {#if message.attachment.kind === 'image'}🖼️{:else if message.attachment.kind === 'voice'}🎙️{:else if message.attachment.kind === 'location'}📍{:else}📄{/if}
         </span>
-        <div>
-          <div style="font-weight: 700; font-size: 0.85rem;">{message.attachment.name}</div>
-          <div style="font-size: 0.75rem; color: var(--text-secondary);">{message.attachment.sizeLabel}</div>
+        <div class="att-info">
+          <span class="att-name">{message.attachment.name}</span>
+          <span class="att-size">{message.attachment.sizeLabel}</span>
         </div>
       </div>
     {/if}
 
     {#if message.text}
-      <div class="message-text">{message.text}</div>
+      <div class="message-body">{message.text}</div>
     {/if}
 
-    <div class="bubble-meta">
-      {#if message.expiresAt}
-        <span class="timer-pill" title="Pesan menghilang otomatis">⏱️ {message.expiresAt}</span>
-      {/if}
-      <span>{message.timestamp}</span>
+    <!-- Bubble Meta: Lock, Timestamp, Status Checks -->
+    <div class="bubble-footer {message.isSelf ? 'footer-self' : 'footer-peer'}">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="lock-icon">
+        <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
+      </svg>
+      <span class="msg-time">{message.timestamp}</span>
       {#if message.isSelf}
-        <span class="receipt">{message.status === 'read' ? '✓✓' : '✓'}</span>
+        <span class="read-receipt">{message.status === 'read' ? '✓✓' : '✓'}</span>
       {/if}
-      <button type="button" class="mini-action" onclick={() => onreply(message)} title="Balas">↩</button>
-      <button
-        type="button"
-        class="mini-action"
-        onclick={() => (showQuickReactions = !showQuickReactions)}
-        title="Reaksi Emoji"
-      >
-        😊
-      </button>
     </div>
-
-    {#if showQuickReactions}
-      <div class="reaction-picker sketch-card">
-        {#each quickEmojis as emoji}
-          <button
-            type="button"
-            class="emoji-btn"
-            onclick={() => {
-              onreact(message.id, emoji);
-              showQuickReactions = false;
-            }}
-          >
-            {emoji}
-          </button>
-        {/each}
-      </div>
-    {/if}
-
-    {#if Object.keys(message.reactions).length > 0}
-      <div class="reactions-bar">
-        {#each Object.entries(message.reactions) as [emoji, users]}
-          <button type="button" class="reaction-chip" onclick={() => onreact(message.id, emoji)}>
-            {emoji} {users.length}
-          </button>
-        {/each}
-      </div>
-    {/if}
   </div>
 </div>
 
 <style>
   .bubble-row {
     display: flex;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
+    width: 100%;
   }
+
   .bubble-row.self {
     justify-content: flex-end;
   }
+
   .bubble-row.peer {
     justify-content: flex-start;
   }
-  .bubble-box {
+
+  .bubble-container {
     position: relative;
-    max-width: min(78%, 520px);
-    padding: 10px 14px;
-    background: var(--bubble-peer-bg);
-    color: var(--bubble-peer-text);
+    max-width: min(78%, 460px);
+    padding: 10px 14px 6px 14px;
+    box-shadow: 0 1px 4px rgba(21, 38, 65, 0.05);
+    word-break: break-word;
+    box-sizing: border-box;
   }
-  .bubble-row.self .bubble-box {
-    background: var(--bubble-self-bg);
-    color: var(--bubble-self-text);
+
+  /* Outgoing: Vibrant Blue #136CFC, white text */
+  .bubble-self {
+    background-color: var(--brand-blue);
+    color: #FFFFFF;
+    border-radius: 18px 18px 4px 18px;
   }
-  .sender-label {
+
+  /* Incoming: Clean White, subtle border, dark navy text */
+  .bubble-peer {
+    background-color: #FFFFFF;
+    color: var(--text-primary);
+    border: 1px solid var(--border-light);
+    border-radius: 18px 18px 18px 4px;
+  }
+
+  .sender-name {
     font-size: 0.78rem;
     font-weight: 700;
-    color: var(--accent-primary);
-    margin-bottom: 4px;
+    color: var(--brand-blue);
+    margin-bottom: 3px;
   }
-  .reply-quote {
-    font-size: 0.8rem;
-    padding: 6px 8px;
+
+  .message-body {
+    font-size: 0.96rem;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+
+  .reply-box {
+    padding: 6px 10px;
+    border-radius: 8px;
     margin-bottom: 6px;
-    border-left: 3px solid var(--accent-primary);
-    background: rgba(0, 0, 0, 0.05);
-    border-radius: 6px;
+    font-size: 0.8rem;
     display: flex;
     flex-direction: column;
   }
-  .attachment-card {
+
+  .reply-self {
+    background-color: rgba(255, 255, 255, 0.18);
+    border-left: 3px solid #FFFFFF;
+  }
+
+  .reply-peer {
+    background-color: #F1F5F9;
+    border-left: 3px solid var(--brand-blue);
+  }
+
+  .attachment-box {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 8px 10px;
-    margin-bottom: 6px;
-    background: rgba(255, 255, 255, 0.65);
-    border: 1.5px solid var(--sketch-border-color);
     border-radius: 10px;
+    margin-bottom: 6px;
   }
-  .message-text {
-    font-size: 0.94rem;
-    white-space: pre-wrap;
-    word-break: break-word;
+
+  .att-self {
+    background-color: rgba(255, 255, 255, 0.16);
   }
-  .bubble-meta {
+
+  .att-peer {
+    background-color: #F8FAFC;
+    border: 1px solid var(--border-subtle);
+  }
+
+  .att-info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .att-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  .att-size {
+    font-size: 0.75rem;
+    opacity: 0.8;
+  }
+
+  .bubble-footer {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 6px;
+    gap: 4px;
     margin-top: 4px;
     font-size: 0.72rem;
-    opacity: 0.85;
+    user-select: none;
   }
-  .timer-pill {
-    background: rgba(0, 0, 0, 0.08);
-    padding: 1px 6px;
-    border-radius: 999px;
-    font-weight: 600;
+
+  .footer-self {
+    color: rgba(255, 255, 255, 0.85);
   }
-  .receipt {
-    font-weight: 800;
-    color: var(--accent-primary);
+
+  .footer-peer {
+    color: var(--text-secondary);
   }
-  .mini-action {
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 0.8rem;
-    padding: 0 2px;
+
+  .lock-icon {
+    opacity: 0.75;
   }
-  .reaction-picker {
-    display: flex;
-    gap: 4px;
-    padding: 4px 8px;
-    margin-top: 6px;
+
+  .msg-time {
+    font-weight: 500;
   }
-  .emoji-btn {
-    background: none;
-    border: none;
-    font-size: 1rem;
-    cursor: pointer;
-  }
-  .reactions-bar {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin-top: 6px;
-  }
-  .reaction-chip {
-    background: var(--bg-surface);
-    border: 1.5px solid var(--sketch-border-color);
-    border-radius: 999px;
-    padding: 1px 8px;
-    font-size: 0.75rem;
+
+  .read-receipt {
     font-weight: 700;
-    cursor: pointer;
+    margin-left: 2px;
   }
 </style>

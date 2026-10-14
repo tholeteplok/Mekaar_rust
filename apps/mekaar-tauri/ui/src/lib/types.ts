@@ -1,7 +1,7 @@
 // Paritas 1:1 dengan Mekaar_chat/lib/data/models/*.dart
 
 export type RegisterType = 'core' | 'room' | 'sos';
-export type MainTabType = 'chat' | 'map' | 'guardian' | 'sos' | 'settings';
+export type MainTabType = 'chat' | 'contacts' | 'profile' | 'settings' | 'map' | 'guardian' | 'sos';
 export type ChatThemeId = 'classic' | 'forest' | 'sunset' | 'ocean' | 'midnight';
 
 export interface ServerHealthStatus {

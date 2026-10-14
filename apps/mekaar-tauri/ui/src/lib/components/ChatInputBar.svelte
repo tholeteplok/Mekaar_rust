@@ -2,226 +2,273 @@
   import type { MessageModel, EmojiPackModel } from '../types';
 
   interface Props {
-    replyingTo: MessageModel | null;
-    emojiPacks: EmojiPackModel[];
-    oncancelreply: () => void;
+    replyingTo?: MessageModel | null;
+    emojiPacks?: EmojiPackModel[];
+    oncancelreply?: () => void;
     onsend: (text: string, attachment?: MessageModel['attachment']) => void;
-    onopenemojistore: () => void;
   }
 
   let {
-    replyingTo,
-    emojiPacks,
+    replyingTo = null,
+    emojiPacks = [],
     oncancelreply,
-    onsend,
-    onopenemojistore
+    onsend
   }: Props = $props();
 
   let text = $state('');
-  let showStickers = $state(false);
-  let recordingVoice = $state(false);
+  let isRecording = $state(false);
 
   function submitText() {
     if (!text.trim()) return;
-    onsend(text);
+    onsend(text.trim());
     text = '';
   }
 
-  function sendQuickAttachment(kind: 'image' | 'document' | 'voice' | 'location') {
-    const map = {
-      image: { name: 'Foto_Lapangan_E2EE.jpg', sizeLabel: '420 KB • Terenkripsi' },
-      document: { name: 'Laporan_Tim_Mekaar.pdf', sizeLabel: '1.1 MB • BLAKE3 Verified' },
-      voice: { name: 'Pesan_Suara_00-14.ogg', sizeLabel: '0:14 • Opus E2EE' },
-      location: { name: 'Titik Koordinat Langsung (-7.5568, 110.8318)', sizeLabel: 'Akurasi 5m' }
-    };
-    onsend('', {
-      id: `att-${Date.now()}`,
-      kind,
-      name: map[kind].name,
-      sizeLabel: map[kind].sizeLabel,
-      urlOrPreview: kind
-    });
+  function handleAttachClick() {
+    const fileName = prompt('Pilih simulasi lampiran berkas E2EE (contoh: Laporan.pdf, Foto.jpg):', 'Foto_Lapangan.jpg');
+    if (fileName) {
+      onsend('', {
+        id: `att-${Date.now()}`,
+        kind: fileName.endsWith('.jpg') || fileName.endsWith('.png') ? 'image' : 'document',
+        name: fileName,
+        sizeLabel: '520 KB • Terenkripsi E2EE',
+        urlOrPreview: fileName
+      });
+    }
+  }
+
+  function toggleVoiceRecord() {
+    if (isRecording) {
+      isRecording = false;
+      onsend('', {
+        id: `att-${Date.now()}`,
+        kind: 'voice',
+        name: 'Pesan Suara (00:08)',
+        sizeLabel: '0:08 • Opus E2EE',
+        urlOrPreview: 'voice'
+      });
+    } else {
+      isRecording = true;
+    }
   }
 </script>
 
-<div class="input-wrapper">
+<div class="chat-input-dock-wrap">
   {#if replyingTo}
-    <div class="reply-banner sketch-card">
-      <div>
-        <span style="font-weight: 700; font-size: 0.8rem;">Membalas {replyingTo.senderName}:</span>
-        <div style="font-size: 0.82rem; color: var(--text-secondary);">{replyingTo.text}</div>
+    <div class="reply-floating-bar">
+      <div class="reply-meta">
+        <span class="reply-label">Membalas {replyingTo.senderName}:</span>
+        <span class="reply-text-preview">{replyingTo.text}</span>
       </div>
-      <button type="button" class="clear-btn" onclick={oncancelreply}>✕</button>
+      <button type="button" class="close-reply-btn" onclick={oncancelreply}>✕</button>
     </div>
   {/if}
 
-  {#if showStickers}
-    <div class="sticker-tray sketch-card">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <span style="font-weight: 700; font-size: 0.84rem;">Paket Stiker & Emoji Aktif</span>
-        <button type="button" class="store-link" onclick={onopenemojistore}>+ Toko Emoji</button>
-      </div>
-      <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-        {#each emojiPacks.filter((p) => p.installed) as pack}
-          {#each pack.stickers as sticker}
-            <button
-              type="button"
-              class="sticker-item"
-              onclick={() => {
-                onsend(sticker);
-                showStickers = false;
-              }}
-            >
-              {sticker}
-            </button>
-          {/each}
-        {/each}
-      </div>
-    </div>
-  {/if}
-
-  <div class="input-bar sketch-card">
+  <div class="dock-row">
+    <!-- 1. Circular Attachment Button -->
     <button
       type="button"
-      class="icon-btn"
-      title="Stiker & Emoji"
-      onclick={() => (showStickers = !showStickers)}
+      class="circle-action-btn"
+      onclick={handleAttachClick}
+      title="Lampirkan Dokumen / Gambar"
+      aria-label="Lampiran"
     >
-      😊
-    </button>
-    <button
-      type="button"
-      class="icon-btn"
-      title="Kirim Gambar Terenkripsi"
-      onclick={() => sendQuickAttachment('image')}
-    >
-      🖼️
-    </button>
-    <button
-      type="button"
-      class="icon-btn"
-      title="Kirim Dokumen"
-      onclick={() => sendQuickAttachment('document')}
-    >
-      📎
-    </button>
-    <button
-      type="button"
-      class="icon-btn"
-      title="Bagikan Titik Lokasi"
-      onclick={() => sendQuickAttachment('location')}
-    >
-      📍
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+      </svg>
     </button>
 
-    <input
-      type="text"
-      class="chat-field"
-      placeholder={recordingVoice ? '🎙️ Merekam pesan suara terenkripsi...' : 'Tulis pesan terenkripsi E2EE...'}
-      bind:value={text}
-      onkeydown={(e) => e.key === 'Enter' && submitText()}
-    />
-
-    {#if text.trim()}
-      <button type="button" class="send-btn" onclick={submitText}>Kirim ➤</button>
-    {:else}
+    <!-- 2. Pill Input Container -->
+    <div class="input-pill-field">
       <button
         type="button"
-        class="icon-btn {recordingVoice ? 'rec-active' : ''}"
-        title="Pesan Suara"
-        onclick={() => {
-          if (recordingVoice) {
-            recordingVoice = false;
-            sendQuickAttachment('voice');
-          } else {
-            recordingVoice = true;
-          }
-        }}
+        class="emoji-trigger-btn"
+        onclick={() => (text += ' 😊 ')}
+        title="Emoji"
+        aria-label="Emoji"
       >
-        {recordingVoice ? '⏹️' : '🎙️'}
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+          <line x1="9" y1="9" x2="9.01" y2="9"></line>
+          <line x1="15" y1="9" x2="15.01" y2="9"></line>
+        </svg>
       </button>
-    {/if}
+
+      <input
+        type="text"
+        class="text-field"
+        placeholder={isRecording ? '🎙️ Merekam suara terenkripsi...' : 'Ketik pesan...'}
+        bind:value={text}
+        onkeydown={(e) => e.key === 'Enter' && submitText()}
+      />
+
+      {#if text.trim()}
+        <button
+          type="button"
+          class="send-arrow-btn"
+          onclick={submitText}
+          aria-label="Kirim Pesan"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+          </svg>
+        </button>
+      {/if}
+    </div>
+
+    <!-- 3. Circular Mic Button -->
+    <button
+      type="button"
+      class="circle-action-btn {isRecording ? 'recording' : ''}"
+      onclick={toggleVoiceRecord}
+      title="Pesan Suara"
+      aria-label="Pesan Suara"
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={isRecording ? '#E11D48' : '#152641'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
+      </svg>
+    </button>
   </div>
 </div>
 
 <style>
-  .input-wrapper {
-    padding: 10px 14px;
-    background: var(--register-header);
-    border-top: 2px solid var(--sketch-border-color);
+  .chat-input-dock-wrap {
+    padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px)) 16px;
+    background: transparent;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-sizing: border-box;
   }
-  .reply-banner {
+
+  .reply-floating-bar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    background: var(--bg-secondary);
+    padding: 8px 14px;
+    background: #FFFFFF;
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-light);
+    box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
   }
-  .sticker-tray {
-    padding: 10px 12px;
-    margin-bottom: 8px;
+
+  .reply-meta {
+    display: flex;
+    flex-direction: column;
   }
-  .store-link {
-    background: var(--accent-secondary);
-    border: 1.5px solid var(--sketch-border-color);
-    border-radius: 8px;
-    padding: 3px 8px;
-    font-size: 0.78rem;
+
+  .reply-label {
+    font-size: 0.76rem;
     font-weight: 700;
-    cursor: pointer;
+    color: var(--brand-blue);
   }
-  .sticker-item {
-    font-size: 1.4rem;
-    background: var(--bg-secondary);
-    border: 1.5px solid var(--sketch-border-color);
-    border-radius: 10px;
-    padding: 4px 8px;
-    cursor: pointer;
+
+  .reply-text-preview {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
   }
-  .input-bar {
+
+  .close-reply-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.9rem;
+    padding: 4px;
+  }
+
+  .dock-row {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
+    gap: 10px;
   }
-  .icon-btn {
-    background: var(--bg-secondary);
-    border: 1.5px solid var(--sketch-border-color);
-    border-radius: 10px;
-    width: 34px;
-    height: 34px;
+
+  .circle-action-btn {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    font-size: 0.95rem;
+    box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
     flex-shrink: 0;
+    transition: transform 0.12s ease;
   }
-  .icon-btn.rec-active {
-    background: #FEE2E2;
-    border-color: #E11D48;
+
+  .circle-action-btn:active {
+    transform: scale(0.92);
   }
-  .chat-field {
+
+  .circle-action-btn.recording {
+    background-color: #FEE2E2;
+    border-color: #FCA5A5;
+    animation: mic-rec-pulse 1s infinite alternate;
+  }
+
+  .input-pill-field {
     flex: 1;
-    border: none;
+    height: 48px;
+    border-radius: var(--radius-pill);
+    background-color: #F1F5F9;
+    display: flex;
+    align-items: center;
+    padding: 0 12px 0 14px;
+    gap: 10px;
+    box-sizing: border-box;
+  }
+
+  .emoji-trigger-btn {
     background: transparent;
-    color: var(--text-primary);
-    font-family: var(--font-sans);
-    font-size: 0.95rem;
-    outline: none;
-    padding: 4px 6px;
-  }
-  .send-btn {
-    background: var(--accent-primary);
-    color: #FFFFFF;
-    border: 1.5px solid var(--sketch-border-color);
-    border-radius: 10px;
-    padding: 6px 14px;
-    font-weight: 700;
-    cursor: pointer;
-  }
-  .clear-btn {
-    background: none;
     border: none;
-    font-weight: 700;
     cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .text-field {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-family: var(--font-sans);
+    font-size: 0.98rem;
+    color: var(--text-primary);
+  }
+
+  .text-field::placeholder {
+    color: #9FB0C9;
+  }
+
+  .send-arrow-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: var(--brand-blue);
+    color: #FFFFFF;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: transform 0.12s ease;
+  }
+
+  .send-arrow-btn:active {
+    transform: scale(0.9);
+  }
+
+  @keyframes mic-rec-pulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.08); }
   }
 </style>
