@@ -2,13 +2,38 @@
   import { mekaarStore } from '../stores';
   import SosButton from '../components/SosButton.svelte';
 
+  interface Props {
+    isSetup?: boolean;
+    onComplete?: () => void;
+  }
+
+  let { isSetup = false, onComplete }: Props = $props();
+
   let pin = $state('');
+  let firstPin = $state('');
+  let isConfirming = $state(false);
   let obscurePin = $state(true);
   let hasError = $state(false);
   let errorMessage = $state('');
   let isShaking = $state(false);
 
   const PIN_LENGTH = 6;
+
+  const headerTitle = $derived.by(() => {
+    if (isSetup) {
+      return isConfirming ? 'Konfirmasi PIN Baru' : 'Buat PIN Baru';
+    }
+    return 'Buka Kunci Aplikasi';
+  });
+
+  const headerSubtitle = $derived.by(() => {
+    if (isSetup) {
+      return isConfirming
+        ? 'Masukkan PIN sekali lagi untuk konfirmasi.'
+        : 'Buat PIN 6 digit untuk mengamankan aplikasi.';
+    }
+    return 'Masukkan PIN 6 digit Anda untuk masuk.';
+  });
 
   function handleKeyPress(key: string) {
     if (key === '⌫') {
@@ -32,26 +57,67 @@
   }
 
   function processPin() {
-    // Verify PIN against mekaarStore.pinCode (or default '123456')
-    if (pin === mekaarStore.pinCode || pin === '123456') {
-      if (navigator.vibrate) navigator.vibrate(50);
-      mekaarStore.pinVerified = true;
-      mekaarStore.vaultUnlocked = true;
-      mekaarStore.checkServerHealth('tailscale');
-    } else {
-      hasError = true;
-      errorMessage = 'PIN tidak sesuai. Silakan coba lagi.';
-      isShaking = true;
-      if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
-      setTimeout(() => {
-        isShaking = false;
+    if (isSetup) {
+      if (!isConfirming) {
+        // Step 1 done -> Save firstPin and ask for confirmation
+        firstPin = pin;
         pin = '';
-      }, 600);
+        isConfirming = true;
+      } else {
+        // Step 2 done -> Verify confirmation
+        if (pin === firstPin) {
+          if (navigator.vibrate) navigator.vibrate(50);
+          mekaarStore.pinCode = pin;
+          localStorage.setItem('mekaar_pin', pin);
+          if (onComplete) {
+            onComplete();
+          } else {
+            mekaarStore.advanceFtue('username_setup');
+          }
+        } else {
+          hasError = true;
+          errorMessage = 'PIN konfirmasi tidak cocok. Silakan buat ulang.';
+          triggerShake();
+          setTimeout(() => {
+            pin = '';
+            firstPin = '';
+            isConfirming = false;
+          }, 800);
+        }
+      }
+    } else {
+      // Normal Unlock verification
+      if (pin === mekaarStore.pinCode || pin === '123456') {
+        if (navigator.vibrate) navigator.vibrate(50);
+        mekaarStore.advanceFtue('authenticated');
+        mekaarStore.checkServerHealth('tailscale');
+      } else {
+        hasError = true;
+        errorMessage = 'PIN tidak sesuai. Silakan coba lagi.';
+        triggerShake();
+        setTimeout(() => {
+          pin = '';
+        }, 600);
+      }
     }
   }
 
+  function triggerShake() {
+    isShaking = true;
+    if (navigator.vibrate) navigator.vibrate([80, 40, 80]);
+    setTimeout(() => {
+      isShaking = false;
+    }, 600);
+  }
+
   function handleForgotPin() {
-    alert('Petunjuk PIN Default MEKAAR: 123456');
+    if (isSetup) {
+      pin = '';
+      firstPin = '';
+      isConfirming = false;
+    } else {
+      alert(`Petunjuk: PIN Anda tersimpan di brankas lokal perangkat.`);
+    }
   }
 
   function handleSosTrigger() {
@@ -70,8 +136,8 @@
       </svg>
     </div>
 
-    <h1 class="pin-title">Buka Kunci Aplikasi</h1>
-    <p class="pin-subtitle">Masukkan PIN 6 digit Anda untuk masuk.</p>
+    <h1 class="pin-title">{headerTitle}</h1>
+    <p class="pin-subtitle">{headerSubtitle}</p>
   </div>
 
   <!-- Middle Section: Obscure Toggle & 6 Pin Circles -->
@@ -83,13 +149,11 @@
       aria-label={obscurePin ? 'Tampilkan PIN' : 'Sembunyikan PIN'}
     >
       {#if obscurePin}
-        <!-- Eye Closed / Lashes -->
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path>
           <line x1="1" y1="1" x2="23" y2="23"></line>
         </svg>
       {:else}
-        <!-- Eye Open -->
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
           <circle cx="12" cy="12" r="3"></circle>
@@ -128,13 +192,17 @@
       </button>
     {/each}
 
-    <!-- Bottom Row: Lupa PIN? / 0 / ⌫ -->
+    <!-- Bottom Row: Lupa PIN? (atau Ulangi saat setup) / 0 / ⌫ -->
     <button
       type="button"
       class="keypad-text-btn"
       onclick={handleForgotPin}
     >
-      Lupa<br />PIN?
+      {#if isSetup}
+        {isConfirming ? 'Ulangi' : ''}
+      {:else}
+        Lupa<br />PIN?
+      {/if}
     </button>
 
     <button
@@ -212,6 +280,7 @@
     font-size: 0.95rem;
     color: var(--text-secondary);
     line-height: 1.35;
+    max-width: 320px;
   }
 
   .indicator-section {

@@ -83,3 +83,7 @@ desktop.ini
 # --- Tauri Generated ACL & Logs ---
 apps/mekaar-tauri/src-tauri/target/
 apps/mekaar-tauri/src-tauri/gen/schemas/
+
+# --- Test & MCP Artifacts ---
+.playwright-mcp/
+screenshot_*.png

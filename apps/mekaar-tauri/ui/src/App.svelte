@@ -5,6 +5,8 @@
   import { MekaarScaffold, ForensicExportDialog } from './lib/components';
   import {
     VaultScreen,
+    OnboardingScreen,
+    SetUsernameScreen,
     ConversationListScreen,
     ContactListScreen,
     ProfileScreen,
@@ -17,6 +19,7 @@
   } from './lib/screens';
 
   onMount(() => {
+    mekaarStore.initFtueState();
     mekaarStore.checkServerHealth('tailscale');
     const handleFocus = () => (mekaarStore.windowFocused = true);
     const handleBlur = () => (mekaarStore.windowFocused = false);
@@ -29,8 +32,14 @@
   });
 </script>
 
-{#if !mekaarStore.vaultUnlocked || !mekaarStore.pinVerified}
-  <VaultScreen />
+{#if mekaarStore.ftueStep === 'onboarding'}
+  <OnboardingScreen />
+{:else if mekaarStore.ftueStep === 'pin_setup'}
+  <VaultScreen isSetup={true} />
+{:else if mekaarStore.ftueStep === 'username_setup'}
+  <SetUsernameScreen />
+{:else if mekaarStore.ftueStep === 'pin_locked'}
+  <VaultScreen isSetup={false} />
 {:else if mekaarStore.selectedConversationId}
   <ChatRoomScreen />
 {:else}

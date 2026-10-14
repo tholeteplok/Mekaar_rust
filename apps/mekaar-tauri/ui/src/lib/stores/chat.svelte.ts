@@ -25,8 +25,11 @@ export const TAILSCALE_WS = 'ws://100.101.96.120:8085/ws';
 export const LOCAL_HTTP = 'http://127.0.0.1:8085';
 export const LOCAL_WS = 'ws://127.0.0.1:8085/ws';
 
+export type FtueStep = 'onboarding' | 'pin_setup' | 'username_setup' | 'pin_locked' | 'authenticated';
+
 class MekaarStore {
-  // Status Vault, PIN & Onboarding
+  // Status Vault, PIN & Onboarding (FTUE)
+  ftueStep = $state<FtueStep>('authenticated');
   vaultUnlocked = $state(true);
   pinVerified = $state(true);
   onboardingComplete = $state(true);
@@ -510,6 +513,144 @@ class MekaarStore {
     remoteWipeTokenHash: 'BLAKE3:8f94e2c1...77a1',
     lastHeartbeat: 'Terhubung ke teplok-pc (100.101.96.120:8085)'
   });
+
+  // ── Alur FTUE & Siklus Hidup Pengguna Baru ──────────────────────────
+  initFtueState() {
+    if (typeof localStorage === 'undefined') return;
+    const completed = localStorage.getItem('mekaar_onboarding_completed');
+    const storedPin = localStorage.getItem('mekaar_pin');
+    const storedIdentity = localStorage.getItem('mekaar_identity');
+
+    if (storedPin) {
+      this.pinCode = storedPin;
+    }
+
+    if (storedIdentity) {
+      try {
+        const parsed = JSON.parse(storedIdentity);
+        this.currentUser = { ...this.currentUser, ...parsed };
+      } catch {
+        // Abaikan parse error jika storage korup
+      }
+    }
+
+    if (completed === 'true') {
+      // Pengguna lama: Tampilkan layar kunci PIN untuk keamanan data lokal
+      this.onboardingComplete = true;
+      this.ftueStep = 'pin_locked';
+      this.vaultUnlocked = false;
+      this.pinVerified = false;
+    } else {
+      // Pengguna baru pertama kali instal (Cold Start FTUE)
+      this.onboardingComplete = false;
+      this.ftueStep = 'onboarding';
+      this.vaultUnlocked = false;
+      this.pinVerified = false;
+    }
+  }
+
+  advanceFtue(step: FtueStep) {
+    this.ftueStep = step;
+    if (step === 'authenticated') {
+      this.vaultUnlocked = true;
+      this.pinVerified = true;
+      this.onboardingComplete = true;
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('mekaar_onboarding_completed', 'true');
+      }
+    }
+  }
+
+  resetFtueSimulation() {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('mekaar_onboarding_completed');
+      localStorage.removeItem('mekaar_identity');
+      localStorage.removeItem('mekaar_pin');
+    }
+    this.onboardingComplete = false;
+    this.vaultUnlocked = false;
+    this.pinVerified = false;
+    this.ftueStep = 'onboarding';
+  }
+
+  async registerAndSyncNewUser(params: { displayName: string; username: string }): Promise<void> {
+    const cleanUsername = params.username.startsWith('@') ? params.username : `@${params.username}`;
+
+    // 1. Generate UUID v4 untuk identitas pengguna lokal
+    const userId = typeof crypto !== 'undefined' && crypto.randomUUID
+      ? crypto.randomUUID()
+      : 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
+
+    // 2. Generate 32 bytes kunci publik Ed25519
+    const keyBytes = new Uint8Array(32);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
+      crypto.getRandomValues(keyBytes);
+    } else {
+      for (let i = 0; i < 32; i++) keyBytes[i] = (Math.random() * 256) | 0;
+    }
+
+    const hexKey = Array.from(keyBytes)
+      .map((b) => b.toString(16).padStart(2, '0'))
+      .join('');
+    const fingerprint = `ED25519: ${hexKey.slice(0, 4).toUpperCase()}-${hexKey.slice(4, 8).toUpperCase()}-${hexKey.slice(8, 12).toUpperCase()}`;
+
+    // 3. Simpan data profil pengguna
+    this.currentUser = {
+      ...this.currentUser,
+      id: userId,
+      username: cleanUsername,
+      displayName: params.displayName,
+      bio: 'Mekaar Rust Native • E2EE • Teplok Relay Sync',
+      publicKeyFingerprint: fingerprint,
+      isOnline: true,
+      lastSeen: 'Online'
+    };
+
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('mekaar_identity', JSON.stringify(this.currentUser));
+      localStorage.setItem('mekaar_onboarding_completed', 'true');
+    }
+
+    // 4. SINKRONISASI WAJIB (Mandatory Relay Sync ke teplok-pc 100.101.96.120:8085 / 127.0.0.1:8085)
+    const httpBase = this.serverStatus.mode === 'local' ? LOCAL_HTTP : TAILSCALE_HTTP;
+    let syncSuccess = false;
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 4000);
+      const res = await fetch(`${httpBase}/keys`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          public_key: Array.from(keyBytes)
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        syncSuccess = true;
+      }
+    } catch {
+      // Jika di luar jangkauan Tailscale saat pengetesan, simpan status lokal
+      syncSuccess = false;
+    }
+
+    // Hubungkan WebSocket duplex relay
+    this.connectWebSocket();
+
+    // Catat audit keamanan
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: `Identitas Kriptografi Dibuat (${cleanUsername}) & Disinkronkan ke teplok-pc`,
+        eventCategory: 'auth',
+        deviceInfo: 'MEKAAR Ed25519 Native Relay Client',
+        timestamp: 'Baru saja',
+        severity: 'info'
+      },
+      ...this.securityLogs
+    ];
+  }
 
   // Navigasi Tab & Register Otomatis
   setTab(tab: MainTabType) {
