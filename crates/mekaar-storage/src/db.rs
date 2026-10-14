@@ -437,6 +437,41 @@ impl EncryptedDatabase {
         Ok(None)
     }
 
+    /// Mengambil seluruh kontak yang tersimpan di database lokal.
+    pub fn list_contacts(&self) -> Result<Vec<Contact>, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, username, display_name, public_key, safety_number, status, updated_at
+             FROM contacts ORDER BY display_name ASC",
+        )?;
+
+        let rows = stmt.query_map([], |row| {
+            let id_str: String = row.get(0)?;
+            let pub_blob: Vec<u8> = row.get(3)?;
+            let mut pub_key = [0u8; 32];
+            if pub_blob.len() == 32 {
+                pub_key.copy_from_slice(&pub_blob);
+            }
+
+            Ok(Contact {
+                id: Uuid::parse_str(&id_str).unwrap_or_default(),
+                username: row.get(1)?,
+                display_name: row.get(2)?,
+                public_key: pub_key,
+                safety_number: row.get(4)?,
+                status: row.get(5)?,
+                updated_at: row.get::<_, i64>(6)? as u64,
+            })
+        })?;
+
+        let mut list = Vec::new();
+        for item in rows {
+            list.push(item?);
+        }
+
+        Ok(list)
+    }
+
     // ── Security Logs (Audit Trail Anti-Tamper) ─────────────────────────
 
     /// Mencatat log audit bukti hukum permanen dengan checksum SHA-256.

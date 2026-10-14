@@ -56,7 +56,7 @@
     }
   }
 
-  function processPin() {
+  async function processPin() {
     if (isSetup) {
       if (!isConfirming) {
         // Step 1 done -> Save firstPin and ask for confirmation
@@ -67,8 +67,7 @@
         // Step 2 done -> Verify confirmation
         if (pin === firstPin) {
           if (navigator.vibrate) navigator.vibrate(50);
-          mekaarStore.pinCode = pin;
-          localStorage.setItem('mekaar_pin', pin);
+          await mekaarStore.setupPins(pin);
           if (onComplete) {
             onComplete();
           } else {
@@ -86,14 +85,15 @@
         }
       }
     } else {
-      // Normal Unlock verification
-      if (pin === mekaarStore.pinCode || pin === '123456') {
+      // Normal / Duress Unlock verification via Rust unlock_vault IPC
+      const res = await mekaarStore.unlockVault(pin);
+      if (res.success) {
         if (navigator.vibrate) navigator.vibrate(50);
         mekaarStore.advanceFtue('authenticated');
         mekaarStore.checkServerHealth('tailscale');
       } else {
         hasError = true;
-        errorMessage = 'PIN tidak sesuai. Silakan coba lagi.';
+        errorMessage = res.message || 'PIN tidak sesuai. Silakan coba lagi.';
         triggerShake();
         setTimeout(() => {
           pin = '';

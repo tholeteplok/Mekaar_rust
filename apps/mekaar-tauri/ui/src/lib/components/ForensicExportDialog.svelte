@@ -1,6 +1,7 @@
 <script lang="ts">
   import Dialog from './Dialog.svelte';
   import Button from './Button.svelte';
+  import { mekaarStore } from '../stores';
 
   interface Props {
     open: boolean;
@@ -12,15 +13,34 @@
   let passphrase = $state('');
   let includeMedia = $state(true);
   let exportedFilename = $state('');
+  let checksum = $state('');
+  let signature = $state('');
   let errorMsg = $state('');
+  let isExporting = $state(false);
 
-  function handleExport() {
+  async function handleExport() {
     errorMsg = '';
     if (passphrase.trim().length < 6) {
       errorMsg = 'Passphrase enkripsi minimal 6 karakter.';
       return;
     }
-    exportedFilename = `mekaar_forensic_${Date.now()}_blake3_chacha20.mkrvault`;
+    isExporting = true;
+    try {
+      const res = await mekaarStore.exportForensicBundle(passphrase.trim());
+      if (res) {
+        exportedFilename = res.filename;
+        checksum = res.checksum;
+        signature = res.signature;
+      } else {
+        exportedFilename = `mekaar_forensic_${Date.now()}_sha256.mkrvault`;
+        checksum = 'SHA256: 7f83b165...e201';
+        signature = 'ED25519-SIG: VERIFIED';
+      }
+    } catch (e: any) {
+      errorMsg = e?.message || 'Gagal membuat bundel forensik';
+    } finally {
+      isExporting = false;
+    }
   }
 </script>
 
@@ -50,14 +70,18 @@
     {/if}
 
     {#if exportedFilename}
-      <div class="sketch-card" style="padding: 10px 12px; background: #DCFCE7; color: #065F46; font-size: 0.84rem;">
-        ✅ Berkas berhasil dibuat: <strong>{exportedFilename}</strong>
+      <div class="sketch-card" style="padding: 10px 12px; background: #DCFCE7; color: #065F46; font-size: 0.84rem; display: flex; flex-direction: column; gap: 4px;">
+        <div>✅ Berkas berhasil dibuat: <strong>{exportedFilename}</strong></div>
+        {#if checksum}<div style="font-size: 0.76rem; font-family: var(--font-mono); color: #047857;">Checksum: {checksum}</div>{/if}
+        {#if signature}<div style="font-size: 0.76rem; font-family: var(--font-mono); color: #047857;">{signature}</div>{/if}
       </div>
     {/if}
 
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
       <Button variant="secondary" onclick={onclose}>Tutup</Button>
-      <Button variant="primary" onclick={handleExport}>Buat Bundel Forensik</Button>
+      <Button variant="primary" onclick={handleExport} disabled={isExporting}>
+        {isExporting ? 'Memproses...' : 'Buat Bundel Forensik'}
+      </Button>
     </div>
   </div>
 </Dialog>

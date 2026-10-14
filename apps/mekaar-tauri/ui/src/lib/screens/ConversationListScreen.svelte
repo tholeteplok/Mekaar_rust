@@ -13,6 +13,7 @@
 
   const filteredConversations = $derived(
     mekaarStore.conversations.filter((c) => {
+      if (mekaarStore.isDuressActive && c.isVaultHidden) return false;
       if (selectedSegment === 'guardian' && !c.isGuardian) return false;
       if (selectedSegment === 'arsip' && !c.isArchived) return false;
       if (selectedSegment === 'semua' && c.isArchived) return false;

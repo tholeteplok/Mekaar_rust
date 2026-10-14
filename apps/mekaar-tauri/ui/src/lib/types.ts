@@ -76,6 +76,9 @@ export interface Conversation {
   isTyping: boolean;
   isPinned: boolean;
   isMuted: boolean;
+  isGuardian?: boolean;
+  isArchived?: boolean;
+  isVaultHidden?: boolean;
   disappearingSeconds: number;
   chatTheme: ChatThemeId;
   participants: RoomParticipantPreferences[];

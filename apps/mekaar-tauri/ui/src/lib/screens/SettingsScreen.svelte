@@ -7,6 +7,10 @@
 
   let showFontModal = $state(false);
   let showTailscaleModal = $state(false);
+  let showDuressModal = $state(false);
+  let inputDuressPin = $state('');
+  let duressError = $state('');
+  let duressSuccess = $state('');
 </script>
 
 <AppBar title="Pengaturan" />
@@ -97,100 +101,131 @@
     </div>
   </div>
 
-  <!-- Section: Privasi -->
-  <div class="settings-group">
-    <span class="group-title">Privasi</span>
-    <div class="clean-card with-ticks list-tile-card">
-      <span class="pencil-tick tick-bl">⌞</span>
-      <span class="pencil-tick tick-tr">⌝</span>
+  <!-- Section: Privasi (Disembunyikan jika dalam Mode Duress / Paksaan) -->
+  {#if !mekaarStore.isDuressActive}
+    <div class="settings-group">
+      <span class="group-title">Privasi & Mode Samaran</span>
+      <div class="clean-card with-ticks list-tile-card">
+        <span class="pencil-tick tick-bl">⌞</span>
+        <span class="pencil-tick tick-tr">⌝</span>
 
-      <!-- Proteksi Layar -->
-      <div class="setting-item-row">
-        <div class="item-left">
-          <div class="item-icon-circle icon-teal">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-              <line x1="12" y1="18" x2="12.01" y2="18"></line>
-            </svg>
+        <!-- Proteksi Layar -->
+        <div class="setting-item-row">
+          <div class="item-left">
+            <div class="item-icon-circle icon-teal">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                <line x1="12" y1="18" x2="12.01" y2="18"></line>
+              </svg>
+            </div>
+            <span class="item-title">Proteksi Layar</span>
           </div>
-          <span class="item-title">Proteksi Layar</span>
-        </div>
-        <div class="item-right">
-          <span class="item-value">{mekaarStore.privacyBlurOnUnfocus ? 'Aktif' : 'Nonaktif'}</span>
-          <label class="switch-toggle">
-            <input type="checkbox" bind:checked={mekaarStore.privacyBlurOnUnfocus} />
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Sembunyikan Notifikasi Darurat -->
-      <div class="setting-item-row">
-        <div class="item-left">
-          <div class="item-icon-circle icon-orange">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="3"></circle>
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-            </svg>
-          </div>
-          <span class="item-title">Sembunyikan Notifikasi Darurat</span>
-        </div>
-        <div class="item-right">
-          <span class="item-value">{mekaarStore.disguisedNotifications ? 'Aktif' : 'Nonaktif'}</span>
-          <label class="switch-toggle">
-            <input type="checkbox" bind:checked={mekaarStore.disguisedNotifications} />
-            <span class="slider"></span>
-          </label>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Terakhir Dilihat & Online -->
-      <div class="setting-item-row">
-        <div class="item-left">
-          <div class="item-icon-circle icon-blue-subtle">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </div>
-          <span class="item-title">Terakhir Dilihat & Online</span>
-        </div>
-        <div class="item-right">
-          <span class="item-value">Kontak saya</span>
-          <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.privacyBlurOnUnfocus ? 'Aktif' : 'Nonaktif'}</span>
+            <label class="switch-toggle">
+              <input type="checkbox" bind:checked={mekaarStore.privacyBlurOnUnfocus} />
+              <span class="slider"></span>
+            </label>
           </div>
         </div>
-      </div>
 
-      <div class="item-divider"></div>
+        <div class="item-divider"></div>
 
-      <!-- Bukti Baca (Read Receipt) -->
-      <div class="setting-item-row">
-        <div class="item-left">
-          <div class="item-icon-circle icon-lime">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="20 6 9 17 4 12"></polyline>
-            </svg>
+        <!-- Sembunyikan Notifikasi Darurat -->
+        <div class="setting-item-row">
+          <div class="item-left">
+            <div class="item-icon-circle icon-orange">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              </svg>
+            </div>
+            <span class="item-title">Sembunyikan Notifikasi Darurat</span>
           </div>
-          <span class="item-title">Bukti Baca (Read Receipt)</span>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.disguisedNotifications ? 'Aktif' : 'Nonaktif'}</span>
+            <label class="switch-toggle">
+              <input type="checkbox" bind:checked={mekaarStore.disguisedNotifications} />
+              <span class="slider"></span>
+            </label>
+          </div>
         </div>
-        <div class="item-right">
-          <span class="item-value">{mekaarStore.readReceipts ? 'Aktif' : 'Nonaktif'}</span>
-          <label class="switch-toggle">
-            <input type="checkbox" bind:checked={mekaarStore.readReceipts} />
-            <span class="slider"></span>
-          </label>
+
+        <div class="item-divider"></div>
+
+        <!-- Terakhir Dilihat & Online -->
+        <div class="setting-item-row">
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue-subtle">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </div>
+            <span class="item-title">Terakhir Dilihat & Online</span>
+          </div>
+          <div class="item-right">
+            <span class="item-value">Kontak saya</span>
+            <div class="arrow-circle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Bukti Baca (Read Receipt) -->
+        <div class="setting-item-row">
+          <div class="item-left">
+            <div class="item-icon-circle icon-lime">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
+            <span class="item-title">Bukti Baca (Read Receipt)</span>
+          </div>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.readReceipts ? 'Aktif' : 'Nonaktif'}</span>
+            <label class="switch-toggle">
+              <input type="checkbox" bind:checked={mekaarStore.readReceipts} />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- PIN Paksaan (Duress PIN) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showDuressModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-orange">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M12 8v4"/>
+                <path d="M12 16h.01"/>
+              </svg>
+            </div>
+            <div>
+              <div class="item-title">PIN Paksaan (Duress Cloak)</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Aktifkan mode darurat senyap jika dipaksa</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.duressPinCode ? 'Dikonfigurasi' : 'Belum diatur'}</span>
+            <div class="arrow-circle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-  </div>
+  {/if}
 
   <!-- Section: Server Relay teplok-pc & Forensik -->
   <div class="settings-group">
@@ -330,6 +365,81 @@
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
       <button type="button" class="btn-primary" onclick={() => (showTailscaleModal = false)}>
         Tutup
+      </button>
+    </div>
+  </div>
+</Dialog>
+
+<!-- Modal Dialog Atur Duress PIN -->
+<Dialog
+  open={showDuressModal}
+  title="Konfigurasi PIN Paksaan (Duress PIN)"
+  onclose={() => {
+    showDuressModal = false;
+    duressError = '';
+    duressSuccess = '';
+  }}
+>
+  <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.88rem;">
+    <p style="color: var(--text-secondary);">
+      Jika Anda berada di bawah tekanan atau ancaman untuk membuka aplikasi, masukkan PIN Paksaan ini.
+      Aplikasi akan terbuka dalam mode samaran (cloaked), menyembunyikan brankas rahasia, dan menyiarkan <strong>Silent SOS</strong> ke Guardian Anda.
+    </p>
+
+    <label style="font-size: 0.85rem; font-weight: 600;">
+      PIN Paksaan Baru (6 Digit)
+      <input
+        type="password"
+        maxlength="6"
+        class="sketch-input"
+        placeholder="Contoh: 999999"
+        bind:value={inputDuressPin}
+        style="margin-top: 6px; letter-spacing: 4px; font-size: 1.1rem; text-align: center;"
+      />
+    </label>
+
+    {#if duressError}
+      <div style="color: var(--accent-danger); font-size: 0.82rem; font-weight: 600;">{duressError}</div>
+    {/if}
+    {#if duressSuccess}
+      <div style="color: #059669; font-size: 0.82rem; font-weight: 600;">{duressSuccess}</div>
+    {/if}
+
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick={() => {
+          showDuressModal = false;
+          duressError = '';
+          duressSuccess = '';
+        }}
+      >
+        Batal
+      </button>
+      <button
+        type="button"
+        class="btn-primary"
+        onclick={async () => {
+          duressError = '';
+          duressSuccess = '';
+          if (inputDuressPin.length !== 6 || !/^\d+$/.test(inputDuressPin)) {
+            duressError = 'PIN Paksaan harus terdiri dari 6 angka.';
+            return;
+          }
+          if (inputDuressPin === mekaarStore.pinCode) {
+            duressError = 'PIN Paksaan tidak boleh sama dengan PIN Utama!';
+            return;
+          }
+          await mekaarStore.setupPins(mekaarStore.pinCode, inputDuressPin);
+          duressSuccess = 'PIN Paksaan berhasil disimpan ke brankas keamanan.';
+          setTimeout(() => {
+            showDuressModal = false;
+            duressSuccess = '';
+          }, 1200);
+        }}
+      >
+        Simpan PIN
       </button>
     </div>
   </div>
