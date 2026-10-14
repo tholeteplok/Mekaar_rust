@@ -1,0 +1,157 @@
+/* ==========================================================================
+   MEKAAR — Centralized Design Tokens (tokens.css)
+   Clean Core, Colorful Room, Focused SOS (Tri-Register Architecture)
+   Sumber Tunggal Kebenaran (Single Source of Truth) — Zero Hardcoded Hex
+   ========================================================================== */
+
+:root {
+  /* --- 1. Brand Core Colors --- */
+  --brand-blue: #136CFC;
+  --brand-blue-rgb: 19, 108, 252;
+  --brand-dark-blue: #152641;
+  --brand-dark-blue-rgb: 21, 38, 65;
+  --brand-green: #C3F84A;
+  --brand-green-rgb: 195, 248, 74;
+  --brand-light-blue: #E8F4FC;
+  --brand-light-blue-rgb: 232, 244, 252;
+
+  /* --- 2. Protective Semantic Colors --- */
+  --sos-coral: #FF5D5D;
+  --sos-coral-rgb: 255, 93, 93;
+  --sos-deep: #D92632;
+  --safe-teal: #2DD4BF;
+  --safe-teal-rgb: 45, 212, 191;
+  --warn-amber: #FBBF24;
+
+  /* --- 3. Light Mode Surfaces (Default Core) --- */
+  --surface-canvas: var(--brand-light-blue);
+  --surface-card: #FFFFFF;
+  --surface-subtle: #F1F7FD;
+  --surface-elevated: #FFFFFF;
+  
+  --text-primary: var(--brand-dark-blue);
+  --text-secondary: #5C6B85;
+  --text-on-blue: #FFFFFF;
+  --text-on-coral: #FFFFFF;
+  --text-on-green: var(--brand-dark-blue);
+
+  --border-subtle: #DCE7F5;
+  --border-focus: var(--brand-blue);
+  
+  --shadow-soft: 0 4px 16px rgba(21, 38, 65, 0.06);
+  --shadow-elevated: 0 8px 24px rgba(21, 38, 65, 0.12);
+
+  /* --- 4. Spacing Tokens (8pt Grid) --- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+
+  /* --- 5. Border Radius Tokens --- */
+  --radius-sm: 12px;
+  --radius-md: 18px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+
+  /* --- 6. Typography Scale (Plus Jakarta Sans) --- */
+  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  
+  --font-display-size: 32px;
+  --font-display-line: 40px;
+  --font-display-weight: 800;
+
+  --font-h1-size: 24px;
+  --font-h1-line: 32px;
+  --font-h1-weight: 700;
+
+  --font-h2-size: 18px;
+  --font-h2-line: 26px;
+  --font-h2-weight: 700;
+
+  --font-body-size: 15px;
+  --font-body-line: 22px;
+  --font-body-weight: 400;
+
+  --font-label-size: 13px;
+  --font-label-line: 18px;
+  --font-label-weight: 600;
+
+  --font-caption-size: 11.5px;
+  --font-caption-line: 16px;
+  --font-caption-weight: 500;
+
+  /* --- 7. Animation Speeds --- */
+  --motion-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-bounce: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* --- Dark Mode Register Override --- */
+[data-theme="dark"] {
+  --surface-canvas: var(--brand-dark-blue);
+  --surface-card: #1E304F;
+  --surface-subtle: #25395B;
+  --surface-elevated: #263C63;
+
+  --text-primary: #F4F9FF;
+  --text-secondary: #9FB0C9;
+  --text-on-blue: #FFFFFF;
+
+  --border-subtle: #25395B;
+  --border-focus: #3B82F6;
+
+  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.25);
+  --shadow-elevated: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+/* --- Focused SOS Mode Emergency Override (Mengambil Alih Tampilan) --- */
+[data-register="sos"] {
+  --surface-canvas: #0F0304;
+  --surface-card: #24080A;
+  --surface-subtle: #3B0D11;
+  --surface-elevated: #4A1015;
+
+  --brand-blue: var(--sos-coral);
+  --text-primary: #FFF0F1;
+  --text-secondary: #FFA3A8;
+  --text-on-blue: #0F0304;
+
+  --border-subtle: #5C151B;
+  --border-focus: var(--sos-coral);
+
+  --shadow-soft: 0 4px 24px rgba(255, 93, 93, 0.2);
+  --shadow-elevated: 0 8px 32px rgba(255, 93, 93, 0.35);
+}
+
+/* --- Global Base CSS Reset --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  font-family: var(--font-family);
+  font-size: var(--font-body-size);
+  line-height: var(--font-body-line);
+  color: var(--text-primary);
+  background-color: var(--surface-canvas);
+  overflow-x: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+  transition: background-color var(--motion-normal), color var(--motion-normal);
+}
+
+#app {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}

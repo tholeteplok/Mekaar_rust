@@ -1,0 +1,85 @@
+# ==============================================================================
+# MEKAAR Rust Workspace — Comprehensive Git Ignore
+# Critical: Zero data leaks, zero credential exposure
+# ==============================================================================
+
+# --- Rust Build Artifacts ---
+/target/
+target/
+**/*.rs.bk
+*.pdb
+
+# --- Frontend Node & Bun Dependencies ---
+**/node_modules/
+**/dist/
+**/.svelte-kit/
+bun.lockb
+.npm/
+.bun/
+
+# --- Android Build & Gradle Artifacts (CRITICAL) ---
+**/.gradle/
+**/build/
+**/local.properties
+**/key.properties
+**/keystore.properties
+*.apk
+*.aab
+**/jniLibs/
+**/.cxx/
+**/.externalNativeBuild/
+apps/mekaar-tauri/src-tauri/gen/android/tauri.settings.gradle
+apps/mekaar-tauri/src-tauri/gen/android/app/tauri.build.gradle.kts
+apps/mekaar-tauri/src-tauri/gen/android/.tauri/
+apps/mekaar-tauri/src-tauri/gen/android/build/
+apps/mekaar-tauri/src-tauri/gen/android/app/build/
+apps/mekaar-tauri/src-tauri/gen/android/buildSrc/build/
+
+# --- Sensitive Credentials & Cloud Config (CRITICAL) ---
+google-services.json
+GoogleService-Info.plist
+**/google-services.json
+**/GoogleService-Info.plist
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+*.crt
+*.cert
+*.credentials
+secrets/
+credentials.json
+client_secret*.json
+
+# --- Environment & Secrets ---
+.env
+.env.*
+!.env.example
+
+# --- Local Databases & Storage ---
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+*.sqlcipher
+
+# --- IDE & Editor Settings ---
+.idea/
+.vscode/
+*.swp
+*.swo
+*.sublime-workspace
+*.sublime-project
+
+# --- OS Artifacts ---
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Tauri Generated ACL & Logs ---
+apps/mekaar-tauri/src-tauri/target/
+apps/mekaar-tauri/src-tauri/gen/schemas/

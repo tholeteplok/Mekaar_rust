@@ -1,0 +1,21 @@
+[package]
+name = "mekaar-net"
+description = "Transport layer: WebSocket client, WebRTC signaling, TLS, push notifications"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+tokio-tungstenite = { workspace = true }
+futures-util = { workspace = true }
+uuid = { workspace = true }
+mekaar-proto = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+mekaar-server = { workspace = true }
+mekaar-crypto = { workspace = true }
+axum = { workspace = true }

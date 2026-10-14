@@ -1,0 +1,24 @@
+[package]
+name = "mekaar-server"
+description = "Standalone blind relay server: Axum + SQLite WAL + WebSocket Hub untuk teplok-pc"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+axum = { workspace = true, features = ["ws"] }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+rusqlite = { workspace = true, features = ["bundled"] }
+tokio-tungstenite = { workspace = true }
+futures-util = "0.3"
+mekaar-proto = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+
+[dev-dependencies]
+reqwest = { version = "0.12", default-features = false, features = ["json"] }

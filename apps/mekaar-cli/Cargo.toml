@@ -1,0 +1,21 @@
+[package]
+name = "mekaar-cli"
+description = "Headless diagnostic & testing tool untuk simulasi E2EE chat antar terminal"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mekaar-crypto = { workspace = true }
+mekaar-proto = { workspace = true }
+mekaar-core = { workspace = true }
+mekaar-storage = { workspace = true }
+mekaar-net = { workspace = true }
+mekaar-server = { workspace = true }
+clap = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = { workspace = true }
+tempfile = { workspace = true }
+uuid = { workspace = true }
+axum = { workspace = true }

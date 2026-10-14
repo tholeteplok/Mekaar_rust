@@ -1,0 +1,24 @@
+[Unit]
+Description=MEKAAR Suite Standalone Blind Relay Server (Axum + SQLite WAL)
+After=network.target tailscaled.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/mekaar-server
+ExecStart=%h/mekaar-server/bin/mekaar-server
+Restart=always
+RestartSec=5s
+
+# Konfigurasi Lingkungan
+Environment=RUST_LOG=mekaar_server=info,tower_http=info
+Environment=DATABASE_PATH=%h/mekaar-server/data/mekaar_server.db
+Environment=SERVER_HOST=0.0.0.0
+Environment=SERVER_PORT=8085
+
+# Batasan Keamanan & Sumber Daya (Target RAM < 40 MB)
+MemoryHigh=50M
+MemoryMax=80M
+LimitNOFILE=65535
+
+[Install]
+WantedBy=default.target

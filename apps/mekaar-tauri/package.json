@@ -1,0 +1,8 @@
+{
+  "name": "mekaar-tauri",
+  "private": true,
+  "scripts": {
+    "tauri": "bun x @tauri-apps/cli",
+    "build": "bun run --cwd ui build"
+  }
+}

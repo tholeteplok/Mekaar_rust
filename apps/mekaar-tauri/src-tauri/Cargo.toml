@@ -1,0 +1,28 @@
+[package]
+name = "mekaar-tauri"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "MEKAAR Native App (Tauri v2 + Svelte 5)"
+
+[lib]
+name = "mekaar_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { workspace = true }
+
+[dependencies]
+tauri = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+sha2 = { workspace = true }
+
+mekaar-core = { path = "../../../crates/mekaar-core" }
+mekaar-crypto = { path = "../../../crates/mekaar-crypto" }
+mekaar-storage = { path = "../../../crates/mekaar-storage" }
+mekaar-proto = { path = "../../../crates/mekaar-proto" }
+mekaar-net = { path = "../../../crates/mekaar-net" }

@@ -1,0 +1,82 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/mekaar-crypto",
+    "crates/mekaar-proto",
+    "crates/mekaar-core",
+    "crates/mekaar-storage",
+    "crates/mekaar-net",
+    "crates/mekaar-server",
+    "apps/mekaar-cli",
+    "apps/mekaar-tauri/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+rust-version = "1.85"
+
+[workspace.dependencies]
+# --- Tauri v2 ---
+tauri = { version = "2", default-features = false, features = ["wry"] }
+tauri-build = { version = "2" }
+
+# --- Async Runtime ---
+tokio = { version = "1", features = ["full"] }
+
+# --- Serialization ---
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+postcard = { version = "1", features = ["alloc"] }
+
+# --- Error Handling ---
+thiserror = "2"
+anyhow = "1"
+
+# --- Identity & IDs ---
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# --- Logging & Tracing ---
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# --- Crypto (mekaar-crypto) ---
+x25519-dalek = { version = "2", features = ["static_secrets"] }
+chacha20poly1305 = "0.10"
+hkdf = "0.12"
+sha2 = "0.10"
+zeroize = { version = "1", features = ["derive"] }
+argon2 = "0.5"
+rand = "0.8"
+
+# --- Storage (mekaar-storage) ---
+rusqlite = { version = "0.32" }
+
+# --- Network (mekaar-net) ---
+tokio-tungstenite = "0.24"
+
+# --- CLI & Utilities ---
+clap = { version = "4", features = ["derive"] }
+futures-util = "0.3"
+tempfile = "3"
+
+# --- Server (mekaar-server) ---
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# --- Internal Crates ---
+mekaar-crypto = { path = "crates/mekaar-crypto" }
+mekaar-proto = { path = "crates/mekaar-proto" }
+mekaar-core = { path = "crates/mekaar-core" }
+mekaar-storage = { path = "crates/mekaar-storage" }
+mekaar-net = { path = "crates/mekaar-net" }
+mekaar-server = { path = "crates/mekaar-server" }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+

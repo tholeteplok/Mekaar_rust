@@ -1,0 +1,21 @@
+[package]
+name = "mekaar-storage"
+description = "Database lokal terenkripsi SQLCipher untuk penyimpanan pesan, kunci, dan vault"
+version.workspace = true
+edition.workspace = true
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+rusqlite = { workspace = true, features = ["bundled-sqlcipher-vendored-openssl"] }
+
+[target.'cfg(target_os = "android")'.dependencies]
+rusqlite = { workspace = true, features = ["bundled"] }
+
+[dependencies]
+mekaar-crypto = { workspace = true }
+mekaar-proto = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+sha2 = { workspace = true }
