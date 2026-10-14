@@ -1,22 +1,26 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
   import { mekaarStore } from '../stores';
+  import BrandIcon from './BrandIcon.svelte';
 
   interface Props {
     title: string;
     subtitle?: string;
     showBack?: boolean;
+    showBrandIcon?: boolean;
     onback?: () => void;
     actions?: Snippet;
   }
 
-  let { title, subtitle = '', showBack = false, onback, actions }: Props = $props();
+  let { title, subtitle = '', showBack = false, showBrandIcon = true, onback, actions }: Props = $props();
 </script>
 
 <header class="mekaar-appbar">
   <div style="display: flex; align-items: center; gap: 10px;">
     {#if showBack}
       <button type="button" class="back-btn" onclick={onback} title="Kembali">←</button>
+    {:else if showBrandIcon}
+      <BrandIcon size={30} variant="sketch" />
     {/if}
     <div>
       <div style="display: flex; align-items: center; gap: 8px;">

@@ -10,3 +10,4 @@ export { default as ForensicExportDialog } from './ForensicExportDialog.svelte';
 export { default as HoldToConfirmButton } from './HoldToConfirmButton.svelte';
 export { default as MekaarScaffold } from './MekaarScaffold.svelte';
 export { default as SketchAvatar } from './SketchAvatar.svelte';
+export { default as BrandIcon } from './BrandIcon.svelte';

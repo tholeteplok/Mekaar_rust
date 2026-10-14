@@ -2,6 +2,7 @@
   import { mekaarStore } from '../stores';
   import Button from '../components/Button.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
+  import BrandIcon from '../components/BrandIcon.svelte';
 
   let mode = $state<'vault' | 'pin' | 'onboarding'>('vault');
   let passphrase = $state('');
@@ -42,8 +43,9 @@
 
 <div class="vault-screen">
   <div class="vault-card sketch-card">
-    <div style="display: flex; justify-content: center; margin-bottom: 12px;">
-      <SketchAvatar name={mekaarStore.currentUser.displayName} color="#FDE68A" size={68} online={true} />
+    <div style="display: flex; justify-content: center; align-items: center; gap: 14px; margin-bottom: 12px;">
+      <BrandIcon size={64} variant="sketch" alt="MEKAAR Logo" />
+      <SketchAvatar name={mekaarStore.currentUser.displayName} color="#FDE68A" size={64} online={true} />
     </div>
 
     <h2 style="font-family: var(--font-crayon); text-align: center; font-size: 1.45rem; margin-bottom: 4px;">

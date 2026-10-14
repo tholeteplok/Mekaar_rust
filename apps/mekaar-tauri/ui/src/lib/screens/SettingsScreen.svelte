@@ -5,6 +5,7 @@
   import CardExpanded from '../components/CardExpanded.svelte';
   import Button from '../components/Button.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
+  import BrandIcon from '../components/BrandIcon.svelte';
 
   let wipeConfirmInput = $state('');
   let wipeStatusMessage = $state('');
@@ -219,6 +220,26 @@
       {/if}
     </div>
   </CardExpanded>
+
+  <div style="height: 14px;"></div>
+
+  <!-- 5. Informasi & Identitas Aplikasi MEKAAR -->
+  <Card padding="16px">
+    <div style="display: flex; align-items: center; gap: 14px;">
+      <BrandIcon size={46} variant="sketch" alt="MEKAAR Brand Logo" />
+      <div>
+        <h4 style="font-family: var(--font-crayon); font-size: 1.12rem; margin-bottom: 2px;">
+          MEKAAR Native Engine
+        </h4>
+        <div style="font-size: 0.82rem; color: var(--text-secondary);">
+          Versi 0.1.0 • Rust + Tauri v2 + Svelte 5 • E2EE Ed25519 & XChaCha20-Poly1305
+        </div>
+        <div style="font-size: 0.76rem; color: var(--text-muted); margin-top: 3px;">
+          Node Relay: teplok-pc (Tailscale Mesh 100.101.96.120:8085)
+        </div>
+      </div>
+    </div>
+  </Card>
 </div>
 
 <style>
