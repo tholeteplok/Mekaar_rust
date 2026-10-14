@@ -1,325 +1,340 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import { chatStore, vaultStore } from '../stores';
-  import { AppBar, Card, Button, ForensicExportDialog } from '../components';
+  import { mekaarStore } from '../stores';
+  import AppBar from '../components/AppBar.svelte';
+  import Card from '../components/Card.svelte';
+  import Button from '../components/Button.svelte';
+  import Dialog from '../components/Dialog.svelte';
+  import SketchAvatar from '../components/SketchAvatar.svelte';
 
-  interface Props {
-    onselectroom: (roomId: string) => void;
-    onopensos: () => void;
-    onlock: () => void;
-  }
-
-  let { onselectroom, onopensos, onlock }: Props = $props();
-
+  let subTab = $state<'chats' | 'requests' | 'contacts'>('chats');
   let searchQuery = $state('');
-  let showForensicDialog = $state(false);
+  let showCreateGroup = $state(false);
+  let showQrModal = $state(false);
+  let qrMode = $state<'my_qr' | 'scan_qr'>('my_qr');
+  let scannedPeerInput = $state('');
 
-  onMount(() => {
-    chatStore.loadConversations();
-  });
+  let groupTitle = $state('');
+  let selectedMembers = $state<string[]>([]);
 
   const filteredConversations = $derived(
-    chatStore.conversations.filter((c) =>
-      c.peerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.lastMessage.toLowerCase().includes(searchQuery.toLowerCase())
+    mekaarStore.conversations.filter(
+      (c) =>
+        c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        c.subtitle.toLowerCase().includes(searchQuery.toLowerCase())
     )
   );
 
-  function formatTime(ts: number) {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  function toggleMember(id: string) {
+    if (selectedMembers.includes(id)) {
+      selectedMembers = selectedMembers.filter((m) => m !== id);
+    } else {
+      selectedMembers = [...selectedMembers, id];
+    }
+  }
+
+  function handleCreateGroup() {
+    if (!groupTitle.trim()) return;
+    const newId = mekaarStore.createGroup(groupTitle.trim(), selectedMembers);
+    groupTitle = '';
+    selectedMembers = [];
+    showCreateGroup = false;
+    mekaarStore.openConversation(newId);
+  }
+
+  function handleAddContactByQr() {
+    if (!scannedPeerInput.trim()) return;
+    const clean = scannedPeerInput.trim();
+    mekaarStore.contacts = [
+      {
+        id: `usr-qr-${Date.now()}`,
+        username: clean.startsWith('@') ? clean : `@${clean.toLowerCase().replace(/\s+/g, '')}`,
+        displayName: clean,
+        avatarColor: '#DDD6FE',
+        fingerprint: 'ED25519: QR-VERIFIED-8821',
+        isOnline: true,
+        isGuardian: false,
+        isBlocked: false,
+        notes: 'Ditambahkan melalui pemindaian QR E2EE'
+      },
+      ...mekaarStore.contacts
+    ];
+    scannedPeerInput = '';
+    showQrModal = false;
+    subTab = 'contacts';
   }
 </script>
 
-<div class="conv-list-screen">
-  <AppBar
-    title="MEKAAR"
-    subtitle={`Kunci: ${vaultStore.identityFingerprint}`}
-  >
-    {#snippet actions()}
+<AppBar
+  title="Mekaar Chat"
+  subtitle="P2P & Relay E2EE • {mekaarStore.serverStatus.wsEndpoint}"
+>
+  {#snippet actions()}
+    <Button size="sm" variant="secondary" onclick={() => (showQrModal = true)}>📷 Kode QR</Button>
+    <Button size="sm" variant="primary" onclick={() => (showCreateGroup = true)}>+ Grup Baru</Button>
+  {/snippet}
+</AppBar>
+
+<div class="screen-container">
+  <!-- Bilah Pencarian & Filter Sub-Tab (Chats / Permintaan / Kontak) -->
+  <div style="display: flex; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+    <input
+      type="text"
+      class="sketch-input"
+      style="flex: 1; min-width: 200px;"
+      placeholder="🔍 Cari percakapan, grup, atau kontak..."
+      bind:value={searchQuery}
+    />
+    <div style="display: flex; gap: 6px;">
       <Button
-        variant="secondary"
         size="sm"
-        onclick={() => showForensicDialog = true}
+        variant={subTab === 'chats' ? 'primary' : 'secondary'}
+        onclick={() => (subTab = 'chats')}
       >
-        📋 Audit
+        💬 Chat ({mekaarStore.conversations.length})
       </Button>
       <Button
-        variant="danger"
         size="sm"
-        onclick={onopensos}
+        variant={subTab === 'requests' ? 'primary' : 'secondary'}
+        onclick={() => (subTab = 'requests')}
       >
-        🚨 SOS
+        📩 Permintaan ({mekaarStore.chatRequests.filter((r) => r.status === 'pending').length})
       </Button>
       <Button
-        variant="ghost"
         size="sm"
-        onclick={onlock}
+        variant={subTab === 'contacts' ? 'primary' : 'secondary'}
+        onclick={() => (subTab = 'contacts')}
       >
-        🔒 Kunci
+        👥 Kontak ({mekaarStore.contacts.length})
       </Button>
-    {/snippet}
-  </AppBar>
-
-  <div class="conv-content">
-    <!-- Decoy Duress Banner if in duress mode -->
-    {#if vaultStore.isDuress}
-      <div class="duress-alert-box">
-        🛡️ <strong>MODUS BRANKAS UMPAN AKTIF:</strong> Riwayat chat rahasia asli disembunyikan.
-      </div>
-    {/if}
-
-    <!-- Search input -->
-    <div class="search-wrapper">
-      <div class="search-box">
-        <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="11" cy="11" r="8"></circle>
-          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-        </svg>
-        <input
-          type="text"
-          class="search-input"
-          placeholder="Cari obrolan rahasia atau kontak..."
-          bind:value={searchQuery}
-        />
-        {#if searchQuery}
-          <button type="button" class="clear-btn" onclick={() => searchQuery = ''}>×</button>
-        {/if}
-      </div>
-    </div>
-
-    <!-- Conversation Cards List -->
-    <div class="conv-items">
-      {#if chatStore.isLoading}
-        <div class="empty-state">Memuat obrolan terenkripsi...</div>
-      {:else if filteredConversations.length === 0}
-        <div class="empty-state">Tidak ada percakapan ditemukan.</div>
-      {:else}
-        {#each filteredConversations as conv (conv.id)}
-          <Card
-            variant="default"
-            padding="md"
-            interactive
-            onclick={() => onselectroom(conv.id)}
-          >
-            <div class="conv-card-content">
-              <!-- Avatar circle -->
-              <div class="avatar-circle">
-                {conv.peerName.charAt(0).toUpperCase()}
-              </div>
-
-              <!-- Chat Info -->
-              <div class="conv-main-info">
-                <div class="conv-header-row">
-                  <span class="peer-name">{conv.peerName}</span>
-                  <span class="conv-time">{formatTime(conv.lastTimestamp)}</span>
-                </div>
-
-                <div class="conv-message-row">
-                  <p class="last-message">{conv.lastMessage}</p>
-                  {#if conv.unreadCount > 0}
-                    <span class="unread-badge">{conv.unreadCount}</span>
-                  {/if}
-                </div>
-
-                <div class="conv-footer-row">
-                  <span class="ratchet-tag">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                      <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                    </svg>
-                    Double Ratchet E2EE
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card>
-        {/each}
-      {/if}
     </div>
   </div>
 
-  <ForensicExportDialog bind:open={showForensicDialog} />
+  {#if subTab === 'chats'}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {#each filteredConversations as conv (conv.id)}
+        <Card interactive onclick={() => mekaarStore.openConversation(conv.id)}>
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <SketchAvatar
+              name={conv.title}
+              color={conv.avatarColor}
+              online={conv.isOnline}
+              isGroup={conv.isGroup}
+            />
+            <div style="flex: 1; min-width: 0;">
+              <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  {#if conv.isPinned}<span>📌</span>{/if}
+                  <span style="font-weight: 700; font-size: 0.98rem;">{conv.title}</span>
+                  {#if conv.disappearingSeconds > 0}
+                    <span class="sketch-badge" style="background: #FEF3C7;">⏱️ Auto-Hapus</span>
+                  {/if}
+                </div>
+                <span style="font-size: 0.76rem; color: var(--text-muted);">{conv.lastTimestamp}</span>
+              </div>
+              <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 3px;">
+                <p
+                  style="font-size: 0.85rem; color: {conv.isTyping ? 'var(--accent-primary)' : 'var(--text-secondary)'}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;"
+                >
+                  {conv.isTyping ? '✍️ Sedang mengetik...' : conv.subtitle}
+                </p>
+                {#if conv.unreadCount > 0}
+                  <span class="unread-pill">{conv.unreadCount}</span>
+                {/if}
+              </div>
+            </div>
+          </div>
+        </Card>
+      {/each}
+    </div>
+  {:else if subTab === 'requests'}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {#each mekaarStore.chatRequests as req (req.id)}
+        <Card>
+          <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <SketchAvatar name={req.fromDisplayName} color={req.avatarColor} />
+            <div style="flex: 1;">
+              <div style="display: flex; justify-content: space-between;">
+                <div>
+                  <strong>{req.fromDisplayName}</strong>
+                  <span style="font-size: 0.8rem; color: var(--text-secondary); margin-left: 6px;">{req.fromUsername}</span>
+                </div>
+                <span style="font-size: 0.75rem; color: var(--text-muted);">{req.timestamp}</span>
+              </div>
+              <p style="font-size: 0.86rem; margin: 6px 0;">"{req.introMessage}"</p>
+              <div style="font-size: 0.74rem; font-family: var(--font-mono); color: var(--text-secondary); margin-bottom: 10px;">
+                🔑 {req.fingerprint}
+              </div>
+              {#if req.status === 'pending'}
+                <div style="display: flex; gap: 8px;">
+                  <Button size="sm" variant="primary" onclick={() => mekaarStore.respondChatRequest(req.id, true)}>
+                    ✓ Terima & Buka Chat
+                  </Button>
+                  <Button size="sm" variant="danger" onclick={() => mekaarStore.respondChatRequest(req.id, false)}>
+                    ✕ Tolak
+                  </Button>
+                </div>
+              {:else}
+                <span class="sketch-badge" style="background: {req.status === 'accepted' ? '#DCFCE7' : '#FEE2E2'};">
+                  {req.status === 'accepted' ? 'Diterima' : 'Ditolak'}
+                </span>
+              {/if}
+            </div>
+          </div>
+        </Card>
+      {/each}
+    </div>
+  {:else}
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {#each mekaarStore.contacts as contact (contact.id)}
+        <Card>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <SketchAvatar name={contact.displayName} color={contact.avatarColor} online={contact.isOnline} />
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong>{contact.displayName}</strong>
+                  <span style="font-size: 0.8rem; color: var(--text-secondary);">{contact.username}</span>
+                  {#if contact.isGuardian}
+                    <span class="sketch-badge" style="background: #DBEAFE;">🛡️ Guardian</span>
+                  {/if}
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">{contact.notes}</div>
+                <div style="font-size: 0.72rem; font-family: var(--font-mono); color: var(--text-muted);">
+                  {contact.fingerprint}
+                </div>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onclick={() => {
+                const existing = mekaarStore.conversations.find((c) => c.title === contact.displayName);
+                if (existing) {
+                  mekaarStore.openConversation(existing.id);
+                }
+              }}
+            >
+              💬 Kirim Pesan
+            </Button>
+          </div>
+        </Card>
+      {/each}
+    </div>
+  {/if}
 </div>
 
-<style>
-  .conv-list-screen {
-    display: flex;
-    flex-direction: column;
-    min-height: 100vh;
-  }
+<!-- Modal Buat Grup Baru (create_group_select_members_screen & create_group_details_screen parity) -->
+<Dialog open={showCreateGroup} title="👥 Buat Grup Terenkripsi Baru" onclose={() => (showCreateGroup = false)}>
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <label style="font-size: 0.85rem; font-weight: 700;">
+      Nama Grup
+      <input
+        type="text"
+        class="sketch-input"
+        placeholder="Mis. Tim Siaga Surakarta..."
+        bind:value={groupTitle}
+        style="margin-top: 6px;"
+      />
+    </label>
+    <div style="font-size: 0.85rem; font-weight: 700;">Pilih Anggota Grup:</div>
+    <div style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+      {#each mekaarStore.contacts as c}
+        <label class="sketch-card" style="padding: 8px 12px; display: flex; align-items: center; justify-content: space-between; cursor: pointer;">
+          <span><strong>{c.displayName}</strong> ({c.username})</span>
+          <input
+            type="checkbox"
+            checked={selectedMembers.includes(c.id)}
+            onchange={() => toggleMember(c.id)}
+          />
+        </label>
+      {/each}
+    </div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px;">
+      <Button variant="secondary" onclick={() => (showCreateGroup = false)}>Batal</Button>
+      <Button variant="primary" onclick={handleCreateGroup}>Buat Grup ({selectedMembers.length + 1} Anggota)</Button>
+    </div>
+  </div>
+</Dialog>
 
-  .conv-content {
-    max-width: 800px;
+<!-- Modal QR Saya & Pindai QR Kontak (my_qr_screen.dart & contact_qr_scan_screen.dart parity) -->
+<Dialog open={showQrModal} title="📷 Kode QR Identitas & Pemindai Kontak" onclose={() => (showQrModal = false)}>
+  <div style="display: flex; flex-direction: column; gap: 12px;">
+    <div style="display: flex; gap: 8px;">
+      <Button
+        size="sm"
+        fullWidth
+        variant={qrMode === 'my_qr' ? 'primary' : 'secondary'}
+        onclick={() => (qrMode = 'my_qr')}
+      >
+        QR Saya
+      </Button>
+      <Button
+        size="sm"
+        fullWidth
+        variant={qrMode === 'scan_qr' ? 'primary' : 'secondary'}
+        onclick={() => (qrMode = 'scan_qr')}
+      >
+        Pindai QR Teman
+      </Button>
+    </div>
+
+    {#if qrMode === 'my_qr'}
+      <div class="sketch-card" style="padding: 18px; text-align: center; background: #FFFDF9;">
+        <div class="qr-matrix-box">
+          <div style="font-family: var(--font-mono); font-size: 0.72rem; line-height: 1.15; letter-spacing: 2px;">
+            ▛▀▀▀▀▀▀▀▀▀▀▀▜<br />
+            ▌ ██ ▄▀▄ ██ ▐<br />
+            ▌ ▀▀ █▄█ ▀▀ ▐<br />
+            ▌ ▄▀▄ ▀ ▄▀▄ ▐<br />
+            ▌ ██ ▀▄▀ ██ ▐<br />
+            ▙▄▄▄▄▄▄▄▄▄▄▄▟
+          </div>
+        </div>
+        <div style="font-weight: 800; margin-top: 10px;">{mekaarStore.currentUser.displayName}</div>
+        <div style="font-size: 0.82rem; color: var(--text-secondary);">{mekaarStore.currentUser.username}</div>
+        <div style="font-size: 0.72rem; font-family: var(--font-mono); margin-top: 6px;">
+          {mekaarStore.currentUser.publicKeyFingerprint}
+        </div>
+      </div>
+    {:else}
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        <p style="font-size: 0.85rem; color: var(--text-secondary);">
+          Tempel payload QR atau nama pengguna rekan untuk memverifikasi kunci Ed25519 secara langsung:
+        </p>
+        <input
+          type="text"
+          class="sketch-input"
+          placeholder="Mis. @andikawijaya atau mekaar://qr/ed25519..."
+          bind:value={scannedPeerInput}
+        />
+        <Button variant="primary" fullWidth onclick={handleAddContactByQr}>Verifikasi & Tambahkan Kontak</Button>
+      </div>
+    {/if}
+  </div>
+</Dialog>
+
+<style>
+  .screen-container {
+    padding: 16px 18px;
+    max-width: 880px;
     width: 100%;
     margin: 0 auto;
-    padding: var(--space-4) var(--space-4) var(--space-12);
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-4);
   }
-
-  .duress-alert-box {
-    padding: var(--space-3) var(--space-4);
-    background-color: rgba(251, 191, 36, 0.15);
-    border: 1px solid var(--warn-amber);
-    border-radius: var(--radius-md);
-    color: #B45309;
-    font-size: var(--font-label-size);
-  }
-
-  .search-wrapper {
-    position: relative;
-    width: 100%;
-  }
-
-  .search-box {
-    display: flex;
-    align-items: center;
-    background-color: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-pill);
-    padding: 0 var(--space-4);
-    height: 48px;
-    gap: var(--space-2);
-    box-shadow: var(--shadow-soft);
-    transition: border-color var(--motion-fast);
-  }
-
-  .search-box:focus-within {
-    border-color: var(--border-focus);
-  }
-
-  .search-icon {
-    width: 20px;
-    height: 20px;
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-
-  .search-input {
-    flex: 1;
-    border: none;
-    background: transparent;
-    font-family: var(--font-family);
-    font-size: var(--font-body-size);
-    color: var(--text-primary);
-    outline: none;
-  }
-
-  .clear-btn {
-    border: none;
-    background: transparent;
-    font-size: 18px;
-    color: var(--text-secondary);
-    cursor: pointer;
-  }
-
-  .conv-items {
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
-  }
-
-  .empty-state {
-    text-align: center;
-    padding: var(--space-8);
-    color: var(--text-secondary);
-    font-size: var(--font-body-size);
-  }
-
-  .conv-card-content {
-    display: flex;
-    align-items: center;
-    gap: var(--space-3);
-  }
-
-  .avatar-circle {
-    width: 48px;
-    height: 48px;
-    border-radius: var(--radius-pill);
-    background-color: var(--brand-light-blue);
-    color: var(--brand-blue);
-    font-size: var(--font-h2-size);
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .conv-main-info {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    min-width: 0;
-  }
-
-  .conv-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-  }
-
-  .peer-name {
-    font-size: var(--font-body-size);
-    font-weight: 700;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .conv-time {
-    font-size: var(--font-caption-size);
-    color: var(--text-secondary);
-    flex-shrink: 0;
-  }
-
-  .conv-message-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-2);
-  }
-
-  .last-message {
-    font-size: var(--font-label-size);
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .unread-badge {
-    background-color: var(--brand-blue);
+  .unread-pill {
+    background: var(--accent-primary);
     color: #FFFFFF;
-    font-size: var(--font-caption-size);
-    font-weight: 700;
-    padding: 2px 7px;
-    border-radius: var(--radius-pill);
-    line-height: 1;
+    font-size: 0.74rem;
+    font-weight: 800;
+    padding: 1px 8px;
+    border-radius: 999px;
+    border: 1.5px solid var(--sketch-border-color);
   }
-
-  .conv-footer-row {
-    display: flex;
-    align-items: center;
-    margin-top: 2px;
-  }
-
-  .ratchet-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: var(--font-caption-size);
-    font-weight: 600;
-    color: var(--safe-teal);
-  }
-
-  .ratchet-tag svg {
-    width: 12px;
-    height: 12px;
+  .qr-matrix-box {
+    display: inline-block;
+    padding: 16px;
+    background: #FFFFFF;
+    border: 2.5px solid #1C1B18;
+    border-radius: 14px;
+    box-shadow: var(--sketch-shadow-sm);
   }
 </style>

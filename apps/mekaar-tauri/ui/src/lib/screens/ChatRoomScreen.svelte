@@ -1,380 +1,202 @@
 <script lang="ts">
-  import { onMount, onDestroy, tick } from 'svelte';
-  import { chatStore } from '../stores';
-  import { AppBar, Button } from '../components';
+  import { mekaarStore } from '../stores';
+  import type { MessageModel, ChatThemeId } from '../types';
+  import AppBar from '../components/AppBar.svelte';
+  import Button from '../components/Button.svelte';
+  import ChatBubble from '../components/ChatBubble.svelte';
+  import ChatInputBar from '../components/ChatInputBar.svelte';
+  import BottomSheet from '../components/BottomSheet.svelte';
+  import Dialog from '../components/Dialog.svelte';
+  import SketchAvatar from '../components/SketchAvatar.svelte';
 
-  interface Props {
-    roomId: string;
-    onback: () => void;
-    onopensos: () => void;
-  }
+  let replyingTo = $state<MessageModel | null>(null);
+  let showRoomInfo = $state(false);
+  let showEmojiStore = $state(false);
 
-  let { roomId, onback, onopensos }: Props = $props();
+  const activeConv = $derived(
+    mekaarStore.conversations.find((c) => c.id === mekaarStore.selectedConversationId) ??
+      mekaarStore.conversations[0]
+  );
 
-  let messageText = $state('');
-  let messagesContainer: HTMLDivElement | null = $state(null);
+  const messages = $derived(
+    activeConv ? mekaarStore.messagesByConv[activeConv.id] ?? [] : []
+  );
 
-  const timers = [
-    { label: 'Off', val: null },
-    { label: '10d', val: 10 },
-    { label: '30d', val: 30 },
-    { label: '1m', val: 60 },
-    { label: '5m', val: 300 },
+  const themeOptions: { id: ChatThemeId; label: string }[] = [
+    { id: 'classic', label: 'Biru Klasik' },
+    { id: 'forest', label: 'Hijau Hutan' },
+    { id: 'sunset', label: 'Senja Oranye' },
+    { id: 'ocean', label: 'Samudra Sian' },
+    { id: 'midnight', label: 'Malam Gelap' }
   ];
 
-  let currentTime = $state(Date.now());
-  let tickerId: ReturnType<typeof setInterval> | null = null;
-
-  onMount(async () => {
-    await chatStore.selectRoom(roomId);
-    scrollToBottom();
-
-    tickerId = setInterval(() => {
-      currentTime = Date.now();
-    }, 1000);
-  });
-
-  onDestroy(() => {
-    if (tickerId) clearInterval(tickerId);
-  });
-
-  async function scrollToBottom() {
-    await tick();
-    if (messagesContainer) {
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
-    }
-  }
-
-  async function handleSend() {
-    if (!messageText.trim()) return;
-    const text = messageText;
-    messageText = '';
-    const success = await chatStore.sendMessage(text);
-    if (success) {
-      scrollToBottom();
-    }
-  }
-
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  }
-
-  function getRemainingSecs(timestamp: number, disappearingSecs?: number): number | null {
-    if (!disappearingSecs) return null;
-    const expiry = timestamp + disappearingSecs * 1000;
-    return Math.max(0, Math.ceil((expiry - currentTime) / 1000));
-  }
-
-  function formatTime(ts: number) {
-    const d = new Date(ts);
-    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  }
+  const timerOptions = [
+    { sec: 0, label: 'Nonaktif' },
+    { sec: 300, label: '5 Menit' },
+    { sec: 3600, label: '1 Jam' },
+    { sec: 86400, label: '24 Jam' }
+  ];
 </script>
 
-<div class="chat-room-screen">
-  <!-- Top Appbar -->
-  <AppBar
-    title={chatStore.activeConversation?.peerName ?? 'Ruang Rahasia'}
-    subtitle="Enkripsi Double Ratchet X25519 • Aktif"
-    showBack
-    {onback}
-  >
-    {#snippet actions()}
-      <Button variant="danger" size="sm" onclick={onopensos}>
-        🚨 SOS
-      </Button>
-    {/snippet}
-  </AppBar>
+{#if activeConv}
+  <div class="room-wrapper" data-register="room" data-chat-theme={activeConv.chatTheme}>
+    <AppBar
+      title={activeConv.title}
+      subtitle={activeConv.isGroup
+        ? `${activeConv.participants.length} Anggota • E2EE Grup`
+        : activeConv.isOnline
+          ? 'Online • Terenkripsi E2EE'
+          : 'Terakhir dilihat baru saja'}
+      showBack={true}
+      onback={() => mekaarStore.closeConversation()}
+    >
+      {#snippet actions()}
+        <Button size="sm" variant="secondary" onclick={() => mekaarStore.startCall(activeConv, false)}>
+          📞 Suara
+        </Button>
+        <Button size="sm" variant="secondary" onclick={() => mekaarStore.startCall(activeConv, true)}>
+          🎥 Video
+        </Button>
+        <Button size="sm" variant="secondary" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
+          🔐 Forensik
+        </Button>
+        <Button size="sm" variant="secondary" onclick={() => (showRoomInfo = true)}>
+          ℹ️ Detail
+        </Button>
+      {/snippet}
+    </AppBar>
 
-  <!-- Disappearing Message Timer Selector Strip -->
-  <div class="timer-selector-strip">
-    <div class="timer-label">
-      <span class="fire-icon">⏳</span>
-      <span>Pesan Hilang:</span>
-    </div>
-    <div class="timer-chips">
-      {#each timers as t}
-        <button
-          type="button"
-          class="timer-chip"
-          class:active={chatStore.disappearingTimerSecs === t.val}
-          onclick={() => chatStore.setDisappearingTimer(t.val)}
-        >
-          {t.label}
-        </button>
-      {/each}
-    </div>
-  </div>
-
-  <!-- Messages Scroll Area -->
-  <div class="messages-viewport" bind:this={messagesContainer}>
-    <div class="messages-inner">
-      <!-- Encryption Security Banner -->
-      <div class="encryption-banner">
-        🔒 Pesan di ruangan ini dilindungi enkripsi Double Ratchet & tersimpan dalam database SQLCipher lokal.
+    <div class="messages-viewport">
+      <div class="e2ee-notice sketch-card">
+        🔒 Pesan dan panggilan di ruang ini diamankan dengan enkripsi ujung-ke-ujung (X25519 + ChaCha20-Poly1305) melalui node <strong>{mekaarStore.serverStatus.wsEndpoint}</strong>.
       </div>
 
-      {#each chatStore.activeMessages as msg (msg.id)}
-        {@const remaining = getRemainingSecs(msg.timestamp, msg.disappearingSecs)}
-        {#if remaining === null || remaining > 0}
-          <div class="message-row" class:is-me={msg.isMe}>
-            <div class="message-bubble" class:is-me={msg.isMe} class:burning={remaining !== null && remaining <= 5}>
-              <p class="message-text">{msg.content}</p>
-              <div class="message-meta">
-                {#if remaining !== null}
-                  <span class="burn-badge" class:critical={remaining <= 5}>
-                    🔥 {remaining}s
-                  </span>
-                {/if}
-                <span class="time-text">{formatTime(msg.timestamp)}</span>
-                {#if msg.isMe}
-                  <span class="status-check">✓✓</span>
-                {/if}
-              </div>
-            </div>
-          </div>
-        {:else}
-          <div class="message-burned-notice">
-            🔥 <em>Pesan rahasia telah musnah secara otomatis</em>
-          </div>
-        {/if}
+      {#each messages as msg (msg.id)}
+        <ChatBubble
+          message={msg}
+          onreply={(m) => (replyingTo = m)}
+          onreact={(msgId, emoji) => mekaarStore.toggleReaction(activeConv.id, msgId, emoji)}
+        />
       {/each}
     </div>
+
+    <ChatInputBar
+      {replyingTo}
+      emojiPacks={mekaarStore.emojiPacks}
+      oncancelreply={() => (replyingTo = null)}
+      onsend={(text, att) => {
+        mekaarStore.sendMessage(activeConv.id, text, replyingTo, att);
+        replyingTo = null;
+      }}
+      onopenemojistore={() => (showEmojiStore = true)}
+    />
   </div>
 
-  <!-- Bottom Input Bar -->
-  <footer class="chat-input-bar">
-    <div class="input-container">
-      <input
-        type="text"
-        class="chat-text-input"
-        placeholder="Ketik pesan terenkripsi..."
-        bind:value={messageText}
-        onkeydown={handleKeydown}
-      />
-      <Button
-        variant="primary"
-        size="md"
-        disabled={!messageText.trim()}
-        onclick={handleSend}
-      >
-        Kirim
-      </Button>
+  <!-- BottomSheet Detail Ruang / Grup, Tema Chat & Pesan Menghilang (group_details_screen.dart parity) -->
+  <BottomSheet open={showRoomInfo} title="ℹ️ Pengaturan Ruang & Anggota" onclose={() => (showRoomInfo = false)}>
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <SketchAvatar name={activeConv.title} color={activeConv.avatarColor} size={54} isGroup={activeConv.isGroup} />
+        <div>
+          <h4 style="font-size: 1.05rem;">{activeConv.title}</h4>
+          <p style="font-size: 0.82rem; color: var(--text-secondary);">
+            {activeConv.isGroup ? 'Grup Terenkripsi' : 'Percakapan Pribadi E2EE'}
+          </p>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 6px;">🎨 Tema Warna Ruang Obrolan:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          {#each themeOptions as th}
+            <Button
+              size="sm"
+              variant={activeConv.chatTheme === th.id ? 'primary' : 'secondary'}
+              onclick={() => (activeConv.chatTheme = th.id)}
+            >
+              {th.label}
+            </Button>
+          {/each}
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 6px;">⏱️ Timer Pesan Menghilang (Disappearing Messages):</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+          {#each timerOptions as tm}
+            <Button
+              size="sm"
+              variant={activeConv.disappearingSeconds === tm.sec ? 'primary' : 'secondary'}
+              onclick={() => (activeConv.disappearingSeconds = tm.sec)}
+            >
+              {tm.label}
+            </Button>
+          {/each}
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size: 0.84rem; font-weight: 700; margin-bottom: 6px;">
+          👥 Daftar Partisipan ({activeConv.participants.length}):
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          {#each activeConv.participants as part}
+            <div class="sketch-card" style="padding: 8px 12px; display: flex; justify-content: space-between;">
+              <span>{part.displayName}</span>
+              <span class="sketch-badge">{part.role === 'admin' ? 'Admin' : 'Anggota'}</span>
+            </div>
+          {/each}
+        </div>
+      </div>
     </div>
-  </footer>
-</div>
+  </BottomSheet>
+
+  <!-- Dialog Toko Emoji (emoji_store_screen.dart parity) -->
+  <Dialog open={showEmojiStore} title="🛍️ Toko Paket Stiker & Emoji" onclose={() => (showEmojiStore = false)}>
+    <div style="display: flex; flex-direction: column; gap: 10px;">
+      {#each mekaarStore.emojiPacks as pack (pack.id)}
+        <div class="sketch-card" style="padding: 12px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>{pack.title}</strong>
+              <span style="font-size: 0.76rem; color: var(--text-secondary); margin-left: 6px;">oleh {pack.author}</span>
+            </div>
+            <Button
+              size="sm"
+              variant={pack.installed ? 'secondary' : 'primary'}
+              onclick={() => (pack.installed = !pack.installed)}
+            >
+              {pack.installed ? '✓ Terpasang' : '+ Pasang'}
+            </Button>
+          </div>
+          <p style="font-size: 0.8rem; color: var(--text-secondary); margin: 4px 0 8px;">{pack.description}</p>
+          <div style="font-size: 1.3rem; letter-spacing: 6px;">{pack.stickers.join(' ')}</div>
+        </div>
+      {/each}
+    </div>
+  </Dialog>
+{/if}
 
 <style>
-  .chat-room-screen {
+  .room-wrapper {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    background-color: var(--surface-canvas);
+    height: calc(100vh - 68px);
+    background: var(--register-bg);
   }
-
-  .timer-selector-strip {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-2) var(--space-4);
-    background-color: var(--surface-card);
-    border-bottom: 1px solid var(--border-subtle);
-    gap: var(--space-2);
-    overflow-x: auto;
-  }
-
-  .timer-label {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: var(--font-caption-size);
-    font-weight: 600;
-    color: var(--text-secondary);
-    white-space: nowrap;
-  }
-
-  .timer-chips {
-    display: flex;
-    gap: var(--space-1);
-  }
-
-  .timer-chip {
-    padding: 3px 10px;
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--border-subtle);
-    background: transparent;
-    color: var(--text-secondary);
-    font-size: var(--font-caption-size);
-    font-weight: 600;
-    cursor: pointer;
-    transition: all var(--motion-fast);
-  }
-
-  .timer-chip:hover {
-    border-color: var(--brand-blue);
-    color: var(--text-primary);
-  }
-
-  .timer-chip.active {
-    background-color: var(--brand-blue);
-    border-color: var(--brand-blue);
-    color: #FFFFFF;
-  }
-
   .messages-viewport {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-4);
-  }
-
-  .messages-inner {
-    max-width: 800px;
+    padding: 16px 18px;
+    max-width: 880px;
+    width: 100%;
     margin: 0 auto;
-    display: flex;
-    flex-direction: column;
-    gap: var(--space-3);
   }
-
-  .encryption-banner {
+  .e2ee-notice {
+    padding: 8px 12px;
+    margin-bottom: 14px;
+    font-size: 0.78rem;
     text-align: center;
-    font-size: var(--font-caption-size);
-    color: var(--text-secondary);
-    background-color: var(--surface-subtle);
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-md);
-    margin-bottom: var(--space-2);
-  }
-
-  .message-row {
-    display: flex;
-    justify-content: flex-start;
-  }
-
-  .message-row.is-me {
-    justify-content: flex-end;
-  }
-
-  .message-bubble {
-    max-width: 75%;
-    padding: var(--space-3) var(--space-4);
-    border-radius: var(--radius-md);
-    background-color: var(--surface-card);
-    border: 1px solid var(--border-subtle);
-    color: var(--text-primary);
-    box-shadow: var(--shadow-soft);
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    word-break: break-word;
-  }
-
-  .message-bubble.is-me {
-    background-color: var(--brand-blue);
-    color: var(--text-on-blue);
-    border-color: var(--brand-blue);
-    border-bottom-right-radius: 4px;
-  }
-
-  .message-bubble:not(.is-me) {
-    border-bottom-left-radius: 4px;
-  }
-
-  .message-text {
-    font-size: var(--font-body-size);
-    line-height: var(--font-body-line);
-    margin: 0;
-  }
-
-  .message-meta {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 6px;
-    font-size: var(--font-caption-size);
-    opacity: 0.8;
-  }
-
-  .burn-badge {
-    background-color: rgba(255, 93, 93, 0.25);
-    color: inherit;
-    padding: 1px 6px;
-    border-radius: var(--radius-pill);
-    font-weight: 700;
-  }
-
-  .burn-badge.critical {
-    background-color: var(--sos-coral);
-    color: #FFFFFF;
-    animation: burnPulse 500ms infinite alternate;
-  }
-
-  .message-bubble.burning {
-    border-color: var(--sos-coral);
-    animation: burnFlicker 800ms infinite alternate;
-  }
-
-  .message-burned-notice {
-    text-align: center;
-    font-size: var(--font-caption-size);
-    color: var(--sos-coral);
-    padding: var(--space-1) var(--space-3);
-    opacity: 0.8;
-  }
-
-  @keyframes burnFlicker {
-    0% { box-shadow: 0 0 4px rgba(var(--sos-coral-rgb), 0.2); }
-    100% { box-shadow: 0 0 12px rgba(var(--sos-coral-rgb), 0.5); }
-  }
-
-  @keyframes burnPulse {
-    0% { transform: scale(1); }
-    100% { transform: scale(1.08); }
-  }
-
-  .time-text {
-    font-size: 10.5px;
-  }
-
-  .status-check {
-    font-size: 11px;
-    font-weight: 800;
-  }
-
-  .chat-input-bar {
-    position: sticky;
-    bottom: 0;
-    background-color: var(--surface-card);
-    border-top: 1px solid var(--border-subtle);
-    padding: var(--space-3) var(--space-4);
-    z-index: 20;
-  }
-
-  .input-container {
-    max-width: 800px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-  }
-
-  .chat-text-input {
-    flex: 1;
-    height: 48px;
-    padding: 0 var(--space-4);
-    border-radius: var(--radius-pill);
-    border: 1px solid var(--border-subtle);
-    background-color: var(--surface-canvas);
-    color: var(--text-primary);
-    font-family: var(--font-family);
-    font-size: var(--font-body-size);
-    outline: none;
-    transition: border-color var(--motion-fast);
-  }
-
-  .chat-text-input:focus {
-    border-color: var(--border-focus);
+    background: var(--bg-elevated);
   }
 </style>

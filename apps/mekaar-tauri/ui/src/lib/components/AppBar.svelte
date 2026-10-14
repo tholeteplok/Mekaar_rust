@@ -1,175 +1,79 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { mekaarStore } from '../stores';
 
   interface Props {
     title: string;
     subtitle?: string;
     showBack?: boolean;
-    register?: 'core' | 'room' | 'sos';
-    elevated?: boolean;
     onback?: () => void;
-    leading?: Snippet;
     actions?: Snippet;
   }
 
-  let {
-    title,
-    subtitle,
-    showBack = false,
-    register = 'core',
-    elevated = false,
-    onback,
-    leading,
-    actions,
-  }: Props = $props();
+  let { title, subtitle = '', showBack = false, onback, actions }: Props = $props();
 </script>
 
-<header
-  class="mekaar-appbar register-{register}"
-  class:elevated
->
-  <div class="appbar-content">
-    <!-- Leading Area -->
-    <div class="leading-area">
-      {#if leading}
-        {@render leading()}
-      {:else if showBack}
-        <button
-          type="button"
-          class="icon-btn"
-          aria-label="Kembali"
-          onclick={onback}
+<header class="mekaar-appbar">
+  <div style="display: flex; align-items: center; gap: 10px;">
+    {#if showBack}
+      <button type="button" class="back-btn" onclick={onback} title="Kembali">←</button>
+    {/if}
+    <div>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <h1 class="appbar-title">{title}</h1>
+        <span
+          class="sketch-badge"
+          style="background: {mekaarStore.serverStatus.online ? '#DCFCE7' : '#FEF3C7'}; color: #1C1B18;"
+          title="Endpoint: {mekaarStore.serverStatus.wsEndpoint}"
         >
-          <svg class="back-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="15 18 9 12 15 6"></polyline>
-          </svg>
-        </button>
-      {/if}
-    </div>
-
-    <!-- Title / Subtitle Area -->
-    <div class="title-area">
-      <h1 class="title">{title}</h1>
+          <span
+            style="width: 7px; height: 7px; border-radius: 99px; background: {mekaarStore.serverStatus.online ? '#10B981' : '#F59E0B'};"
+          ></span>
+          {mekaarStore.serverStatus.mode === 'tailscale' ? 'Tailscale 100.101.96.120:8085' : 'Local 127.0.0.1:8085'}
+        </span>
+      </div>
       {#if subtitle}
-        <p class="subtitle">{subtitle}</p>
+        <p class="appbar-sub">{subtitle}</p>
       {/if}
     </div>
+  </div>
 
-    <!-- Actions Area -->
-    <div class="actions-area">
-      {#if actions}
-        {@render actions()}
-      {/if}
-    </div>
+  <div style="display: flex; align-items: center; gap: 8px;">
+    {#if actions}
+      {@render actions()}
+    {/if}
   </div>
 </header>
 
 <style>
   .mekaar-appbar {
-    position: sticky;
-    top: 0;
-    z-index: 50;
-    width: 100%;
-    background-color: var(--surface-canvas);
-    border-bottom: 1px solid var(--border-subtle);
-    backdrop-filter: blur(12px);
-    transition: background-color var(--motion-normal), border-color var(--motion-normal);
-  }
-
-  .mekaar-appbar.elevated {
-    box-shadow: var(--shadow-soft);
-  }
-
-  .appbar-content {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    min-height: 56px;
-    padding: var(--space-2) var(--space-4);
-    gap: var(--space-3);
-    max-width: 1200px;
-    margin: 0 auto;
+    padding: 12px 18px;
+    background: var(--register-header);
+    border-bottom: 2px solid var(--sketch-border-color);
+    position: sticky;
+    top: 0;
+    z-index: 30;
   }
-
-  .leading-area {
-    display: flex;
-    align-items: center;
-    min-width: 40px;
+  .appbar-title {
+    font-family: var(--font-crayon);
+    font-size: 1.15rem;
+    font-weight: 700;
   }
-
-  .icon-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: var(--radius-pill);
-    border: none;
-    background: transparent;
-    color: var(--text-primary);
-    cursor: pointer;
-    transition: background-color var(--motion-fast);
-  }
-
-  .icon-btn:hover {
-    background-color: var(--surface-subtle);
-  }
-
-  .icon-btn:active {
-    transform: scale(0.95);
-  }
-
-  .back-icon {
-    width: 22px;
-    height: 22px;
-  }
-
-  .title-area {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    min-width: 0;
-  }
-
-  .title {
-    font-size: var(--font-h2-size);
-    line-height: var(--font-h2-line);
-    font-weight: var(--font-h2-weight);
-    color: var(--text-primary);
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .subtitle {
-    font-size: var(--font-caption-size);
-    line-height: var(--font-caption-line);
-    font-weight: var(--font-caption-weight);
+  .appbar-sub {
+    font-size: 0.78rem;
     color: var(--text-secondary);
-    margin: 0;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
   }
-
-  .actions-area {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    min-width: 40px;
-    justify-content: flex-end;
-  }
-
-  /* Register overrides */
-  .register-sos {
-    background-color: var(--surface-canvas);
-    border-bottom: 2px solid var(--sos-coral);
-  }
-
-  .register-sos .title {
-    color: var(--text-primary);
-    letter-spacing: 0.5px;
+  .back-btn {
+    background: var(--bg-secondary);
+    border: 2px solid var(--sketch-border-color);
+    border-radius: 10px;
+    width: 36px;
+    height: 36px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: var(--sketch-shadow-sm);
   }
 </style>

@@ -1,24 +1,28 @@
 pub mod commands;
 
+use commands::MekaarAppState;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(MekaarAppState::default())
         .invoke_handler(tauri::generate_handler![
-            commands::get_engine_info,
-            commands::ping_relay,
-            commands::verify_vault_pin,
+            commands::get_connection_config,
+            commands::set_connection_config,
             commands::unlock_vault,
             commands::lock_vault,
-            commands::list_conversations,
-            commands::list_messages,
-            commands::send_message,
-            commands::get_guardians,
-            commands::trigger_sos_alert,
-            commands::export_forensic_audit_trail,
-            commands::purge_expired_messages,
-            commands::connect_relay,
-            commands::disconnect_relay,
+            commands::verify_pin,
+            commands::set_pin,
+            commands::trigger_sos,
+            commands::cancel_sos,
+            commands::get_sos_settings,
+            commands::update_sos_settings,
+            commands::get_app_settings,
+            commands::update_app_settings,
+            commands::set_screenshot_protection,
+            commands::export_forensic_bundle,
+            commands::trigger_device_lost_wipe,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running mekaar application");
+        .expect("error while running mekaar-tauri application");
 }

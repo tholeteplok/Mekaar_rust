@@ -1,157 +1,199 @@
-/* ==========================================================================
-   MEKAAR — Centralized Design Tokens (tokens.css)
-   Clean Core, Colorful Room, Focused SOS (Tri-Register Architecture)
-   Sumber Tunggal Kebenaran (Single Source of Truth) — Zero Hardcoded Hex
-   ========================================================================== */
+@import url('https://fonts.googleapis.com/css2?family=DynaPuff:wght@500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
 :root {
-  /* --- 1. Brand Core Colors --- */
-  --brand-blue: #136CFC;
-  --brand-blue-rgb: 19, 108, 252;
-  --brand-dark-blue: #152641;
-  --brand-dark-blue-rgb: 21, 38, 65;
-  --brand-green: #C3F84A;
-  --brand-green-rgb: 195, 248, 74;
-  --brand-light-blue: #E8F4FC;
-  --brand-light-blue-rgb: 232, 244, 252;
+  /* Typography & Dynamic Font Scale (Mekaar_chat font_provider parity) */
+  --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-crayon: 'DynaPuff', cursive, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-scale: 1;
 
-  /* --- 2. Protective Semantic Colors --- */
-  --sos-coral: #FF5D5D;
-  --sos-coral-rgb: 255, 93, 93;
-  --sos-deep: #D92632;
-  --safe-teal: #2DD4BF;
-  --safe-teal-rgb: 45, 212, 191;
-  --warn-amber: #FBBF24;
+  /* Tri-Register Core Defaults (Light Mode + Sketch Aesthetic) */
+  --bg-primary: #FAF8F5;
+  --bg-secondary: #F2EFE9;
+  --bg-surface: #FFFFFF;
+  --bg-elevated: #FFFDF9;
+  --text-primary: #1C1B18;
+  --text-secondary: #5C5852;
+  --text-muted: #8C867E;
 
-  /* --- 3. Light Mode Surfaces (Default Core) --- */
-  --surface-canvas: var(--brand-light-blue);
-  --surface-card: #FFFFFF;
-  --surface-subtle: #F1F7FD;
-  --surface-elevated: #FFFFFF;
-  
-  --text-primary: var(--brand-dark-blue);
-  --text-secondary: #5C6B85;
-  --text-on-blue: #FFFFFF;
-  --text-on-coral: #FFFFFF;
-  --text-on-green: var(--brand-dark-blue);
+  --accent-primary: #2563EB;
+  --accent-secondary: #DBEAFE;
+  --accent-emerald: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-danger: #E11D48;
+  --accent-purple: #7C3AED;
 
-  --border-subtle: #DCE7F5;
-  --border-focus: var(--brand-blue);
-  
-  --shadow-soft: 0 4px 16px rgba(21, 38, 65, 0.06);
-  --shadow-elevated: 0 8px 24px rgba(21, 38, 65, 0.12);
+  /* Sketch Card Border & Crayon Avatar Tokens (Mekaar_chat app_theme.dart parity) */
+  --sketch-border-color: #1C1B18;
+  --sketch-border-width: 2px;
+  --sketch-radius: 16px;
+  --sketch-radius-sm: 12px;
+  --sketch-radius-pill: 9999px;
+  --sketch-shadow: 3px 3px 0px #1C1B18;
+  --sketch-shadow-sm: 2px 2px 0px #1C1B18;
+  --sketch-shadow-lg: 5px 5px 0px #1C1B18;
+  --avatar-tilt: -25deg;
 
-  /* --- 4. Spacing Tokens (8pt Grid) --- */
-  --space-1: 4px;
-  --space-2: 8px;
-  --space-3: 12px;
-  --space-4: 16px;
-  --space-5: 20px;
-  --space-6: 24px;
-  --space-8: 32px;
-  --space-12: 48px;
-
-  /* --- 5. Border Radius Tokens --- */
-  --radius-sm: 12px;
-  --radius-md: 18px;
-  --radius-lg: 24px;
-  --radius-pill: 999px;
-
-  /* --- 6. Typography Scale (Plus Jakarta Sans) --- */
-  --font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  
-  --font-display-size: 32px;
-  --font-display-line: 40px;
-  --font-display-weight: 800;
-
-  --font-h1-size: 24px;
-  --font-h1-line: 32px;
-  --font-h1-weight: 700;
-
-  --font-h2-size: 18px;
-  --font-h2-line: 26px;
-  --font-h2-weight: 700;
-
-  --font-body-size: 15px;
-  --font-body-line: 22px;
-  --font-body-weight: 400;
-
-  --font-label-size: 13px;
-  --font-label-line: 18px;
-  --font-label-weight: 600;
-
-  --font-caption-size: 11.5px;
-  --font-caption-line: 16px;
-  --font-caption-weight: 500;
-
-  /* --- 7. Animation Speeds --- */
-  --motion-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-  --motion-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  --motion-bounce: 350ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* Chat Bubble Tokens */
+  --bubble-self-bg: #DBEAFE;
+  --bubble-self-text: #1E3A8A;
+  --bubble-peer-bg: #FFFFFF;
+  --bubble-peer-text: #1C1B18;
 }
 
-/* --- Dark Mode Register Override --- */
+/* Dark Theme Parity */
 [data-theme="dark"] {
-  --surface-canvas: var(--brand-dark-blue);
-  --surface-card: #1E304F;
-  --surface-subtle: #25395B;
-  --surface-elevated: #263C63;
-
-  --text-primary: #F4F9FF;
-  --text-secondary: #9FB0C9;
-  --text-on-blue: #FFFFFF;
-
-  --border-subtle: #25395B;
-  --border-focus: #3B82F6;
-
-  --shadow-soft: 0 4px 20px rgba(0, 0, 0, 0.25);
-  --shadow-elevated: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --bg-primary: #0F141C;
+  --bg-secondary: #171E29;
+  --bg-surface: #1E2736;
+  --bg-elevated: #263142;
+  --text-primary: #F3F4F6;
+  --text-secondary: #9CA3AF;
+  --text-muted: #6B7280;
+  --sketch-border-color: #4B5563;
+  --sketch-shadow: 3px 3px 0px #090C10;
+  --sketch-shadow-sm: 2px 2px 0px #090C10;
+  --bubble-self-bg: #1D4ED8;
+  --bubble-self-text: #EFF6FF;
+  --bubble-peer-bg: #1E2736;
+  --bubble-peer-text: #F3F4F6;
 }
 
-/* --- Focused SOS Mode Emergency Override (Mengambil Alih Tampilan) --- */
+/* Tri-Register 1: CORE Register (Navigation, Contacts, Guardian, Settings, Vault) */
+[data-register="core"] {
+  --register-bg: var(--bg-primary);
+  --register-header: var(--bg-surface);
+  --register-accent: var(--accent-primary);
+}
+
+/* Tri-Register 2: ROOM Register (Active Chat Room with Custom Themes) */
+[data-register="room"] {
+  --register-bg: #EEF4FF;
+  --register-header: #FFFFFF;
+  --register-accent: #2563EB;
+}
+
+[data-register="room"][data-chat-theme="forest"] {
+  --register-bg: #ECFDF5;
+  --bubble-self-bg: #D1FAE5;
+  --bubble-self-text: #065F46;
+  --register-accent: #059669;
+}
+
+[data-register="room"][data-chat-theme="sunset"] {
+  --register-bg: #FFF7ED;
+  --bubble-self-bg: #FFEDD5;
+  --bubble-self-text: #9A3412;
+  --register-accent: #EA580C;
+}
+
+[data-register="room"][data-chat-theme="ocean"] {
+  --register-bg: #ECFEFF;
+  --bubble-self-bg: #CFFAFE;
+  --bubble-self-text: #155E75;
+  --register-accent: #0891B2;
+}
+
+[data-register="room"][data-chat-theme="midnight"] {
+  --register-bg: #111827;
+  --register-header: #1F2937;
+  --bubble-self-bg: #3730A3;
+  --bubble-self-text: #E0E7FF;
+  --bubble-peer-bg: #1F2937;
+  --bubble-peer-text: #F9FAFB;
+  --text-primary: #F9FAFB;
+  --text-secondary: #D1D5DB;
+}
+
+/* Tri-Register 3: SOS Register (High-Contrast Emergency Coral/Red) */
 [data-register="sos"] {
-  --surface-canvas: #0F0304;
-  --surface-card: #24080A;
-  --surface-subtle: #3B0D11;
-  --surface-elevated: #4A1015;
-
-  --brand-blue: var(--sos-coral);
-  --text-primary: #FFF0F1;
-  --text-secondary: #FFA3A8;
-  --text-on-blue: #0F0304;
-
-  --border-subtle: #5C151B;
-  --border-focus: var(--sos-coral);
-
-  --shadow-soft: 0 4px 24px rgba(255, 93, 93, 0.2);
-  --shadow-elevated: 0 8px 32px rgba(255, 93, 93, 0.35);
+  --register-bg: #FFF1F2;
+  --register-header: #FFE4E6;
+  --register-accent: #E11D48;
+  --sketch-border-color: #9F1239;
+  --sketch-shadow: 3px 3px 0px #881337;
 }
 
-/* --- Global Base CSS Reset --- */
-*, *::before, *::after {
+* {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
-  width: 100%;
-  height: 100%;
-  font-family: var(--font-family);
-  font-size: var(--font-body-size);
-  line-height: var(--font-body-line);
+body {
+  font-family: var(--font-sans);
+  font-size: calc(15px * var(--font-scale));
+  background-color: var(--bg-primary);
   color: var(--text-primary);
-  background-color: var(--surface-canvas);
-  overflow-x: hidden;
-  user-select: none;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  transition: background-color var(--motion-normal), color var(--motion-normal);
+  user-select: none;
 }
 
-#app {
+/* Sketch Card Utility (Identical to Mekaar_chat sketch card border) */
+.sketch-card {
+  background: var(--bg-surface);
+  border: var(--sketch-border-width) solid var(--sketch-border-color);
+  border-radius: var(--sketch-radius);
+  box-shadow: var(--sketch-shadow);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+.sketch-card-interactive:hover {
+  transform: translate(-1px, -1px);
+  box-shadow: var(--sketch-shadow-lg);
+}
+
+.sketch-card-interactive:active {
+  transform: translate(1px, 1px);
+  box-shadow: var(--sketch-shadow-sm);
+}
+
+/* DynaPuff 25-degree tilted Crayon Avatar (Identical to Mekaar_chat avatar style) */
+.crayon-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-crayon);
+  font-weight: 700;
+  border: 2px solid var(--sketch-border-color);
+  border-radius: 14px;
+  box-shadow: var(--sketch-shadow-sm);
+  position: relative;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.crayon-avatar span.tilted-glyph {
+  display: inline-block;
+  transform: rotate(var(--avatar-tilt));
+  letter-spacing: -0.02em;
+}
+
+.sketch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: var(--sketch-radius-pill);
+  border: 1.5px solid var(--sketch-border-color);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.sketch-input {
   width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
+  padding: 10px 14px;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: var(--sketch-border-width) solid var(--sketch-border-color);
+  border-radius: var(--sketch-radius-sm);
+  box-shadow: var(--sketch-shadow-sm);
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.sketch-input:focus {
+  border-color: var(--accent-primary);
 }
