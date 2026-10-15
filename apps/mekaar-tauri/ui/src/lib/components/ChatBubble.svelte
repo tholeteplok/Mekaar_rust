@@ -17,6 +17,7 @@
     onopenmap?: (lat?: number, lng?: number) => void;
     onrequestguardian?: (name: string, lat?: number, lng?: number) => void;
     onstoplive?: (msgId: string) => void;
+    isForwardingProtected?: boolean;
   }
 
   let {
@@ -32,7 +33,8 @@
     onpin,
     onopenmap,
     onrequestguardian,
-    onstoplive
+    onstoplive,
+    isForwardingProtected = false
   }: Props = $props();
 
   // Voice player state
@@ -108,7 +110,7 @@
 >
   <div class="bubble-stack">
     <!-- Bubble Container -->
-    <div class="bubble-container {message.isSelf ? 'bubble-self' : 'bubble-peer'} {isTargetJump ? 'target-jump-pulse' : ''}">
+    <div class="bubble-container {message.isSelf ? 'bubble-self' : 'bubble-peer'} {isTargetJump ? 'target-jump-pulse' : ''} {isForwardingProtected ? 'protected-content' : ''}">
       <!-- Quick Reaction & Actions Float Trigger (visible on hover) -->
       {#if !message.isRevoked}
         <div class="bubble-hover-actions {message.isSelf ? 'actions-self' : 'actions-peer'}">
@@ -196,6 +198,25 @@
             >
               <span>↩️</span> Balas Pesan
             </button>
+          {/if}
+
+          {#if !isForwardingProtected && message.text}
+            <button
+              type="button"
+              class="menu-item-btn"
+              onclick={() => {
+                showMoreMenu = false;
+                if (typeof navigator !== 'undefined' && navigator.clipboard) {
+                  navigator.clipboard.writeText(message.text);
+                }
+              }}
+            >
+              <span>📋</span> Salin Teks
+            </button>
+          {:else if isForwardingProtected}
+            <div class="menu-item-btn item-disabled" title="Penyalinan dilarang oleh proteksi privasi obrolan">
+              <span>🚫</span> Salin Dilarang
+            </div>
           {/if}
 
           {#if message.isSelf && !message.isRevoked && onedit}
@@ -1140,5 +1161,16 @@
   .reaction-count {
     font-weight: 700;
     font-size: 0.72rem;
+  }
+
+  .protected-content {
+    user-select: none !important;
+    -webkit-user-select: none !important;
+  }
+
+  .item-disabled {
+    opacity: 0.55;
+    cursor: not-allowed !important;
+    color: var(--text-muted);
   }
 </style>

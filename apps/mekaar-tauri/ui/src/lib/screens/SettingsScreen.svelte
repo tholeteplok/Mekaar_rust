@@ -30,12 +30,32 @@
   let showConnectedDevicesModal = $state(false);
   let showBlockedListModal = $state(false);
 
+  // Pengaturan Privasi Lanjutan & Storage States
+  let showAutoLockModal = $state(false);
+  let showLastSeenModal = $state(false);
+  let showInvitationModal = $state(false);
+  let cacheToast = $state('');
+
+  function handleClearCache() {
+    mekaarStore.clearTempCache();
+    cacheToast = '✓ 18.4 MB berkas cache sementara berhasil dibersihkan!';
+    setTimeout(() => {
+      if (cacheToast.includes('18.4 MB')) cacheToast = '';
+    }, 3000);
+  }
+
 
 </script>
 
 <AppBar title="Pengaturan" />
 
 <div class="settings-page-container">
+  {#if cacheToast}
+    <div class="cache-floating-toast">
+      {cacheToast}
+    </div>
+  {/if}
+
   <!-- Section: Akun -->
   <div class="settings-group">
     <span class="group-title">Akun</span>
@@ -151,6 +171,40 @@
 
         <div class="item-divider"></div>
 
+        <!-- Kunci Otomatis (Inactivity Auto-Lock) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showAutoLockModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <div>
+              <div class="item-title">Kunci Otomatis (Auto-Lock)</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Minta PIN setelah tidak ada aktivitas</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">
+              {mekaarStore.autoLockMinutes === 0
+                ? 'Segera'
+                : mekaarStore.autoLockMinutes === -1
+                  ? 'Nonaktif'
+                  : `${mekaarStore.autoLockMinutes} Menit`}
+            </span>
+            <div class="arrow-circle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
         <!-- Sembunyikan Notifikasi Darurat -->
         <div class="setting-item-row">
           <div class="item-left">
@@ -174,7 +228,9 @@
         <div class="item-divider"></div>
 
         <!-- Terakhir Dilihat & Online -->
-        <div class="setting-item-row">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showLastSeenModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-blue-subtle">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -185,7 +241,13 @@
             <span class="item-title">Terakhir Dilihat & Online</span>
           </div>
           <div class="item-right">
-            <span class="item-value">Kontak saya</span>
+            <span class="item-value">
+              {mekaarStore.lastSeenPrivacy === 'everyone'
+                ? 'Semua Orang'
+                : mekaarStore.lastSeenPrivacy === 'nobody'
+                  ? 'Tidak Ada'
+                  : 'Kontak Saya'}
+            </span>
             <div class="arrow-circle">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="9 18 15 12 9 6"></polyline>
@@ -332,9 +394,126 @@
             </div>
           </div>
         </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Izin Undangan Obrolan (Chat Requests) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showInvitationModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-purple">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="item-title">Izin Undangan Obrolan</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Filter kontak masuk & permintaan obrolan</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">
+              {mekaarStore.chatInvitationMode === 'everyone'
+                ? 'Semua Orang'
+                : mekaarStore.chatInvitationMode === 'contacts'
+                  ? 'Kontak Saya'
+                  : 'Persetujuan'}
+            </span>
+            <div class="arrow-circle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Proteksi IP Panggilan (WebRTC Call Relay via teplok-pc) -->
+        <div class="setting-item-row">
+          <div class="item-left">
+            <div class="item-icon-circle icon-teal">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </div>
+            <div>
+              <div class="item-title">Relay Panggilan (Sembunyikan IP)</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Alihkan WebRTC via server teplok-pc agar IP peer terlindungi</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.callRelayEnabled ? 'Aktif' : 'Nonaktif'}</span>
+            <label class="switch-toggle">
+              <input type="checkbox" bind:checked={mekaarStore.callRelayEnabled} />
+              <span class="slider"></span>
+            </label>
+          </div>
+        </div>
       </div>
     </div>
   {/if}
+
+  <!-- Section: Penyimpanan & Data (Storage & Cache Manager) -->
+  <div class="settings-group">
+    <span class="group-title">Penyimpanan & Data</span>
+    <div class="clean-card with-ticks list-tile-card">
+      <span class="pencil-tick tick-bl">⌞</span>
+      <span class="pencil-tick tick-tr">⌝</span>
+
+      <!-- Storage Breakdown Card -->
+      <div class="storage-breakdown-card">
+        <div class="storage-bar-wrap">
+          <div class="bar-segment bar-media" style="width: 52%;" title="Media & Brankas: 24.8 MB"></div>
+          <div class="bar-segment bar-cache" style="width: 32%;" title="Cache & Berkas Sementara: 18.4 MB"></div>
+          <div class="bar-segment bar-db" style="width: 16%;" title="Basis Data SQLCipher: 4.2 MB"></div>
+        </div>
+
+        <div class="storage-legend-grid">
+          <div class="legend-item">
+            <span class="legend-dot dot-media">●</span>
+            <span class="legend-label">Media: <strong>24.8 MB</strong></span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot dot-cache">●</span>
+            <span class="legend-label">Cache: <strong>18.4 MB</strong></span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot dot-db">●</span>
+            <span class="legend-label">Database: <strong>4.2 MB</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Action: Bersihkan Cache Sementara -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={handleClearCache}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-orange">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+            </svg>
+          </div>
+          <div>
+            <div class="item-title">Bersihkan Cache Sementara</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Hapus berkas pratinjau & thumbnail tanpa menghapus riwayat pesan</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Bersihkan</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Section: Server Relay teplok-pc & Forensik -->
   <div class="settings-group">
@@ -691,6 +870,105 @@
   onclose={() => (showBlockedListModal = false)}
 />
 
+<!-- Dialog Kunci Otomatis (Inactivity Timer) -->
+<Dialog
+  open={showAutoLockModal}
+  title="⏱️ Kunci Otomatis Aplikasi"
+  onclose={() => (showAutoLockModal = false)}
+>
+  <div class="modal-options-list">
+    <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 6px;">
+      Aplikasi akan terkunci dan meminta verifikasi PIN jika tidak ada interaksi selama jangka waktu berikut:
+    </p>
+    {#each [
+      { label: 'Segera saat berpindah aplikasi', min: 0 },
+      { label: '1 Menit inaktivitas', min: 1 },
+      { label: '5 Menit inaktivitas (Rekomendasi)', min: 5 },
+      { label: '15 Menit inaktivitas', min: 15 },
+      { label: '1 Jam inaktivitas', min: 60 },
+      { label: 'Nonaktifkan kunci otomatis', min: -1 }
+    ] as item}
+      <button
+        type="button"
+        class="dialog-option-btn {mekaarStore.autoLockMinutes === item.min ? 'dialog-option-active' : ''}"
+        onclick={() => {
+          mekaarStore.autoLockMinutes = item.min;
+          showAutoLockModal = false;
+        }}
+      >
+        <span>{item.label}</span>
+        {#if mekaarStore.autoLockMinutes === item.min}<span>✓</span>{/if}
+      </button>
+    {/each}
+  </div>
+</Dialog>
+
+<!-- Dialog Terakhir Dilihat & Online -->
+<Dialog
+  open={showLastSeenModal}
+  title="👁️ Privasi Terakhir Dilihat & Online"
+  onclose={() => (showLastSeenModal = false)}
+>
+  <div class="modal-options-list">
+    <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 6px;">
+      Pilih siapa saja yang dapat melihat waktu terakhir kali Anda online di jaringan:
+    </p>
+    {#each [
+      { label: 'Semua Orang', val: 'everyone', desc: 'Dapat dilihat oleh semua node terdaftar di jaringan teplok-pc' },
+      { label: 'Kontak Saya (Rekomendasi)', val: 'contacts', desc: 'Hanya kontak terverifikasi di daftar buku alamat Anda' },
+      { label: 'Tidak Ada (Maksimal Privasi)', val: 'nobody', desc: 'Status online & waktu terakhir tidak pernah dibagikan' }
+    ] as item}
+      <button
+        type="button"
+        class="dialog-option-btn {mekaarStore.lastSeenPrivacy === item.val ? 'dialog-option-active' : ''}"
+        onclick={() => {
+          mekaarStore.lastSeenPrivacy = item.val as any;
+          showLastSeenModal = false;
+        }}
+      >
+        <div style="display: flex; flex-direction: column; text-align: left;">
+          <strong>{item.label}</strong>
+          <span style="font-size: 0.74rem; color: var(--text-secondary);">{item.desc}</span>
+        </div>
+        {#if mekaarStore.lastSeenPrivacy === item.val}<span>✓</span>{/if}
+      </button>
+    {/each}
+  </div>
+</Dialog>
+
+<!-- Dialog Izin Undangan Obrolan -->
+<Dialog
+  open={showInvitationModal}
+  title="📨 Izin Undangan Obrolan"
+  onclose={() => (showInvitationModal = false)}
+>
+  <div class="modal-options-list">
+    <p style="font-size: 0.84rem; color: var(--text-secondary); margin-bottom: 6px;">
+      Tentukan bagaimana ruang obrolan baru dapat dimulai dengan akun Anda:
+    </p>
+    {#each [
+      { label: 'Permintaan Wajib Disetujui (Default Mekaar)', val: 'approved_only', desc: 'Pesan dari orang tak dikenal masuk ke kotak Permintaan Chat terlebih dahulu' },
+      { label: 'Hanya Kontak Terverifikasi', val: 'contacts', desc: 'Hanya pengguna yang sudah ada di daftar kontak Anda yang dapat mengirim pesan' },
+      { label: 'Semua Orang', val: 'everyone', desc: 'Siapa pun yang memiliki ID/Username Anda dapat langsung mengirim pesan' }
+    ] as item}
+      <button
+        type="button"
+        class="dialog-option-btn {mekaarStore.chatInvitationMode === item.val ? 'dialog-option-active' : ''}"
+        onclick={() => {
+          mekaarStore.chatInvitationMode = item.val as any;
+          showInvitationModal = false;
+        }}
+      >
+        <div style="display: flex; flex-direction: column; text-align: left;">
+          <strong>{item.label}</strong>
+          <span style="font-size: 0.74rem; color: var(--text-secondary);">{item.desc}</span>
+        </div>
+        {#if mekaarStore.chatInvitationMode === item.val}<span>✓</span>{/if}
+      </button>
+    {/each}
+  </div>
+</Dialog>
+
 <style>
   .settings-page-container {
     padding: 0 16px 28px 16px;
@@ -871,5 +1149,105 @@
     border-color: var(--brand-blue);
     background-color: #EFF6FF;
     color: var(--brand-blue);
+  }
+
+  .cache-floating-toast {
+    background: #0F172A;
+    color: #38BDF8;
+    font-size: 0.84rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1.5px solid #38BDF8;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    align-self: center;
+    margin-bottom: -10px;
+    animation: fadeInToast 0.25s ease-out;
+  }
+
+  @keyframes fadeInToast {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Storage Breakdown Card */
+  .storage-breakdown-card {
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .storage-bar-wrap {
+    height: 10px;
+    border-radius: 999px;
+    display: flex;
+    overflow: hidden;
+    background: var(--bg-secondary, #E2E8F0);
+    border: 1px solid var(--border-light, #CBD5E1);
+  }
+
+  .bar-segment {
+    height: 100%;
+    transition: width 0.3s ease;
+  }
+
+  .bar-media { background: var(--brand-blue, #0284C7); }
+  .bar-cache { background: #EA580C; }
+  .bar-db { background: var(--brand-teal, #0D9488); }
+
+  .storage-legend-grid {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .legend-dot {
+    font-size: 0.9rem;
+  }
+
+  .dot-media { color: var(--brand-blue, #0284C7); }
+  .dot-cache { color: #EA580C; }
+  .dot-db { color: var(--brand-teal, #0D9488); }
+
+  /* Modal Options List */
+  .modal-options-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dialog-option-btn {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1.5px solid var(--border-sketch-color, #E2E8F0);
+    background: var(--bg-main, #FFFFFF);
+    color: var(--text-main);
+    cursor: pointer;
+    font-size: 0.86rem;
+    transition: all 0.15s ease;
+  }
+
+  .dialog-option-btn:hover {
+    border-color: var(--brand-blue);
+    background: var(--bg-secondary);
+  }
+
+  .dialog-option-btn.dialog-option-active {
+    border-color: var(--brand-blue);
+    background: #EFF6FF;
+    color: var(--brand-blue);
+    font-weight: 700;
   }
 </style>

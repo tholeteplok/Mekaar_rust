@@ -4,6 +4,7 @@
   import BottomSheet from './BottomSheet.svelte';
   import Dialog from './Dialog.svelte';
   import SketchAvatar from './SketchAvatar.svelte';
+  import ChatRoomPrivacySheet from './ChatRoomPrivacySheet.svelte';
   import { WebRtcManager } from '../services/webrtc';
 
   interface Props {
@@ -18,6 +19,7 @@
 
   let showE2eeDetails = $state(false);
   let showSasDialog = $state(false);
+  let showPrivacySheet = $state(false);
   let showClearConfirmDialog = $state(false);
   let showBlockConfirmDialog = $state(false);
   let toastMessage = $state('');
@@ -314,6 +316,26 @@
 
         <div class="card-separator"></div>
 
+        <!-- Privasi Obrolan Ekstrem (2 Arah) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-toggle-row" onclick={() => (showPrivacySheet = true)}>
+          <div class="setting-icon-col icon-teal">
+            🛡️
+          </div>
+          <div class="setting-text-col">
+            <span class="setting-title">Pengaturan Privasi Obrolan (2 Arah)</span>
+            <span class="setting-desc">Proteksi layar, anti-copy, burn on exit, dan wipe 2 arah</span>
+          </div>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+
+        <div class="card-separator"></div>
+
         <!-- Sidik Jari Kunci Keamanan E2EE -->
         <div class="setting-info-row">
           <div class="setting-icon-col icon-blue">
@@ -486,6 +508,14 @@
     </button>
   </div>
 </Dialog>
+
+<!-- Sheet Privasi Obrolan Ekstrem (2 Arah) -->
+<ChatRoomPrivacySheet
+  open={showPrivacySheet}
+  conversation={matchedConv}
+  onclose={() => (showPrivacySheet = false)}
+  onopenSas={() => (showSasDialog = true)}
+/>
 
 <style>
   .contact-sheet-content {

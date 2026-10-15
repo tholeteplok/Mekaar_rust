@@ -72,6 +72,12 @@ class MekaarStore {
   typingIndicator = $state<boolean>(true);
   pinCode = $state<string>('123456');
 
+  // Pengaturan Privasi & Keamanan Tingkat Lanjut (Paritas Mekaar_chat, Signal, Telegram)
+  callRelayEnabled = $state<boolean>(true); // WebRTC Call Relay via teplok-pc untuk menyembunyikan IP
+  autoLockMinutes = $state<number>(5); // 0 = Segera, 1, 5, 15, 60, -1 = Nonaktif
+  lastSeenPrivacy = $state<'everyone' | 'contacts' | 'nobody'>('contacts');
+  chatInvitationMode = $state<'everyone' | 'contacts' | 'approved_only'>('approved_only');
+
   // Status Server teplok-pc (Tailscale & Local)
   serverStatus = $state<ServerHealthStatus>({
     online: true,
@@ -120,7 +126,14 @@ class MekaarStore {
       participants: [
         { userId: 'usr-teplok-01', displayName: 'Teplok', role: 'admin', muted: false },
         { userId: 'usr-ayu-02', displayName: 'Ayu Lestari', role: 'member', muted: false }
-      ]
+      ],
+      isScreenProtected: false,
+      isForwardingProtected: false,
+      isBurnOnExit: false,
+      burnOnExitScope: 'local',
+      isViewOnceDefault: false,
+      scheduledWipeMode: 'off',
+      scheduledWipeTime: '23:59'
     },
     {
       id: 'conv-2',
@@ -141,7 +154,14 @@ class MekaarStore {
         { userId: 'usr-bima-03', displayName: 'Bima Pratama', role: 'admin', muted: false },
         { userId: 'usr-ayu-02', displayName: 'Ayu Lestari', role: 'member', muted: false },
         { userId: 'usr-nadia-04', displayName: 'Nadia Putri', role: 'member', muted: false }
-      ]
+      ],
+      isScreenProtected: false,
+      isForwardingProtected: false,
+      isBurnOnExit: false,
+      burnOnExitScope: 'local',
+      isViewOnceDefault: false,
+      scheduledWipeMode: 'off',
+      scheduledWipeTime: '23:59'
     },
     {
       id: 'conv-3',
@@ -161,7 +181,14 @@ class MekaarStore {
       participants: [
         { userId: 'usr-teplok-01', displayName: 'Teplok', role: 'admin', muted: false },
         { userId: 'usr-bima-03', displayName: 'Bima Pratama', role: 'member', muted: false }
-      ]
+      ],
+      isScreenProtected: true,
+      isForwardingProtected: true,
+      isBurnOnExit: true,
+      burnOnExitScope: 'mutual',
+      isViewOnceDefault: true,
+      scheduledWipeMode: 'daily',
+      scheduledWipeTime: '23:59'
     }
   ]);
 
@@ -1170,6 +1197,73 @@ class MekaarStore {
     if (conv) {
       conv.disappearingSeconds = seconds;
     }
+  }
+
+  updateRoomPrivacy(convId: string, updates: Partial<Conversation>) {
+    const conv = this.conversations.find((c) => c.id === convId);
+    if (!conv) return;
+
+    Object.assign(conv, updates);
+
+    // Jika proteksi layar berubah dan obrolan ini sedang aktif, sinkronkan ke backend tauri
+    if (updates.isScreenProtected !== undefined) {
+      safeInvoke('set_screenshot_protection', { enabled: updates.isScreenProtected });
+    }
+
+    // Rekam audit keamanan jika proteksi ekstrem diaktifkan
+    if (updates.isScreenProtected || updates.isForwardingProtected || updates.isBurnOnExit) {
+      this.securityLogs = [
+        {
+          id: `log-${Date.now()}`,
+          eventTitle: `Proteksi Privasi Obrolan (${conv.title}) Diperbarui (2 Arah)`,
+          eventCategory: 'crypto',
+          deviceInfo: 'MEKAAR 2-Way Privacy Shield',
+          timestamp: 'Baru saja',
+          severity: 'info'
+        },
+        ...this.securityLogs
+      ];
+    }
+  }
+
+  executeBurnOnExit(convId: string) {
+    const conv = this.conversations.find((c) => c.id === convId);
+    if (!conv || !conv.isBurnOnExit) return;
+
+    const count = this.messagesByConv[convId]?.length || 0;
+    this.messagesByConv[convId] = [];
+    conv.subtitle = 'Pesan telah dimusnahkan secara otomatis saat keluar ruang obrolan.';
+    conv.unreadCount = 0;
+
+    // Rekam log keamanan
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: `Burn on Exit Dieksekusi (${conv.title}): ${count} pesan dimusnahkan (${conv.burnOnExitScope === 'mutual' ? '2 Arah / Mutual' : 'Perangkat Lokal'})`,
+        eventCategory: 'wipe',
+        deviceInfo: 'MEKAAR BurnOnExit Engine',
+        timestamp: 'Baru saja',
+        severity: 'warning'
+      },
+      ...this.securityLogs
+    ];
+  }
+
+  clearTempCache(): number {
+    // Simulasi pembersihan cache media & berkas sementara
+    const clearedBytes = 18.4 * 1024 * 1024; // 18.4 MB
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: 'Pembersihan Cache Sementara: 18.4 MB berkas dibersihkan dengan aman',
+        eventCategory: 'wipe',
+        deviceInfo: 'MEKAAR Cache Storage Cleaner',
+        timestamp: 'Baru saja',
+        severity: 'info'
+      },
+      ...this.securityLogs
+    ];
+    return clearedBytes;
   }
 
   stopLiveLocation(convId: string, msgId: string) {

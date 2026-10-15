@@ -108,6 +108,13 @@ export interface Conversation {
   pinnedMessageId?: string;
   chatTheme: ChatThemeId;
   participants: RoomParticipantPreferences[];
+  isScreenProtected?: boolean;
+  isForwardingProtected?: boolean;
+  isBurnOnExit?: boolean;
+  burnOnExitScope?: 'local' | 'mutual';
+  isViewOnceDefault?: boolean;
+  scheduledWipeMode?: 'off' | 'one_shot' | 'daily';
+  scheduledWipeTime?: string;
 }
 
 export interface ChatRequestModel {

@@ -10,11 +10,13 @@
   import MediaLightboxModal from '../components/MediaLightboxModal.svelte';
   import Dialog from '../components/Dialog.svelte';
   import ContactDetailSheet from '../components/ContactDetailSheet.svelte';
+  import ChatRoomPrivacySheet from '../components/ChatRoomPrivacySheet.svelte';
 
   let replyingTo = $state<MessageModel | null>(null);
   let editingMessage = $state<MessageModel | null>(null);
   let showRoomOptions = $state(false);
   let showContactDetail = $state(false);
+  let showPrivacySheet = $state(false);
   let showStegoDecoder = $state(false);
   let selectedStegoSrc = $state('');
   let selectedStegoName = $state('');
@@ -23,6 +25,14 @@
   // Revoke Dialog State
   let revokeTarget = $state<MessageModel | null>(null);
   let showRevokeDialog = $state(false);
+
+  function handleLeaveRoom() {
+    if (!activeConv) return;
+    if (activeConv.isBurnOnExit) {
+      mekaarStore.executeBurnOnExit(activeConv.id);
+    }
+    mekaarStore.closeConversation();
+  }
 
   // Disappearing Timer Modal State
   let showDisappearingModal = $state(false);
@@ -155,7 +165,7 @@
       <button
         type="button"
         class="circle-nav-btn"
-        onclick={() => mekaarStore.closeConversation()}
+        onclick={handleLeaveRoom}
         aria-label="Kembali ke Daftar Chat"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -259,6 +269,17 @@
             <polygon points="23 7 16 12 23 17 23 7"/>
             <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
           </svg>
+        </button>
+
+        <!-- Mutual Privacy Shield Button -->
+        <button
+          type="button"
+          class="circle-nav-btn {activeConv.isScreenProtected ? 'active-shield' : ''}"
+          onclick={() => (showPrivacySheet = true)}
+          aria-label="Proteksi Privasi Obrolan Ekstrem"
+          title={activeConv.isScreenProtected ? 'Proteksi Layar & Konten Aktif (2 Arah)' : 'Pengaturan Privasi Obrolan'}
+        >
+          <span style="font-size: 15px;">{activeConv.isScreenProtected ? '🛡️' : '🔒'}</span>
         </button>
 
         <!-- Options Button -->
@@ -465,6 +486,7 @@
               onstoplive={(msgId) => {
                 mekaarStore.stopLiveLocation(activeConv.id, msgId);
               }}
+              isForwardingProtected={activeConv.isForwardingProtected}
             />
           {/each}
         {/if}
@@ -540,6 +562,16 @@
           class="sheet-action-row"
           onclick={() => {
             showRoomOptions = false;
+            showPrivacySheet = true;
+          }}
+        >
+          <span>🛡️ Privasi Obrolan Ekstrem (2 Arah)</span>
+        </button>
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            showRoomOptions = false;
             showDisappearingModal = true;
           }}
         >
@@ -606,6 +638,13 @@
     contact={peerContact}
     conversationId={activeConv.id}
     onclose={() => (showContactDetail = false)}
+  />
+
+  <!-- Chat Room Privacy Sheet (2-Way Extreme Protection) -->
+  <ChatRoomPrivacySheet
+    open={showPrivacySheet}
+    conversation={activeConv}
+    onclose={() => (showPrivacySheet = false)}
   />
 
   <!-- Disappearing Messages Timer Dialog -->
@@ -778,6 +817,12 @@
   .circle-nav-btn.active-timer {
     background-color: #FFF1F2;
     border-color: #FDA4AF;
+  }
+
+  .circle-nav-btn.active-shield {
+    background-color: rgba(13, 148, 136, 0.15);
+    border-color: var(--brand-teal, #0D9488);
+    box-shadow: 0 0 6px rgba(13, 148, 136, 0.35);
   }
 
   .header-actions-row {
