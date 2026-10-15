@@ -45,6 +45,10 @@ pub fn run() {
             commands::get_telemetry,
             commands::log_call_session,
             commands::log_media_attachment,
+            commands::perform_forensic_wipe,
+            commands::set_scheduled_wipe_config,
+            commands::get_connected_devices,
+            commands::revoke_connected_device,
         ])
         .run(tauri::generate_context!())
         .expect("error while running mekaar-tauri application");

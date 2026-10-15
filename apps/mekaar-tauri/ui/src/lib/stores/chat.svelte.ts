@@ -19,7 +19,9 @@ import type {
   DeviceLostModel,
   ChatThemeId,
   TelemetryModel,
-  VaultMediaItemModel
+  VaultMediaItemModel,
+  ConnectedDeviceModel,
+  ScheduledWipeConfig
 } from '../types';
 import { WebRtcManager } from '../services/webrtc';
 import { parseContactPayload } from '../services/qr';
@@ -599,6 +601,41 @@ class MekaarStore {
     remoteWipeTokenHash: 'BLAKE3:8f94e2c1...77a1',
     lastHeartbeat: 'Terhubung ke teplok-pc (100.101.96.120:8085)'
   });
+
+  connectedDevices = $state<ConnectedDeviceModel[]>([
+    {
+      id: 'dev-tauri-host',
+      deviceName: 'teplok-pc (Tauri Desktop Host)',
+      platform: 'desktop',
+      ipAddress: '100.101.96.120 (Tailscale Mesh)',
+      lastActive: 'Saat ini aktif',
+      isCurrent: true
+    },
+    {
+      id: 'dev-android-sm918',
+      deviceName: 'Mekaar Android (SM-S918B)',
+      platform: 'android',
+      ipAddress: '100.101.96.121 (Surakarta Node)',
+      lastActive: '15 menit lalu',
+      isCurrent: false
+    },
+    {
+      id: 'dev-web-enclave',
+      deviceName: 'Web Enclave Client (Chrome 131)',
+      platform: 'web',
+      ipAddress: '127.0.0.1:5174',
+      lastActive: '1 jam lalu',
+      isCurrent: false
+    }
+  ]);
+
+  scheduledWipe = $state<ScheduledWipeConfig>({
+    mode: 'off',
+    time: '02:00'
+  });
+
+  inactivityLockTimeout = $state<number>(5);
+
 
   // ── Alur FTUE & Siklus Hidup Pengguna Baru ──────────────────────────
   initFtueState() {
@@ -2089,6 +2126,78 @@ class MekaarStore {
       publicKey: string;
     }>('export_signed_forensic_bundle', { passphrase });
     return res;
+  }
+
+  async loadConnectedDevices() {
+    const res = await safeInvoke<ConnectedDeviceModel[]>('get_connected_devices');
+    if (res && res.length > 0) {
+      this.connectedDevices = res;
+    }
+  }
+
+  async revokeConnectedDevice(deviceId: string) {
+    this.connectedDevices = this.connectedDevices.filter((d) => d.id !== deviceId);
+    await safeInvoke('revoke_connected_device', { deviceId });
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: `Sesi Perangkat Dicabut: ${deviceId}`,
+        eventCategory: 'auth',
+        deviceInfo: 'Sesi Aktif Dihentikan',
+        timestamp: 'Baru saja',
+        severity: 'warning'
+      },
+      ...this.securityLogs
+    ];
+  }
+
+  async setScheduledWipe(mode: 'off' | 'one_shot' | 'daily', time: string) {
+    this.scheduledWipe = { mode, time };
+    await safeInvoke('set_scheduled_wipe_config', { mode, targetTime: time });
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: `Pembersihan Terjadwal Dikonfigurasi (${mode.toUpperCase()} pada ${time})`,
+        eventCategory: 'vault',
+        deviceInfo: 'Automated Wipe Daemon',
+        timestamp: 'Baru saja',
+        severity: 'info'
+      },
+      ...this.securityLogs
+    ];
+  }
+
+  async unblockUser(userId: string) {
+    this.blockedUsers = this.blockedUsers.filter((u) => u.id !== userId);
+    await safeInvoke('toggle_block_contact', { contactId: userId, blocked: false });
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: `Kontak Dibuka Blokirnya (${userId})`,
+        eventCategory: 'auth',
+        deviceInfo: 'Contact Security Policy',
+        timestamp: 'Baru saja',
+        severity: 'info'
+      },
+      ...this.securityLogs
+    ];
+  }
+
+  async executeForensicWipe(confirmationCode: string): Promise<boolean> {
+    if (confirmationCode !== 'WIPE-MEKAAR') {
+      return false;
+    }
+    await safeInvoke('perform_forensic_wipe', { confirmationCode });
+    // Clear all client state
+    this.conversations = [];
+    this.messagesByConv = {};
+    this.contacts = [];
+    this.vaultMediaItems = [];
+    this.trips = [];
+    this.ftueStep = 'onboarding';
+    this.vaultUnlocked = false;
+    this.pinVerified = false;
+    return true;
   }
 }
 

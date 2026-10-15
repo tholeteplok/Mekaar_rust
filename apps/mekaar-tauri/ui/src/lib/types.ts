@@ -239,10 +239,12 @@ export interface SosSessionModel {
 export interface SecurityLogModel {
   id: string;
   eventTitle: string;
-  eventCategory: 'vault' | 'auth' | 'network' | 'sos' | 'screen_shield';
+  eventCategory: 'vault' | 'auth' | 'network' | 'sos' | 'screen_shield' | 'crypto';
   deviceInfo: string;
   timestamp: string;
   severity: 'info' | 'warning' | 'critical';
+  checksum?: string;
+  details?: Record<string, any>;
 }
 
 export interface BlockedUserModel {
@@ -260,3 +262,19 @@ export interface DeviceLostModel {
   remoteWipeTokenHash: string;
   lastHeartbeat: string;
 }
+
+export interface ConnectedDeviceModel {
+  id: string;
+  deviceName: string;
+  platform: 'desktop' | 'android' | 'web' | 'ios';
+  ipAddress: string;
+  lastActive: string;
+  isCurrent: boolean;
+}
+
+export interface ScheduledWipeConfig {
+  mode: 'off' | 'one_shot' | 'daily';
+  time: string; // HH:mm
+  targetAtUtc?: string;
+}
+

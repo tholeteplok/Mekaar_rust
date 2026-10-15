@@ -13,3 +13,12 @@ export { default as SketchAvatar } from './SketchAvatar.svelte';
 export { default as BrandIcon } from './BrandIcon.svelte';
 export { default as SosButton } from './SosButton.svelte';
 export { default as MikaMascot } from './MikaMascot.svelte';
+export { default as ScheduledWipeDialog } from './ScheduledWipeDialog.svelte';
+export { default as SecurityAuditDialog } from './SecurityAuditDialog.svelte';
+export { default as ForensicWipeDialog } from './ForensicWipeDialog.svelte';
+export { default as ConnectedDevicesDialog } from './ConnectedDevicesDialog.svelte';
+export { default as BlockedListDialog } from './BlockedListDialog.svelte';
+export { default as SecureMediaVaultDialog } from './SecureMediaVaultDialog.svelte';
+export { default as StegoDecoderDialog } from './StegoDecoderDialog.svelte';
+export { default as AttachMediaDialog } from './AttachMediaDialog.svelte';
+

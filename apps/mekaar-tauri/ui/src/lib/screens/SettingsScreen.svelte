@@ -6,6 +6,11 @@
   import Dialog from '../components/Dialog.svelte';
   import SecureMediaVaultDialog from '../components/SecureMediaVaultDialog.svelte';
   import StegoDecoderDialog from '../components/StegoDecoderDialog.svelte';
+  import ScheduledWipeDialog from '../components/ScheduledWipeDialog.svelte';
+  import SecurityAuditDialog from '../components/SecurityAuditDialog.svelte';
+  import ForensicWipeDialog from '../components/ForensicWipeDialog.svelte';
+  import ConnectedDevicesDialog from '../components/ConnectedDevicesDialog.svelte';
+  import BlockedListDialog from '../components/BlockedListDialog.svelte';
 
   let showFontModal = $state(false);
   let showTailscaleModal = $state(false);
@@ -17,6 +22,14 @@
   let showStegoDecoder = $state(false);
   let selectedStegoSrc = $state('');
   let selectedStegoName = $state('');
+
+  // Pilihan 5 Dialog States
+  let showScheduledWipeModal = $state(false);
+  let showSecurityAuditModal = $state(false);
+  let showForensicWipeModal = $state(false);
+  let showConnectedDevicesModal = $state(false);
+  let showBlockedListModal = $state(false);
+
 
 </script>
 
@@ -230,6 +243,95 @@
             </div>
           </div>
         </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Pembersihan Pesan Terjadwal (Scheduled Wipe) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showScheduledWipeModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <polyline points="12 6 12 12 16 14"></polyline>
+              </svg>
+            </div>
+            <div>
+              <div class="item-title">Pembersihan Pesan Terjadwal</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">
+                {mekaarStore.scheduledWipe.mode === 'off'
+                  ? 'Nonaktif'
+                  : `${mekaarStore.scheduledWipe.mode === 'daily' ? 'Setiap Hari' : 'Sekali'} pukul ${mekaarStore.scheduledWipe.time}`}
+              </div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value" style="text-transform: capitalize;">{mekaarStore.scheduledWipe.mode}</span>
+            <div class="arrow-circle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Perangkat Terhubung (Connected Devices) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showConnectedDevicesModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue-subtle">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
+                <line x1="8" y1="21" x2="16" y2="21"></line>
+                <line x1="12" y1="17" x2="12" y2="21"></line>
+              </svg>
+            </div>
+            <div>
+              <div class="item-title">Perangkat Terhubung</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">{mekaarStore.connectedDevices.length} sesi aktif E2EE</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">Kelola</span>
+            <div class="arrow-circle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Daftar Kontak Diblokir -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showBlockedListModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-orange">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+              </svg>
+            </div>
+            <div>
+              <div class="item-title">Daftar Kontak Diblokir</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">{mekaarStore.blockedUsers.length} pengguna dibatasi</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.blockedUsers.length > 0 ? `${mekaarStore.blockedUsers.length} kontak` : 'Kosong'}</span>
+            <div class="arrow-circle">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   {/if}
@@ -298,10 +400,10 @@
 
       <div class="item-divider"></div>
 
-      <!-- Ekspor Bukti Forensik -->
+      <!-- Log Audit Keamanan SQLCipher -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
+      <div class="setting-item-row" onclick={() => (showSecurityAuditModal = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-purple">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -311,11 +413,71 @@
               <line x1="16" y1="17" x2="8" y2="17"></line>
             </svg>
           </div>
-          <span class="item-title">Ekspor Bukti Forensik Terenkripsi</span>
+          <div>
+            <div class="item-title">Log Audit Keamanan SQLCipher</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Riwayat anti-tamper integritas SHA-256</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="item-value">{mekaarStore.securityLogs.length} kejadian</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Ekspor Bukti Forensik -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              <circle cx="12" cy="11" r="3"/>
+            </svg>
+          </div>
+          <div>
+            <div class="item-title">Ekspor Bukti Forensik (.mkrvault)</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Sertifikat digital bertanda tangan Ed25519</div>
+          </div>
         </div>
         <div class="item-right">
           <div class="arrow-circle">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Pemusnahan Forensik Darurat (Forensic Wipe) -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row danger-row" onclick={() => (showForensicWipeModal = true)}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-red">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E11D48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+          </div>
+          <div>
+            <div class="item-title" style="color: #E11D48;">Pemusnahan Forensik Darurat (Wipe)</div>
+            <div style="font-size: 0.76rem; color: #FDA4AF;">Zeroing data permanen saat situasi kritis</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="item-value" style="color: #E11D48; font-weight: 700;">Hancurkan</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FDA4AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </div>
@@ -497,6 +659,36 @@
   imageSrc={selectedStegoSrc}
   carrierName={selectedStegoName}
   onclose={() => (showStegoDecoder = false)}
+/>
+
+<!-- Pembersihan Pesan Terjadwal -->
+<ScheduledWipeDialog
+  open={showScheduledWipeModal}
+  onclose={() => (showScheduledWipeModal = false)}
+/>
+
+<!-- Log Audit Keamanan SQLCipher -->
+<SecurityAuditDialog
+  open={showSecurityAuditModal}
+  onclose={() => (showSecurityAuditModal = false)}
+/>
+
+<!-- Pemusnahan Forensik Darurat (Forensic Wipe) -->
+<ForensicWipeDialog
+  open={showForensicWipeModal}
+  onclose={() => (showForensicWipeModal = false)}
+/>
+
+<!-- Perangkat Terhubung (Connected Devices) -->
+<ConnectedDevicesDialog
+  open={showConnectedDevicesModal}
+  onclose={() => (showConnectedDevicesModal = false)}
+/>
+
+<!-- Daftar Kontak Diblokir -->
+<BlockedListDialog
+  open={showBlockedListModal}
+  onclose={() => (showBlockedListModal = false)}
 />
 
 <style>

@@ -4,9 +4,11 @@
   import Card from '../components/Card.svelte';
   import Button from '../components/Button.svelte';
   import HoldToConfirmButton from '../components/HoldToConfirmButton.svelte';
+  import ForensicWipeDialog from '../components/ForensicWipeDialog.svelte';
 
   let cancelPin = $state('');
   let pinError = $state('');
+  let showForensicWipeModal = $state(false);
   let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
   function startCountdown() {
@@ -103,6 +105,11 @@
             ⏱️ Mulai Hitung Mundur SOS (5 Detik)
           </Button>
         </div>
+        <div style="margin-top: 10px;">
+          <Button variant="danger" fullWidth onclick={() => (showForensicWipeModal = true)}>
+            💥 Pemusnahan Data Darurat (Panic Wipe)
+          </Button>
+        </div>
       </Card>
 
       <Card padding="18px">
@@ -135,6 +142,11 @@
       </Card>
     </div>
   {/if}
+
+  <ForensicWipeDialog
+    open={showForensicWipeModal}
+    onclose={() => (showForensicWipeModal = false)}
+  />
 </div>
 
 <style>
