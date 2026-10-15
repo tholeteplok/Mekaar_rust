@@ -36,6 +36,22 @@ export interface AttachmentModel {
   sizeLabel: string;
   urlOrPreview: string;
   durationSec?: number;
+  isStego?: boolean;
+  stegoPasskeyProtected?: boolean;
+  encryptedChecksum?: string;
+}
+
+export interface VaultMediaItemModel {
+  id: string;
+  conversationId: string;
+  conversationTitle: string;
+  name: string;
+  kind: 'image' | 'document' | 'voice' | 'stego' | 'location';
+  sizeLabel: string;
+  urlOrPreview: string;
+  timestamp: string;
+  isStego: boolean;
+  checksum: string;
 }
 
 export interface MessageModel {

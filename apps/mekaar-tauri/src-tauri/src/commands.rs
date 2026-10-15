@@ -756,6 +756,31 @@ pub fn toggle_block_contact(
     }
 }
 
+#[tauri::command]
+pub fn log_media_attachment(
+    file_name: String,
+    file_type: String,
+    size_bytes: u64,
+    is_stego: bool,
+    state: State<'_, MekaarAppState>,
+) -> Result<(), String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let uid = *state.user_id.lock().unwrap();
+    let details = serde_json::json!({
+        "file_name": file_name,
+        "file_type": file_type,
+        "size_bytes": size_bytes,
+        "is_stego": is_stego,
+    });
+    db.insert_security_log(
+        &uid,
+        None,
+        if is_stego { "STEGO_MEDIA_SAVED" } else { "MEDIA_ATTACHMENT_SAVED" },
+        Some(&details),
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 // ── SOS Panic Commands ──────────────────────────────────────────────────
 
 #[tauri::command]

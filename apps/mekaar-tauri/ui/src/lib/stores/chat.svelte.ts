@@ -18,7 +18,8 @@ import type {
   BlockedUserModel,
   DeviceLostModel,
   ChatThemeId,
-  TelemetryModel
+  TelemetryModel,
+  VaultMediaItemModel
 } from '../types';
 import { WebRtcManager } from '../services/webrtc';
 import { parseContactPayload } from '../services/qr';
@@ -327,6 +328,58 @@ class MekaarStore {
   activeCall = $state<CallSessionModel | null>(null);
   webrtcManager: WebRtcManager | null = null;
   callDurationTimer: ReturnType<typeof setInterval> | null = null;
+
+  // Brankas Media Terenkripsi (Secure Media Vault)
+  vaultMediaItems = $state<VaultMediaItemModel[]>([
+    {
+      id: 'vlt-01',
+      conversationId: 'conv-1',
+      conversationTitle: 'Ayu Lestari',
+      name: 'Foto_Posko_Evakuasi.png',
+      kind: 'image',
+      sizeLabel: '1.2 MB • AES-256',
+      urlOrPreview: 'image',
+      timestamp: '11:40',
+      isStego: false,
+      checksum: 'SHA256: 9A81-CC22-11D4-098F'
+    },
+    {
+      id: 'vlt-02',
+      conversationId: 'conv-2',
+      conversationTitle: 'Tim Respon Guardian Solo',
+      name: 'Peta_Jalur_Kawal_Malam.png',
+      kind: 'stego',
+      sizeLabel: '2.4 MB • Stego LSB',
+      urlOrPreview: 'stego',
+      timestamp: '10:15',
+      isStego: true,
+      checksum: 'SHA256: E830-77B1-44C9-9A01'
+    },
+    {
+      id: 'vlt-03',
+      conversationId: 'conv-1',
+      conversationTitle: 'Ayu Lestari',
+      name: 'Prosedur_Siaga_Darurat.pdf',
+      kind: 'document',
+      sizeLabel: '640 KB • ChaCha20',
+      urlOrPreview: 'doc',
+      timestamp: 'Kemarin',
+      isStego: false,
+      checksum: 'SHA256: 33C1-99F0-12A7-88D4'
+    },
+    {
+      id: 'vlt-04',
+      conversationId: 'conv-3',
+      conversationTitle: 'Bima Pratama',
+      name: 'Rekaman_Briefing_Tim.opus',
+      kind: 'voice',
+      sizeLabel: '0:35 • Opus E2EE',
+      urlOrPreview: 'voice',
+      timestamp: 'Kemarin',
+      isStego: false,
+      checksum: 'SHA256: 66E2-88B9-0021-FA12'
+    }
+  ]);
 
   // Guardian & Riwayat Perjalanan (guardian_dashboard_screen.dart & trip_history_screen.dart parity)
   guardians = $state<GuardianModel[]>([
@@ -856,6 +909,40 @@ class MekaarStore {
       recipientId: conv?.participants.find((p) => p.userId !== this.currentUser.id)?.userId || '44444444-4444-4444-4444-444444444444',
       content: text.trim() || `[Lampiran ${attachment?.name}]`
     }).catch(() => {});
+
+    // Jika pesan membawa lampiran media/steganografi, simpan ke Secure Media Vault
+    if (attachment) {
+      const isStego = !!attachment.isStego;
+      const mediaItem: VaultMediaItemModel = {
+        id: `vlt-${Date.now()}`,
+        conversationId: convId,
+        conversationTitle: conv?.title || 'Obrolan Terenkripsi',
+        name: attachment.name,
+        kind: isStego ? 'stego' : attachment.kind,
+        sizeLabel: attachment.sizeLabel,
+        urlOrPreview: attachment.urlOrPreview,
+        timestamp: now,
+        isStego,
+        checksum: attachment.encryptedChecksum || 'SHA256: 7A9B-44E1-098F'
+      };
+      this.vaultMediaItems = [mediaItem, ...this.vaultMediaItems];
+
+      // Catat ke Rust SQLCipher security_logs
+      safeInvoke('log_media_attachment', {
+        fileName: attachment.name,
+        fileType: attachment.kind,
+        sizeBytes: 1024,
+        isStego
+      }).catch(() => {});
+    }
+  }
+
+  addVaultMediaItem(item: VaultMediaItemModel) {
+    this.vaultMediaItems = [item, ...this.vaultMediaItems];
+  }
+
+  deleteVaultMediaItem(id: string) {
+    this.vaultMediaItems = this.vaultMediaItems.filter((m) => m.id !== id);
   }
 
   receiveIncomingMessage(convId: string, senderName: string, text: string) {

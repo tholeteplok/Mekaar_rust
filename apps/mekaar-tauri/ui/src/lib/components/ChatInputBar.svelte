@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { MessageModel, EmojiPackModel } from '../types';
+  import AttachMediaDialog from './AttachMediaDialog.svelte';
 
   interface Props {
     replyingTo?: MessageModel | null;
@@ -17,6 +18,7 @@
 
   let text = $state('');
   let isRecording = $state(false);
+  let showAttachDialog = $state(false);
 
   function submitText() {
     if (!text.trim()) return;
@@ -25,16 +27,7 @@
   }
 
   function handleAttachClick() {
-    const fileName = prompt('Pilih simulasi lampiran berkas E2EE (contoh: Laporan.pdf, Foto.jpg):', 'Foto_Lapangan.jpg');
-    if (fileName) {
-      onsend('', {
-        id: `att-${Date.now()}`,
-        kind: fileName.endsWith('.jpg') || fileName.endsWith('.png') ? 'image' : 'document',
-        name: fileName,
-        sizeLabel: '520 KB • Terenkripsi E2EE',
-        urlOrPreview: fileName
-      });
-    }
+    showAttachDialog = true;
   }
 
   function toggleVoiceRecord() {
@@ -134,6 +127,16 @@
     </button>
   </div>
 </div>
+
+<AttachMediaDialog
+  open={showAttachDialog}
+  onclose={() => (showAttachDialog = false)}
+  onSelectAttachment={(att) => {
+    showAttachDialog = false;
+    onsend('', att);
+  }}
+/>
+
 
 <style>
   .chat-input-dock-wrap {

@@ -5,9 +5,16 @@
   import ChatInputBar from '../components/ChatInputBar.svelte';
   import BottomSheet from '../components/BottomSheet.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
+  import StegoDecoderDialog from '../components/StegoDecoderDialog.svelte';
+  import SecureMediaVaultDialog from '../components/SecureMediaVaultDialog.svelte';
 
   let replyingTo = $state<MessageModel | null>(null);
   let showRoomOptions = $state(false);
+  let showStegoDecoder = $state(false);
+  let selectedStegoSrc = $state('');
+  let selectedStegoName = $state('');
+  let showMediaVault = $state(false);
+
 
   const activeConv = $derived(
     mekaarStore.conversations.find((c) => c.id === mekaarStore.selectedConversationId) ??
@@ -122,6 +129,11 @@
               message={msg}
               onreply={(m) => (replyingTo = m)}
               onreact={(msgId, emoji) => mekaarStore.toggleReaction(activeConv.id, msgId, emoji)}
+              onopenstego={(src, name) => {
+                selectedStegoSrc = src;
+                selectedStegoName = name;
+                showStegoDecoder = true;
+              }}
             />
           {/each}
         {/if}
@@ -183,6 +195,16 @@
           class="sheet-action-row"
           onclick={() => {
             showRoomOptions = false;
+            showMediaVault = true;
+          }}
+        >
+          <span>🗄️ Brankas Media & Berkas Terenkripsi</span>
+        </button>
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            showRoomOptions = false;
             mekaarStore.forensicDialogOpen = true;
           }}
         >
@@ -202,6 +224,25 @@
       </div>
     </div>
   </BottomSheet>
+
+  <!-- Steganografi LSB Decoder Dialog -->
+  <StegoDecoderDialog
+    open={showStegoDecoder}
+    imageSrc={selectedStegoSrc}
+    carrierName={selectedStegoName}
+    onclose={() => (showStegoDecoder = false)}
+  />
+
+  <!-- Brankas Media & Berkas Terenkripsi -->
+  <SecureMediaVaultDialog
+    open={showMediaVault}
+    onclose={() => (showMediaVault = false)}
+    onOpenStegoDecoder={(src, name) => {
+      selectedStegoSrc = src;
+      selectedStegoName = name;
+      showStegoDecoder = true;
+    }}
+  />
 {/if}
 
 <style>

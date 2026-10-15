@@ -44,6 +44,7 @@ pub fn run() {
             commands::update_telemetry,
             commands::get_telemetry,
             commands::log_call_session,
+            commands::log_media_attachment,
         ])
         .run(tauri::generate_context!())
         .expect("error while running mekaar-tauri application");

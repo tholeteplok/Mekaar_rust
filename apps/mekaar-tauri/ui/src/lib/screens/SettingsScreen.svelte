@@ -4,6 +4,8 @@
   import Card from '../components/Card.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
   import Dialog from '../components/Dialog.svelte';
+  import SecureMediaVaultDialog from '../components/SecureMediaVaultDialog.svelte';
+  import StegoDecoderDialog from '../components/StegoDecoderDialog.svelte';
 
   let showFontModal = $state(false);
   let showTailscaleModal = $state(false);
@@ -11,6 +13,11 @@
   let inputDuressPin = $state('');
   let duressError = $state('');
   let duressSuccess = $state('');
+  let showMediaVault = $state(false);
+  let showStegoDecoder = $state(false);
+  let selectedStegoSrc = $state('');
+  let selectedStegoName = $state('');
+
 </script>
 
 <AppBar title="Pengaturan" />
@@ -263,6 +270,34 @@
 
       <div class="item-divider"></div>
 
+      <!-- Brankas Media Terenkripsi -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={() => (showMediaVault = true)}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-blue">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M7 7h.01M7 12h.01M7 17h.01M11 7h6M11 12h6M11 17h6"/>
+            </svg>
+          </div>
+          <div>
+            <div class="item-title">Brankas Media & Steganografi</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Galeri berkas terenkripsi SQLCipher & LSB</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="item-value">{mekaarStore.vaultMediaItems.length} berkas</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
       <!-- Ekspor Bukti Forensik -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -444,6 +479,25 @@
     </div>
   </div>
 </Dialog>
+
+<!-- Brankas Media & Berkas Terenkripsi -->
+<SecureMediaVaultDialog
+  open={showMediaVault}
+  onclose={() => (showMediaVault = false)}
+  onOpenStegoDecoder={(src, name) => {
+    selectedStegoSrc = src;
+    selectedStegoName = name;
+    showStegoDecoder = true;
+  }}
+/>
+
+<!-- Steganografi LSB Decoder Dialog -->
+<StegoDecoderDialog
+  open={showStegoDecoder}
+  imageSrc={selectedStegoSrc}
+  carrierName={selectedStegoName}
+  onclose={() => (showStegoDecoder = false)}
+/>
 
 <style>
   .settings-page-container {
