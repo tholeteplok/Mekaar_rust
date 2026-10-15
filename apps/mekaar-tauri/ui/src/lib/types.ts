@@ -160,6 +160,11 @@ export interface CallSessionModel {
   startedAt: string;
   encryptionSAS: string;
   sasEmojis?: string;
+  networkQuality?: 'excellent' | 'good' | 'poor' | 'reconnecting';
+  latencyMs?: number;
+  bitrateKbps?: number;
+  packetLossPercent?: number;
+  cameraFacing?: 'user' | 'environment';
 }
 
 export interface GuardianModel {

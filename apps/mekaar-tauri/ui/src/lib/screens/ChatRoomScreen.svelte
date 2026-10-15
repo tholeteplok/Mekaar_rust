@@ -305,6 +305,50 @@
       </div>
     {/if}
 
+    <!-- Active Call Banner (when minimized and calling with this conversation's peer) -->
+    {#if mekaarStore.activeCall && mekaarStore.activeCall.isMinimized && mekaarStore.activeCall.conversationId === activeConv.id}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="in-chat-call-banner"
+        onclick={() => mekaarStore.toggleCallMinimize()}
+        title="Panggilan aktif • Klik untuk memperbesar layar panggilan"
+      >
+        <div class="call-banner-left">
+          <span class="call-banner-pulse"></span>
+          <span class="call-banner-title">
+            {mekaarStore.activeCall.isVideo ? '🎥 Panggilan Video' : '📞 Panggilan Suara'} Berlangsung
+          </span>
+          <span class="call-banner-timer">
+            {Math.floor(mekaarStore.activeCall.durationSeconds / 60).toString().padStart(2, '0')}:{(mekaarStore.activeCall.durationSeconds % 60).toString().padStart(2, '0')}
+          </span>
+        </div>
+        <div class="call-banner-right">
+          <button
+            type="button"
+            class="call-banner-btn btn-maximize-call"
+            onclick={(e) => {
+              e.stopPropagation();
+              mekaarStore.toggleCallMinimize();
+            }}
+          >
+            Perbesar ➔
+          </button>
+          <button
+            type="button"
+            class="call-banner-btn btn-end-call-banner"
+            onclick={(e) => {
+              e.stopPropagation();
+              mekaarStore.endCall();
+            }}
+            title="Akhiri Panggilan"
+          >
+            ☎️ Akhiri
+          </button>
+        </div>
+      </div>
+    {/if}
+
     <!-- Pinned Message Banner -->
     {#if pinnedMessage}
       <!-- svelte-ignore a11y_click_events_have_key_events -->
@@ -1002,5 +1046,88 @@
     color: var(--sos-coral);
     border-color: #FECDD3;
     background: #FFF1F2;
+  }
+
+  /* In-Chat Active Call Banner */
+  .in-chat-call-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 16px;
+    background: linear-gradient(90deg, #064E3B, #065F46);
+    color: #FFFFFF;
+    border-bottom: 1px solid rgba(16, 185, 129, 0.4);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    cursor: pointer;
+    z-index: 100;
+  }
+
+  .call-banner-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .call-banner-pulse {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background-color: #34D399;
+    box-shadow: 0 0 10px #34D399;
+    animation: bannerPulse 1.5s infinite ease-in-out;
+  }
+
+  .call-banner-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+  }
+
+  .call-banner-timer {
+    font-size: 0.78rem;
+    font-family: monospace;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 2px 6px;
+    border-radius: 6px;
+    color: #A7F3D0;
+    font-weight: 700;
+  }
+
+  .call-banner-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .call-banner-btn {
+    padding: 4px 10px;
+    border-radius: var(--radius-pill, 999px);
+    font-size: 0.75rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease;
+  }
+
+  .btn-maximize-call {
+    background: rgba(255, 255, 255, 0.2);
+    color: #FFFFFF;
+  }
+
+  .btn-maximize-call:hover {
+    background: rgba(255, 255, 255, 0.35);
+  }
+
+  .btn-end-call-banner {
+    background: #EF4444;
+    color: #FFFFFF;
+  }
+
+  .btn-end-call-banner:hover {
+    background: #DC2626;
+  }
+
+  @keyframes bannerPulse {
+    0%, 100% { transform: scale(1); opacity: 1; }
+    50% { transform: scale(1.3); opacity: 0.5; }
   }
 </style>
