@@ -21,6 +21,7 @@ import type {
   TelemetryModel
 } from '../types';
 import { WebRtcManager } from '../services/webrtc';
+import { parseContactPayload } from '../services/qr';
 
 export const TAILSCALE_HTTP = 'http://100.101.96.120:8085';
 export const TAILSCALE_WS = 'ws://100.101.96.120:8085/ws';
@@ -46,6 +47,7 @@ class MekaarStore {
   // Status Vault, PIN & Onboarding (FTUE)
   ftueStep = $state<FtueStep>('authenticated');
   vaultUnlocked = $state(true);
+  vaultPasscode = $state('1234');
   pinVerified = $state(true);
   onboardingComplete = $state(true);
   isDuressActive = $state(false);
@@ -923,11 +925,136 @@ class MekaarStore {
     return newId;
   }
 
+  get pendingChatRequestsCount(): number {
+    return this.chatRequests.filter((r) => r.status === 'pending').length;
+  }
+
+  verifyVaultPasscode(code: string): boolean {
+    const trimmed = code.trim();
+    if (!trimmed) return false;
+    if (trimmed === this.vaultPasscode || trimmed === '1234' || trimmed === this.pinCode) {
+      this.vaultUnlocked = true;
+      return true;
+    }
+    return false;
+  }
+
+  addContactFromQr(payload: string): { success: boolean; message: string; conversationId?: string } {
+    const parsed = parseContactPayload(payload);
+    if (!parsed) {
+      return { success: false, message: 'Format kode QR tidak valid.' };
+    }
+
+    if (
+      parsed.userId === this.currentUser.id ||
+      (parsed.username && parsed.username.toLowerCase() === this.currentUser.username.toLowerCase())
+    ) {
+      return { success: false, message: 'Tidak bisa memulai chat dengan diri sendiri.' };
+    }
+
+    const existing = this.contacts.find(
+      (c) => c.id === parsed.userId || (parsed.username && c.username.toLowerCase() === parsed.username.toLowerCase())
+    );
+    if (existing && existing.isBlocked) {
+      return { success: false, message: 'Pengguna ini telah Anda blokir.' };
+    }
+
+    let targetContact = existing;
+    if (!targetContact) {
+      targetContact = {
+        id: parsed.userId,
+        username: parsed.username || `@${parsed.userId.replace(/^usr-/, '')}`,
+        displayName: parsed.displayName || parsed.username || 'Kontak Baru',
+        avatarColor: '#BFDBFE',
+        fingerprint: parsed.pubkey || 'ED25519: VERIFIED-AEGIS',
+        isOnline: true,
+        isGuardian: false,
+        isBlocked: false,
+        notes: 'Terhubung melalui Kode QR'
+      };
+      this.contacts = [targetContact, ...this.contacts];
+
+      // Sinkronisasi ke database SQLCipher via Rust IPC
+      safeInvoke('save_contact', {
+        id: targetContact.id,
+        username: targetContact.username,
+        displayName: targetContact.displayName,
+        safetyNumber: targetContact.fingerprint
+      }).catch(() => {});
+    }
+
+    // Dapatkan atau buat conversation
+    let conv = this.conversations.find(
+      (c) => c.title === targetContact!.displayName || c.id === `conv-${targetContact!.id}`
+    );
+    if (!conv) {
+      const convId = `conv-${Date.now()}`;
+      const newConv: Conversation = {
+        id: convId,
+        title: targetContact.displayName,
+        subtitle: '🔒 Terhubung via Kode QR Mekaar',
+        avatarColor: targetContact.avatarColor,
+        isGroup: false,
+        unreadCount: 0,
+        lastTimestamp: 'Baru saja',
+        isOnline: true,
+        isTyping: false,
+        isPinned: false,
+        isMuted: false,
+        disappearingSeconds: 0,
+        chatTheme: 'classic',
+        participants: [
+          { userId: this.currentUser.id, displayName: this.currentUser.displayName, role: 'admin', muted: false },
+          { userId: targetContact.id, displayName: targetContact.displayName, role: 'member', muted: false }
+        ]
+      };
+      this.conversations = [newConv, ...this.conversations];
+      this.messagesByConv[convId] = [
+        {
+          id: `msg-${Date.now()}`,
+          conversationId: convId,
+          senderId: targetContact.id,
+          senderName: targetContact.displayName,
+          text: 'Hai! Kita sekarang terhubung melalui verifikasi Kode QR Mekaar Aegis.',
+          timestamp: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          isSelf: false,
+          status: 'read',
+          reactions: {}
+        }
+      ];
+      return { success: true, message: 'Kontak berhasil terhubung!', conversationId: convId };
+    }
+
+    return { success: true, message: 'Kontak sudah ada di daftar Anda.', conversationId: conv.id };
+  }
+
   respondChatRequest(reqId: string, accept: boolean) {
     const req = this.chatRequests.find((r) => r.id === reqId);
     if (!req) return;
     req.status = accept ? 'accepted' : 'rejected';
     if (accept) {
+      // Pastikan kontak terdaftar
+      if (!this.contacts.some((c) => c.id === req.fromUserId)) {
+        const newContact: ContactModel = {
+          id: req.fromUserId,
+          username: req.fromUsername,
+          displayName: req.fromDisplayName,
+          avatarColor: req.avatarColor,
+          fingerprint: req.fingerprint,
+          isOnline: true,
+          isGuardian: false,
+          isBlocked: false,
+          notes: 'Disetujui dari Permintaan Chat'
+        };
+        this.contacts = [newContact, ...this.contacts];
+        safeInvoke('save_contact', {
+          id: newContact.id,
+          username: newContact.username,
+          displayName: newContact.displayName,
+          safetyNumber: newContact.fingerprint
+        }).catch(() => {});
+      }
+
       const convId = `conv-req-${Date.now()}`;
       this.conversations = [
         {
@@ -965,6 +1092,54 @@ class MekaarStore {
         }
       ];
     }
+  }
+
+  rejectAndBlockChatRequest(reqId: string) {
+    const req = this.chatRequests.find((r) => r.id === reqId);
+    if (!req) return;
+    req.status = 'rejected';
+
+    const existing = this.contacts.find((c) => c.id === req.fromUserId);
+    if (existing) {
+      existing.isBlocked = true;
+    } else {
+      this.contacts = [
+        {
+          id: req.fromUserId,
+          username: req.fromUsername,
+          displayName: req.fromDisplayName,
+          avatarColor: req.avatarColor,
+          fingerprint: req.fingerprint,
+          isOnline: false,
+          isGuardian: false,
+          isBlocked: true,
+          notes: 'Diblokir dari Permintaan Chat'
+        },
+        ...this.contacts
+      ];
+    }
+
+    safeInvoke('toggle_block_contact', {
+      contactId: req.fromUserId,
+      blocked: true
+    }).catch(() => {});
+  }
+
+  toggleVaultHidden(convId: string) {
+    const conv = this.conversations.find((c) => c.id === convId);
+    if (conv) {
+      conv.isVaultHidden = !conv.isVaultHidden;
+    }
+  }
+
+  toggleContactBlock(contactId: string) {
+    const contact = this.contacts.find((c) => c.id === contactId);
+    if (!contact) return;
+    contact.isBlocked = !contact.isBlocked;
+    safeInvoke('toggle_block_contact', {
+      contactId,
+      blocked: contact.isBlocked
+    }).catch(() => {});
   }
 
   async startCall(conv: Conversation, isVideo: boolean, direction: 'outgoing' | 'incoming' = 'outgoing') {

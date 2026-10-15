@@ -19,6 +19,7 @@ pub fn run() {
             commands::get_messages,
             commands::send_e2ee_message,
             commands::get_contacts,
+            commands::save_contact,
             commands::toggle_block_contact,
             commands::trigger_sos,
             commands::cancel_sos,

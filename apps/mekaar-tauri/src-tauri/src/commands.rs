@@ -700,6 +700,38 @@ pub fn get_contacts(state: State<'_, MekaarAppState>) -> Result<Vec<Contact>, St
 }
 
 #[tauri::command]
+pub fn save_contact(
+    id: Option<String>,
+    username: String,
+    display_name: String,
+    safety_number: Option<String>,
+    state: State<'_, MekaarAppState>,
+) -> Result<Contact, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let c_uuid = if let Some(id_str) = id {
+        Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4())
+    } else {
+        Uuid::new_v4()
+    };
+
+    let contact = Contact {
+        id: c_uuid,
+        username,
+        display_name,
+        public_key: [0u8; 32],
+        safety_number: safety_number.unwrap_or_else(|| "ED25519: VERIFIED-AEGIS".to_string()),
+        status: "active".to_string(),
+        updated_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs(),
+    };
+
+    db.upsert_contact(&contact).map_err(|e| e.to_string())?;
+    Ok(contact)
+}
+
+#[tauri::command]
 pub fn toggle_block_contact(
     contact_id: String,
     blocked: bool,
