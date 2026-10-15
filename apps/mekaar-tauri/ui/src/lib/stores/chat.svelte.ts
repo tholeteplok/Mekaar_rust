@@ -203,6 +203,43 @@ class MekaarStore {
         isSelf: false,
         status: 'read',
         reactions: {}
+      },
+      {
+        id: 'msg-104',
+        conversationId: 'conv-1',
+        senderId: 'usr-ayu-02',
+        senderName: 'Ayu Lestari',
+        text: 'Ini tangkapan layar verifikasi server di Surakarta. Jalur aman terenkripsi LSB.',
+        timestamp: '11:43',
+        isSelf: false,
+        status: 'read',
+        reactions: { '❤️': ['usr-teplok-01'] },
+        attachment: {
+          id: 'att-sample-img',
+          kind: 'image',
+          name: 'Verifikasi_Server_Solo.png',
+          sizeLabel: '1.2 MB • Stego LSB',
+          urlOrPreview: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%230F172A"/><stop offset="50%" stop-color="%230284C7"/><stop offset="100%" stop-color="%230D9488"/></linearGradient></defs><rect width="600" height="400" fill="url(%23g)"/><circle cx="300" cy="180" r="60" fill="%2338BDF8" opacity="0.4"/><text x="300" y="190" font-family="sans-serif" font-size="28" font-weight="bold" fill="%23FFFFFF" text-anchor="middle">MEKAAR E2EE SECURITY</text><text x="300" y="230" font-family="sans-serif" font-size="14" fill="%23CBD5E1" text-anchor="middle">LSB Stego Payload Verified • Solo Relay</text></svg>',
+          isStego: true
+        }
+      },
+      {
+        id: 'msg-105',
+        conversationId: 'conv-1',
+        senderId: 'usr-ayu-02',
+        senderName: 'Ayu Lestari',
+        text: '',
+        timestamp: '11:44',
+        isSelf: false,
+        status: 'read',
+        reactions: {},
+        attachment: {
+          id: 'att-sample-voice',
+          kind: 'voice',
+          name: 'Pesan Suara (00:08)',
+          sizeLabel: '0:08 • Opus E2EE',
+          urlOrPreview: 'voice'
+        }
       }
     ],
     'conv-2': [
@@ -921,6 +958,23 @@ class MekaarStore {
       conv.subtitle = text.trim() || `[Lampiran ${attachment?.name}]`;
       conv.lastTimestamp = now;
     }
+
+    // Simulasi transisi tanda terima (Signal/Telegram standard: sent -> delivered -> read)
+    setTimeout(() => {
+      const list = this.messagesByConv[convId];
+      if (list) {
+        const m = list.find((item) => item.id === newMsg.id);
+        if (m && m.status === 'sent') m.status = 'delivered';
+      }
+    }, 600);
+
+    setTimeout(() => {
+      const list = this.messagesByConv[convId];
+      if (list) {
+        const m = list.find((item) => item.id === newMsg.id);
+        if (m && m.status !== 'read') m.status = 'read';
+      }
+    }, 1400);
 
     // Kirim melalui WebSocket teplok-pc jika tersambung
     if (this.wsInstance && this.serverStatus.wsConnected) {

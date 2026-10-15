@@ -21,4 +21,5 @@ export { default as BlockedListDialog } from './BlockedListDialog.svelte';
 export { default as SecureMediaVaultDialog } from './SecureMediaVaultDialog.svelte';
 export { default as StegoDecoderDialog } from './StegoDecoderDialog.svelte';
 export { default as AttachMediaDialog } from './AttachMediaDialog.svelte';
-
+export { default as EmojiPickerPopover } from './EmojiPickerPopover.svelte';
+export { default as MediaLightboxModal } from './MediaLightboxModal.svelte';

@@ -7,6 +7,7 @@
   import SketchAvatar from '../components/SketchAvatar.svelte';
   import StegoDecoderDialog from '../components/StegoDecoderDialog.svelte';
   import SecureMediaVaultDialog from '../components/SecureMediaVaultDialog.svelte';
+  import MediaLightboxModal from '../components/MediaLightboxModal.svelte';
 
   let replyingTo = $state<MessageModel | null>(null);
   let showRoomOptions = $state(false);
@@ -15,6 +16,30 @@
   let selectedStegoName = $state('');
   let showMediaVault = $state(false);
 
+  // Lightbox Modal state
+  let lightboxState = $state({
+    open: false,
+    src: '',
+    name: '',
+    sizeLabel: '',
+    isStego: false
+  });
+
+  // Scroll to bottom FAB
+  let viewportEl: HTMLElement | null = $state(null);
+  let showScrollBottomFab = $state(false);
+
+  function handleViewportScroll(e: Event) {
+    const el = e.currentTarget as HTMLElement;
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    showScrollBottomFab = distanceFromBottom > 160;
+  }
+
+  function scrollToBottom() {
+    if (viewportEl) {
+      viewportEl.scrollTo({ top: viewportEl.scrollHeight, behavior: 'smooth' });
+    }
+  }
 
   const activeConv = $derived(
     mekaarStore.conversations.find((c) => c.id === mekaarStore.selectedConversationId) ??
@@ -27,11 +52,14 @@
 
   // Group messages with date separators
   const dateGroups = $derived.by(() => {
-    // Return sample date pills like in the screenshot
+    if (messages.length === 0) return [];
+    if (messages.length <= 3) {
+      return [{ date: 'Hari Ini', msgs: messages }];
+    }
     return [
       { date: '27 Agu', msgs: messages.slice(0, 3) },
       { date: '28 Agu', msgs: messages.slice(3, 4) },
-      { date: '26 Sep', msgs: messages.slice(4) }
+      { date: 'Hari Ini', msgs: messages.slice(4) }
     ];
   });
 </script>
@@ -65,7 +93,11 @@
         <div class="pill-text-col">
           <span class="pill-contact-name">{activeConv.title}</span>
           <span class="pill-status-desc">
-            {#if activeConv.isOnline}
+            {#if activeConv.isTyping}
+              <span class="typing-indicator-row">
+                <span class="typing-dot-pulse">●</span> sedang mengetik...
+              </span>
+            {:else if activeConv.isOnline}
               <span class="status-online-dot">●</span> Online
             {:else}
               <span class="status-offline-dot">●</span> Terakhir dilihat 27 Agu pukul 16:45
@@ -117,8 +149,12 @@
       </div>
     </header>
 
-    <!-- Scrollable Messages Feed -->
-    <main class="chat-messages-viewport">
+    <!-- Scrollable Messages Feed with Scroll FAB -->
+    <main
+      class="chat-messages-viewport"
+      bind:this={viewportEl}
+      onscroll={handleViewportScroll}
+    >
       {#each dateGroups as group}
         {#if group.msgs.length > 0}
           <div class="date-pill-row">
@@ -129,6 +165,15 @@
               message={msg}
               onreply={(m) => (replyingTo = m)}
               onreact={(msgId, emoji) => mekaarStore.toggleReaction(activeConv.id, msgId, emoji)}
+              onopenlightbox={(src, name, sizeLabel, isStego) => {
+                lightboxState = {
+                  open: true,
+                  src,
+                  name,
+                  sizeLabel: sizeLabel || '',
+                  isStego: !!isStego
+                };
+              }}
               onopenstego={(src, name) => {
                 selectedStegoSrc = src;
                 selectedStegoName = name;
@@ -140,6 +185,21 @@
       {/each}
     </main>
 
+    <!-- Scroll To Bottom Floating Action Button -->
+    {#if showScrollBottomFab}
+      <button
+        type="button"
+        class="scroll-bottom-fab"
+        onclick={scrollToBottom}
+        title="Gulir ke pesan terbaru"
+        aria-label="Gulir ke bawah"
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="6 9 12 15 18 9"></polyline>
+        </svg>
+      </button>
+    {/if}
+
     <!-- Floating Chat Input Bar -->
     <ChatInputBar
       {replyingTo}
@@ -148,6 +208,7 @@
       onsend={(text, att) => {
         mekaarStore.sendMessage(activeConv.id, text, replyingTo, att);
         replyingTo = null;
+        setTimeout(scrollToBottom, 50);
       }}
     />
   </div>
@@ -224,6 +285,22 @@
       </div>
     </div>
   </BottomSheet>
+
+  <!-- Media Lightbox Modal Fullscreen -->
+  <MediaLightboxModal
+    open={lightboxState.open}
+    src={lightboxState.src}
+    name={lightboxState.name}
+    sizeLabel={lightboxState.sizeLabel}
+    isStego={lightboxState.isStego}
+    onclose={() => (lightboxState.open = false)}
+    onopenstego={(src, name) => {
+      lightboxState.open = false;
+      selectedStegoSrc = src;
+      selectedStegoName = name;
+      showStegoDecoder = true;
+    }}
+  />
 
   <!-- Steganografi LSB Decoder Dialog -->
   <StegoDecoderDialog
@@ -341,6 +418,24 @@
     font-size: 0.65rem;
   }
 
+  .typing-indicator-row {
+    color: var(--brand-blue, #0284C7);
+    font-weight: 600;
+  }
+
+  .typing-dot-pulse {
+    animation: pulseDot 1s infinite alternate;
+  }
+
+  @keyframes pulseDot {
+    from {
+      opacity: 0.3;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
   /* Messages Viewport */
   .chat-messages-viewport {
     flex: 1;
@@ -350,6 +445,48 @@
     flex-direction: column;
     gap: 4px;
     box-sizing: border-box;
+    scroll-behavior: smooth;
+  }
+
+  /* Scroll To Bottom FAB */
+  .scroll-bottom-fab {
+    position: absolute;
+    right: 20px;
+    bottom: 84px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-light, #CBD5E1);
+    color: var(--brand-blue, #0284C7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 14px rgba(21, 38, 65, 0.16);
+    cursor: pointer;
+    z-index: 20;
+    transition: transform 0.15s ease, background-color 0.15s ease;
+    animation: popFab 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .scroll-bottom-fab:hover {
+    transform: scale(1.08);
+    background-color: #F8FAFC;
+  }
+
+  .scroll-bottom-fab:active {
+    transform: scale(0.94);
+  }
+
+  @keyframes popFab {
+    from {
+      opacity: 0;
+      transform: scale(0.7) translateY(8px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
   }
 
   /* Date Separator Pill */

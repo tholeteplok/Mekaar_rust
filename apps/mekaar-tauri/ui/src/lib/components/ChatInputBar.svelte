@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { MessageModel, EmojiPackModel } from '../types';
   import AttachMediaDialog from './AttachMediaDialog.svelte';
+  import EmojiPickerPopover from './EmojiPickerPopover.svelte';
 
   interface Props {
     replyingTo?: MessageModel | null;
@@ -19,18 +20,22 @@
   let text = $state('');
   let isRecording = $state(false);
   let showAttachDialog = $state(false);
+  let showEmojiPicker = $state(false);
 
   function submitText() {
     if (!text.trim()) return;
     onsend(text.trim());
     text = '';
+    showEmojiPicker = false;
   }
 
   function handleAttachClick() {
     showAttachDialog = true;
+    showEmojiPicker = false;
   }
 
   function toggleVoiceRecord() {
+    showEmojiPicker = false;
     if (isRecording) {
       isRecording = false;
       onsend('', {
@@ -44,9 +49,22 @@
       isRecording = true;
     }
   }
+
+  function handleSelectEmoji(emoji: string) {
+    text += emoji;
+  }
 </script>
 
 <div class="chat-input-dock-wrap">
+  <!-- Emoji Popover anchored above input bar -->
+  <div class="emoji-popover-anchor">
+    <EmojiPickerPopover
+      open={showEmojiPicker}
+      onselect={handleSelectEmoji}
+      onclose={() => (showEmojiPicker = false)}
+    />
+  </div>
+
   {#if replyingTo}
     <div class="reply-floating-bar">
       <div class="reply-meta">
@@ -75,12 +93,12 @@
     <div class="input-pill-field">
       <button
         type="button"
-        class="emoji-trigger-btn"
-        onclick={() => (text += ' 😊 ')}
-        title="Emoji"
+        class="emoji-trigger-btn {showEmojiPicker ? 'active-emoji' : ''}"
+        onclick={() => (showEmojiPicker = !showEmojiPicker)}
+        title="Buka Papan Emoji Lengkap"
         aria-label="Emoji"
       >
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#60A5FA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={showEmojiPicker ? 'var(--brand-blue)' : '#60A5FA'} stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"></circle>
           <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
           <line x1="9" y1="9" x2="9.01" y2="9"></line>
@@ -137,15 +155,22 @@
   }}
 />
 
-
 <style>
   .chat-input-dock-wrap {
+    position: relative;
     padding: 10px 16px calc(14px + env(safe-area-inset-bottom, 0px)) 16px;
     background: transparent;
     display: flex;
     flex-direction: column;
     gap: 8px;
     box-sizing: border-box;
+  }
+
+  .emoji-popover-anchor {
+    position: absolute;
+    bottom: calc(100% + 4px);
+    left: 16px;
+    z-index: 100;
   }
 
   .reply-floating-bar {
@@ -185,9 +210,11 @@
   }
 
   .dock-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 10px;
+    z-index: 110;
   }
 
   .circle-action-btn {
@@ -235,6 +262,15 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: transform 0.15s ease;
+  }
+
+  .emoji-trigger-btn:hover {
+    transform: scale(1.15);
+  }
+
+  .emoji-trigger-btn.active-emoji {
+    transform: scale(1.2);
   }
 
   .text-field {
