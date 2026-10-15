@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import type { MessageModel } from '../types';
+  import LiveLocationCard from './LiveLocationCard.svelte';
 
   interface Props {
     message: MessageModel;
@@ -13,6 +14,9 @@
     onedit?: (msg: MessageModel) => void;
     onrevoke?: (msg: MessageModel) => void;
     onpin?: (msg: MessageModel) => void;
+    onopenmap?: (lat?: number, lng?: number) => void;
+    onrequestguardian?: (name: string, lat?: number, lng?: number) => void;
+    onstoplive?: (msgId: string) => void;
   }
 
   let {
@@ -25,7 +29,10 @@
     onopenlightbox,
     onedit,
     onrevoke,
-    onpin
+    onpin,
+    onopenmap,
+    onrequestguardian,
+    onstoplive
   }: Props = $props();
 
   // Voice player state
@@ -384,12 +391,18 @@
                 </div>
               </div>
             </div>
+          {:else if message.attachment.kind === 'location'}
+            <LiveLocationCard
+              attachment={message.attachment}
+              isSelf={message.isSelf}
+              onopenmap={(lat, lng) => onopenmap?.(lat, lng)}
+              onrequestguardian={(name, lat, lng) => onrequestguardian?.(name, lat, lng)}
+              onstoplive={() => onstoplive?.(message.id)}
+            />
           {:else}
-            <!-- Document / Location Attachment Box -->
+            <!-- Document Attachment Box -->
             <div class="attachment-box {message.isSelf ? 'att-self' : 'att-peer'}">
-              <span class="att-icon">
-                {#if message.attachment.kind === 'location'}📍{:else}📄{/if}
-              </span>
+              <span class="att-icon">📄</span>
               <div class="att-info">
                 <span class="att-name">{message.attachment.name}</span>
                 <span class="att-size">{message.attachment.sizeLabel}</span>

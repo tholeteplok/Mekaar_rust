@@ -377,6 +377,17 @@
                 selectedStegoName = name;
                 showStegoDecoder = true;
               }}
+              onopenmap={(lat, lng) => {
+                mekaarStore.selectedConversationId = null;
+                mekaarStore.activeTab = 'map';
+              }}
+              onrequestguardian={(name, lat, lng) => {
+                mekaarStore.selectedConversationId = null;
+                mekaarStore.activeTab = 'guardian';
+              }}
+              onstoplive={(msgId) => {
+                mekaarStore.stopLiveLocation(activeConv.id, msgId);
+              }}
             />
           {/each}
         {/if}

@@ -23,3 +23,4 @@ export { default as StegoDecoderDialog } from './StegoDecoderDialog.svelte';
 export { default as AttachMediaDialog } from './AttachMediaDialog.svelte';
 export { default as EmojiPickerPopover } from './EmojiPickerPopover.svelte';
 export { default as MediaLightboxModal } from './MediaLightboxModal.svelte';
+export { default as LiveLocationCard } from './LiveLocationCard.svelte';

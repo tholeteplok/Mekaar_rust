@@ -39,6 +39,13 @@ export interface AttachmentModel {
   isStego?: boolean;
   stegoPasskeyProtected?: boolean;
   encryptedChecksum?: string;
+  latitude?: number;
+  longitude?: number;
+  isLiveLocation?: boolean;
+  liveDurationMinutes?: number;
+  liveExpiresAt?: string;
+  batteryLevel?: number;
+  isLiveActive?: boolean;
 }
 
 export interface VaultMediaItemModel {

@@ -240,6 +240,56 @@ class MekaarStore {
           sizeLabel: '0:08 • Opus E2EE',
           urlOrPreview: 'voice'
         }
+      },
+      {
+        id: 'msg-106',
+        conversationId: 'conv-1',
+        senderId: 'usr-ayu-02',
+        senderName: 'Ayu Lestari',
+        text: 'Saya sedang dalam perjalanan menuju posko utama, ini rute langsung saya:',
+        timestamp: '11:45',
+        isSelf: false,
+        status: 'read',
+        reactions: { '🛡️': ['usr-teplok-01'] },
+        attachment: {
+          id: 'att-live-loc-1',
+          kind: 'location',
+          name: 'Lokasi Langsung: Stasiun Solo Balapan',
+          sizeLabel: 'Live GPS • 60 Menit',
+          urlOrPreview: 'geo:-7.5584,110.8217',
+          latitude: -7.5584,
+          longitude: 110.8217,
+          isLiveLocation: true,
+          liveDurationMinutes: 60,
+          liveExpiresAt: '45m lagi',
+          batteryLevel: 84,
+          isLiveActive: true
+        }
+      },
+      {
+        id: 'msg-107',
+        conversationId: 'conv-1',
+        senderId: 'usr-teplok-01',
+        senderName: 'Teplok',
+        text: 'Posisi saya saat ini juga standby memantau:',
+        timestamp: '11:46',
+        isSelf: true,
+        status: 'read',
+        reactions: {},
+        attachment: {
+          id: 'att-live-loc-2',
+          kind: 'location',
+          name: 'Lokasi Langsung: Jebres Posko',
+          sizeLabel: 'Live GPS • 15 Menit',
+          urlOrPreview: 'geo:-7.5583,110.8566',
+          latitude: -7.5583,
+          longitude: 110.8566,
+          isLiveLocation: true,
+          liveDurationMinutes: 15,
+          liveExpiresAt: '12m lagi',
+          batteryLevel: 92,
+          isLiveActive: true
+        }
       }
     ],
     'conv-2': [
@@ -1120,6 +1170,14 @@ class MekaarStore {
     if (conv) {
       conv.disappearingSeconds = seconds;
     }
+  }
+
+  stopLiveLocation(convId: string, msgId: string) {
+    const list = this.messagesByConv[convId];
+    if (!list) return;
+    const msg = list.find((m) => m.id === msgId);
+    if (!msg || !msg.attachment) return;
+    msg.attachment.isLiveActive = false;
   }
 
   createGroup(title: string, memberIds: string[]) {

@@ -25,6 +25,10 @@
   let docFileName = $state('Laporan_Operasi_Aegis.pdf');
   let docFileSize = $state('850 KB');
 
+  // Location States
+  let locationMode = $state<'live' | 'static'>('live');
+  let liveDurationMinutes = $state<number>(60);
+
   $effect(() => {
     if (open && !stegoCarrierPreview) {
       // Siapkan synthetic carrier default
@@ -119,14 +123,36 @@
   }
 
   function sendLocation() {
-    onSelectAttachment({
-      id: `att-${Date.now()}`,
-      kind: 'location',
-      name: 'Posko Jebres, Surakarta',
-      sizeLabel: '-7.5583, 110.8566 • GPS Terenkripsi',
-      urlOrPreview: 'location',
-      encryptedChecksum: 'SHA256: AA90-1122-3344-5566'
-    });
+    if (locationMode === 'live') {
+      const label = liveDurationMinutes >= 60 ? `${liveDurationMinutes / 60} Jam` : `${liveDurationMinutes} Menit`;
+      onSelectAttachment({
+        id: `att-${Date.now()}`,
+        kind: 'location',
+        name: `Lokasi Langsung: Surakarta (${label})`,
+        sizeLabel: `Live GPS • ${label}`,
+        urlOrPreview: 'geo:-7.5583,110.8566',
+        latitude: -7.5583,
+        longitude: 110.8566,
+        isLiveLocation: true,
+        liveDurationMinutes,
+        liveExpiresAt: `${liveDurationMinutes}m lagi`,
+        batteryLevel: 86,
+        isLiveActive: true,
+        encryptedChecksum: 'SHA256: AA90-1122-3344-5566'
+      });
+    } else {
+      onSelectAttachment({
+        id: `att-${Date.now()}`,
+        kind: 'location',
+        name: 'Titik Aman: Posko Jebres, Surakarta',
+        sizeLabel: '-7.5583, 110.8566 • GPS Terenkripsi',
+        urlOrPreview: 'geo:-7.5583,110.8566',
+        latitude: -7.5583,
+        longitude: 110.8566,
+        isLiveLocation: false,
+        encryptedChecksum: 'SHA256: AA90-1122-3344-5566'
+      });
+    }
     onclose();
   }
 </script>
@@ -306,12 +332,82 @@
 
       <!-- Tab 5: Location -->
       {#if activeTab === 'location'}
-        <div class="tab-content-wrap center-align">
-          <div class="location-pulse-circle">📍</div>
-          <p class="voice-title">Koordinat Lokasi Aman</p>
-          <p class="tab-desc">Bagikan titik koordinat GPS saat ini: -7.5583, 110.8566 (Jebres, Surakarta).</p>
-          <button type="button" class="btn-primary-send" onclick={sendLocation}>
-            Bagikan Lokasi Aman
+        <div class="tab-content-wrap">
+          <!-- Mode Selector Pill Bar -->
+          <div class="location-mode-toggle">
+            <button
+              type="button"
+              class="mode-pill-btn {locationMode === 'live' ? 'active-live' : ''}"
+              onclick={() => (locationMode = 'live')}
+            >
+              🟢 Lokasi Langsung (Live)
+            </button>
+            <button
+              type="button"
+              class="mode-pill-btn {locationMode === 'static' ? 'active-static' : ''}"
+              onclick={() => (locationMode = 'static')}
+            >
+              📍 Titik Lokasi Statis
+            </button>
+          </div>
+
+          {#if locationMode === 'live'}
+            <div class="live-config-card">
+              <span class="live-config-title">Pilih Durasi Siaran Langsung:</span>
+              <div class="duration-pills-row">
+                <button
+                  type="button"
+                  class="duration-pill {liveDurationMinutes === 15 ? 'selected' : ''}"
+                  onclick={() => (liveDurationMinutes = 15)}
+                >
+                  15 Menit
+                </button>
+                <button
+                  type="button"
+                  class="duration-pill {liveDurationMinutes === 60 ? 'selected' : ''}"
+                  onclick={() => (liveDurationMinutes = 60)}
+                >
+                  1 Jam
+                </button>
+                <button
+                  type="button"
+                  class="duration-pill {liveDurationMinutes === 480 ? 'selected' : ''}"
+                  onclick={() => (liveDurationMinutes = 480)}
+                >
+                  8 Jam
+                </button>
+              </div>
+
+              <div class="telemetry-info-box">
+                <div class="telemetry-item">
+                  <span class="telemetry-icon">🔋</span>
+                  <span>Baterai: <strong>86%</strong></span>
+                </div>
+                <div class="telemetry-item">
+                  <span class="telemetry-icon">🛰️</span>
+                  <span>Akurasi: <strong>±4m (E2EE)</strong></span>
+                </div>
+              </div>
+
+              <p class="live-notice-text">
+                Penerima dapat memantau pergerakan rute Anda secara langsung di Peta Radar selama sesi aktif. Anda dapat membatalkan kapan saja.
+              </p>
+            </div>
+          {:else}
+            <div class="static-config-card">
+              <div class="static-pin-preview">📍</div>
+              <p class="static-name-label">Posko Jebres, Surakarta</p>
+              <p class="static-coord-label">-7.5583, 110.8566</p>
+              <p class="tab-desc">Membagikan titik statis lokasi saat ini tanpa pelacakan posisi secara kontinyu.</p>
+            </div>
+          {/if}
+
+          <button
+            type="button"
+            class="btn-primary-send"
+            onclick={sendLocation}
+          >
+            {locationMode === 'live' ? `Bagikan Lokasi Langsung (${liveDurationMinutes >= 60 ? `${liveDurationMinutes / 60} Jam` : `${liveDurationMinutes} Menit`})` : 'Bagikan Titik Lokasi Aman'}
           </button>
         </div>
       {/if}
@@ -602,8 +698,8 @@
     cursor: pointer;
   }
 
-  /* Voice & Location */
-  .mic-pulse-circle, .location-pulse-circle {
+  /* Voice */
+  .mic-pulse-circle {
     width: 60px;
     height: 60px;
     border-radius: 50%;
@@ -620,6 +716,130 @@
     font-size: 1rem;
     font-weight: 800;
     color: var(--text-primary, #0F172A);
+    margin: 0;
+  }
+
+  .location-mode-toggle {
+    display: flex;
+    background-color: var(--bg-surface, #F8FAFC);
+    border: 1px solid var(--border-subtle, #E2E8F0);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 6px;
+  }
+
+  .mode-pill-btn {
+    flex: 1;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary, #64748B);
+    transition: all 0.15s ease;
+  }
+
+  .mode-pill-btn.active-live {
+    background-color: #ECFDF5;
+    color: #059669;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .mode-pill-btn.active-static {
+    background-color: var(--bg-card, #FFFFFF);
+    color: var(--brand-blue, #0284C7);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  .live-config-card, .static-config-card {
+    background-color: var(--bg-surface, #F8FAFC);
+    border: 1px solid var(--border-subtle, #E2E8F0);
+    border-radius: 14px;
+    padding: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .live-config-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--text-primary, #0F172A);
+  }
+
+  .duration-pills-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .duration-pill {
+    flex: 1;
+    padding: 8px 0;
+    border-radius: 10px;
+    border: 1.5px solid var(--border-subtle, #CBD5E1);
+    background-color: var(--bg-card, #FFFFFF);
+    color: var(--text-primary, #0F172A);
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .duration-pill.selected {
+    border-color: #10B981;
+    background-color: #ECFDF5;
+    color: #047857;
+  }
+
+  .telemetry-info-box {
+    display: flex;
+    justify-content: space-between;
+    background-color: rgba(2, 132, 199, 0.06);
+    border: 1px solid rgba(2, 132, 199, 0.15);
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.76rem;
+    color: var(--text-secondary, #64748B);
+  }
+
+  .telemetry-item {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .telemetry-item strong {
+    color: var(--text-primary, #0F172A);
+  }
+
+  .live-notice-text {
+    font-size: 0.72rem;
+    color: var(--text-secondary, #64748B);
+    line-height: 1.4;
+    margin: 0;
+  }
+
+  .static-pin-preview {
+    font-size: 2.2rem;
+    text-align: center;
+    margin-top: 4px;
+  }
+
+  .static-name-label {
+    font-size: 0.92rem;
+    font-weight: 800;
+    color: var(--text-primary, #0F172A);
+    text-align: center;
+    margin: 0;
+  }
+
+  .static-coord-label {
+    font-size: 0.76rem;
+    color: var(--brand-blue, #0284C7);
+    font-family: monospace;
+    text-align: center;
     margin: 0;
   }
 
