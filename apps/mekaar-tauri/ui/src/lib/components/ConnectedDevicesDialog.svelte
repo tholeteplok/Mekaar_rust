@@ -93,7 +93,7 @@
         </div>
 
         <div class="security-notice">
-          🛡️ Setiap sesi memiliki pasangan kunci publik unik yang diverifikasi silang dengan relay teplok-pc.
+          🛡️ Setiap sesi memiliki pasangan kunci publik unik yang diverifikasi silang dengan Mekaar Mesh Network.
         </div>
       </div>
     </div>

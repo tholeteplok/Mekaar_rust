@@ -43,7 +43,7 @@
       }, 700);
     } catch (err: any) {
       syncStatus = 'error';
-      errorMessage = err?.message || 'Gagal sinkronisasi ke teplok-pc. Pastikan jaringan terhubung.';
+      errorMessage = err?.message || 'Gagal terhubung ke Mekaar Mesh Network. Pastikan koneksi aktif.';
       isSyncing = false;
     }
   }
@@ -55,7 +55,7 @@
     <MikaMascot pose="happy" size={120} alt="Mika Menyambut" />
     <h1 class="hero-title">Buat Identitas Anda</h1>
     <p class="hero-subtitle">
-      Tentukan nama tampilan dan username unik untuk sinkronisasi enkripsi ke teplok-pc.
+      Tentukan nama tampilan dan username unik untuk mengaktifkan enkripsi identitas.
     </p>
   </div>
 
@@ -89,7 +89,7 @@
           disabled={isSyncing}
         />
       </div>
-      <span class="input-hint">Digunakan kontak lain untuk menemukan kunci publik Anda.</span>
+      <span class="input-hint">Digunakan kontak rekan untuk terhubung secara aman.</span>
     </div>
 
     <!-- Mandatory Sync Badge Card -->
@@ -98,14 +98,14 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--brand-blue)">
           <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14h2v2h-2v-2zm0-10h2v8h-2V6z"/>
         </svg>
-        <span class="sync-title">Mandatori Sinkronisasi Relay teplok-pc</span>
+        <span class="sync-title">Sinkronisasi Mekaar Mesh Network</span>
       </div>
       <p class="sync-desc">
-        Identitas akan di-hash menggunakan <strong>Ed25519</strong> dan didaftarkan langsung ke direktori relay Tailscale <code>100.101.96.120:8085</code>.
+        Identitas Anda diamankan dengan protokol enkripsi canggih dan didaftarkan otomatis ke jaringan privat Mekaar.
       </p>
       <div class="relay-live-status">
         <span class="status-pulse-dot"></span>
-        <span>Node Relay: {TAILSCALE_HTTP}</span>
+        <span>Jaringan Mesh: Siap Terhubung</span>
       </div>
     </div>
 
@@ -123,11 +123,11 @@
     >
       {#if isSyncing}
         <span class="spinner"></span>
-        <span>Menyinkronkan ke teplok-pc...</span>
+        <span>Menghubungkan ke Mekaar Mesh Network...</span>
       {:else if syncStatus === 'success'}
         <span>✓ Berhasil Tersinkronisasi!</span>
       {:else}
-        <span>Daftar & Sinkronkan ke teplok-pc ➔</span>
+        <span>Daftar & Terhubung ke Jaringan ➔</span>
       {/if}
     </button>
   </div>

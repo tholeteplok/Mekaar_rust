@@ -76,8 +76,8 @@
         <div class="header-title-wrap">
           <span class="stego-icon">🕵️</span>
           <div>
-            <h3 class="dialog-title">Dekoder Steganografi Mekaar</h3>
-            <p class="dialog-sub">Ekstraksi pesan rahasia terselubung di dalam piksel citra</p>
+            <h3 class="dialog-title">Stego Photo Decoder</h3>
+            <p class="dialog-sub">Ekstraksi pesan rahasia yang tersembunyi di dalam foto</p>
           </div>
         </div>
         <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">
@@ -91,7 +91,7 @@
           <img src={imageSrc} alt="Carrier Stego" class="carrier-img" />
         {:else}
           <div class="carrier-placeholder">
-            <span>🖼️ Citra Pembawa</span>
+            <span>🖼️ Foto Pembawa</span>
           </div>
         {/if}
         <span class="carrier-name-tag">{carrierName}</span>
@@ -100,7 +100,7 @@
       <!-- Passkey input if encrypted or requested -->
       <div class="passkey-input-row">
         <label for="stego-passkey-input" class="passkey-label">
-          Kunci Sandi Steganografi (jika ada):
+          Kunci Sandi Foto (Opsional):
         </label>
         <div class="input-with-button">
           <input
@@ -150,7 +150,7 @@
 
       <!-- Forensic Notice -->
       <div class="forensic-notice-pill">
-        🛡️ Pesan ini ditanamkan langsung pada bit LSB warna (RGB) dan tidak dapat dideteksi oleh filter lalu lintas teks relay.
+        🛡️ Pesan ini disematkan langsung ke dalam struktur piksel foto (Stego Photo) dan tidak dapat dideteksi oleh pemindai lalu lintas jaringan.
       </div>
     </div>
   </div>

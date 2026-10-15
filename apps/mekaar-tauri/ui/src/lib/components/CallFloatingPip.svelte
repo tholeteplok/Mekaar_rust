@@ -30,7 +30,7 @@
       </div>
 
       <div class="pip-header-right">
-        <span class="pip-network-badge" title="Latensi WebRTC SRTP">
+        <span class="pip-network-badge" title="Kualitas Sambungan Panggilan">
           📶 {call.latencyMs ?? 38}ms
         </span>
         <button

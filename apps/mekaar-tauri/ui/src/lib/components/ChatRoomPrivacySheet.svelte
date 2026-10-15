@@ -313,7 +313,7 @@
                   <span class="scope-radio-dot">{burnOnExitScope === 'mutual' ? '●' : '○'}</span>
                   <strong>Kedua Belah Pihak (2 Arah)</strong>
                 </div>
-                <span class="scope-btn-desc">Kirim sinyal kriptografi zeroing untuk memusnahkan pesan di kedua ponsel/PC.</span>
+                <span class="scope-btn-desc">Kirim perintah pemusnahan instan untuk menghapus bersih pesan di kedua perangkat.</span>
               </button>
             </div>
           </div>
@@ -323,13 +323,13 @@
       <!-- 4. Section: Identitas Kriptografi E2EE & SAS -->
       <div class="setting-group-box">
         <div class="group-header-row">
-          <span class="micro-title">AUTENTIKASI KRIPTOGRAFI E2EE</span>
-          <span class="active-badge-tag tag-blue">Ed25519 & X25519</span>
+          <span class="micro-title">KEAMANAN & VERIFIKASI ENKRIPSI</span>
+          <span class="active-badge-tag tag-blue">Aegis Protocol Shield</span>
         </div>
 
         <div class="crypto-info-card">
           <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-            <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">Sidik Jari Kunci Publik Obrolan</span>
+            <span style="font-size: 0.82rem; font-weight: 600; color: var(--text-main);">Kode Sidik Jari Obrolan</span>
             <button
               type="button"
               class="copy-micro-btn"

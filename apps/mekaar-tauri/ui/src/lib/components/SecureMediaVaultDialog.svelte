@@ -112,7 +112,7 @@
             class="cat-tab-btn {filterTab === 'stego' ? 'active' : ''}"
             onclick={() => (filterTab = 'stego')}
           >
-            🕵️ Steganografi
+            🕵️ Stego Photo
           </button>
           <button
             type="button"
@@ -161,7 +161,7 @@
                   <div class="media-name-row">
                     <span class="media-name">{item.name}</span>
                     {#if item.isStego}
-                      <span class="stego-pill-tag">Stego LSB</span>
+                      <span class="stego-pill-tag">Stego Photo</span>
                     {/if}
                   </div>
                   <span class="media-conv-origin">Obrolan: <b>{item.conversationTitle}</b></span>
@@ -175,10 +175,10 @@
                     <button
                       type="button"
                       class="btn-action-decode"
-                      title="Ekstrak Pesan Steganografi"
+                      title="Buka Pesan di Balik Foto (Stego Photo)"
                       onclick={() => handleExtractStego(item)}
                     >
-                      Ekstrak
+                      Buka Pesan
                     </button>
                   {/if}
                   <button

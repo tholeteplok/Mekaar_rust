@@ -46,14 +46,14 @@
             <span class="telemetry-pill" title="Kualitas Jaringan">
               📶 Sinyal: <strong>{call.networkQuality === 'excellent' ? 'Sangat Baik' : 'Stabil'}</strong>
             </span>
-            <span class="telemetry-pill" title="Latensi P2P WebRTC">
+            <span class="telemetry-pill" title="Latensi Sambungan Langsung">
               ⚡ Latensi: <strong>{call.latencyMs ?? 38}ms</strong>
             </span>
-            <span class="telemetry-pill" title="Bitrate Audio/Video Opus">
+            <span class="telemetry-pill" title="Kejernihan Audio/Video">
               🎵 Bitrate: <strong>{call.bitrateKbps ?? 128} kbps</strong>
             </span>
-            <span class="telemetry-pill srtp-tag" title="Enkripsi P2P">
-              🔒 SRTP E2EE
+            <span class="telemetry-pill srtp-tag" title="Enkripsi Panggilan Langsung">
+              🔒 E2EE Call
             </span>
           </div>
         {/if}
@@ -66,11 +66,11 @@
         <h2 class="call-peer-title">{call.peerName}</h2>
         <p class="call-status-sub">
           {#if call.state === 'ringing'}
-            🔔 Panggilan {call.isVideo ? 'Video' : 'Suara'} Masuk via Relay...
+            🔔 Panggilan {call.isVideo ? 'Video' : 'Suara'} Masuk...
           {:else if call.state === 'dialing'}
-            📡 Menghubungkan WebRTC P2P SRTP...
+            📡 Menghubungkan Sambungan Aman...
           {:else}
-            🔒 Terenkripsi E2EE WebRTC SRTP • Sejak {call.startedAt}
+            🔒 Panggilan Terenkripsi E2EE • Sejak {call.startedAt}
           {/if}
         </p>
 
@@ -78,7 +78,7 @@
         <div class="sas-verify-box sketch-card">
           <div class="sas-header-row">
             <span class="sas-title-label">
-              VERIFIKASI ANTI-SADAP (SAS)
+              KODE ANTI-SADAP (SAS)
             </span>
             <span class="sas-emojis-tag">{call.sasEmojis ?? '🛡️ ⚡'}</span>
           </div>

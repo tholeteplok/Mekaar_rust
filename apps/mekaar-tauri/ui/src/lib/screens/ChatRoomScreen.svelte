@@ -539,7 +539,7 @@
         <div>
           <h3 style="font-size: 1.1rem; font-weight: 700;">{activeConv.title}</h3>
           <p style="font-size: 0.85rem; color: var(--text-secondary);">
-            🔒 Sesi E2EE Terenkripsi (X25519 + ChaCha20)
+            🔒 E2EE Chat • Aegis Protocol
           </p>
         </div>
       </div>

@@ -11,6 +11,7 @@
   import ForensicWipeDialog from '../components/ForensicWipeDialog.svelte';
   import ConnectedDevicesDialog from '../components/ConnectedDevicesDialog.svelte';
   import BlockedListDialog from '../components/BlockedListDialog.svelte';
+  import SecurityGlossaryDialog from '../components/SecurityGlossaryDialog.svelte';
 
   let showFontModal = $state(false);
   let showTailscaleModal = $state(false);
@@ -34,6 +35,7 @@
   let showAutoLockModal = $state(false);
   let showLastSeenModal = $state(false);
   let showInvitationModal = $state(false);
+  let showGlossaryModal = $state(false);
   let cacheToast = $state('');
 
   function handleClearCache() {
@@ -430,7 +432,7 @@
 
         <div class="item-divider"></div>
 
-        <!-- Proteksi IP Panggilan (WebRTC Call Relay via teplok-pc) -->
+        <!-- Proteksi IP Panggilan (Relay Calls) -->
         <div class="setting-item-row">
           <div class="item-left">
             <div class="item-icon-circle icon-teal">
@@ -439,8 +441,8 @@
               </svg>
             </div>
             <div>
-              <div class="item-title">Relay Panggilan (Sembunyikan IP)</div>
-              <div style="font-size: 0.76rem; color: var(--text-secondary);">Alihkan WebRTC via server teplok-pc agar IP peer terlindungi</div>
+              <div class="item-title">Relay Calls (Sembunyikan IP)</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Alihkan panggilan via Mekaar Mesh Network agar alamat IP & lokasi aman</div>
             </div>
           </div>
           <div class="item-right">
@@ -522,7 +524,7 @@
       <span class="pencil-tick tick-bl">⌞</span>
       <span class="pencil-tick tick-tr">⌝</span>
 
-      <!-- teplok-pc Relay Node -->
+      <!-- Mekaar Mesh Network Node -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row" onclick={() => (showTailscaleModal = true)}>
@@ -535,8 +537,8 @@
             </svg>
           </div>
           <div>
-            <div class="item-title">Node teplok-pc (Tailscale)</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">100.101.96.120:8085 • {mekaarStore.serverStatus.latencyMs}ms</div>
+            <div class="item-title">Mekaar Mesh Network</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Jaringan privat terenkripsi • Latensi {mekaarStore.serverStatus.latencyMs}ms</div>
           </div>
         </div>
         <div class="item-right">
@@ -551,7 +553,7 @@
 
       <div class="item-divider"></div>
 
-      <!-- Brankas Media Terenkripsi -->
+      <!-- Media Vault & Stego Photo -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row" onclick={() => (showMediaVault = true)}>
@@ -563,8 +565,8 @@
             </svg>
           </div>
           <div>
-            <div class="item-title">Brankas Media & Steganografi</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Galeri berkas terenkripsi SQLCipher & LSB</div>
+            <div class="item-title">Media Vault & Stego Photo</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Penyimpanan berkas aman & sembunyikan pesan di balik foto</div>
           </div>
         </div>
         <div class="item-right">
@@ -579,7 +581,7 @@
 
       <div class="item-divider"></div>
 
-      <!-- Log Audit Keamanan SQLCipher -->
+      <!-- Security Audit Log -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row" onclick={() => (showSecurityAuditModal = true)}>
@@ -593,8 +595,8 @@
             </svg>
           </div>
           <div>
-            <div class="item-title">Log Audit Keamanan SQLCipher</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Riwayat anti-tamper integritas SHA-256</div>
+            <div class="item-title">Security Audit Log</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Catatan integritas sistem & riwayat perlindungan perangkat</div>
           </div>
         </div>
         <div class="item-right">
@@ -609,7 +611,7 @@
 
       <div class="item-divider"></div>
 
-      <!-- Ekspor Bukti Forensik -->
+      <!-- Digital Evidence Export -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
@@ -621,8 +623,8 @@
             </svg>
           </div>
           <div>
-            <div class="item-title">Ekspor Bukti Forensik (.mkrvault)</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Sertifikat digital bertanda tangan Ed25519</div>
+            <div class="item-title">Digital Evidence Export</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Unduh arsip bukti obrolan dengan tanda tangan digital resmi</div>
           </div>
         </div>
         <div class="item-right">
@@ -636,7 +638,7 @@
 
       <div class="item-divider"></div>
 
-      <!-- Pemusnahan Forensik Darurat (Forensic Wipe) -->
+      <!-- Panic Wipe (Pemusnahan Darurat) -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row danger-row" onclick={() => (showForensicWipeModal = true)}>
@@ -649,12 +651,12 @@
             </svg>
           </div>
           <div>
-            <div class="item-title" style="color: #E11D48;">Pemusnahan Forensik Darurat (Wipe)</div>
-            <div style="font-size: 0.76rem; color: #FDA4AF;">Zeroing data permanen saat situasi kritis</div>
+            <div class="item-title" style="color: #E11D48;">Panic Wipe (Pemusnahan Darurat)</div>
+            <div style="font-size: 0.76rem; color: #FDA4AF;">Hapus permanen seluruh percakapan & kunci saat situasi kritis</div>
           </div>
         </div>
         <div class="item-right">
-          <span class="item-value" style="color: #E11D48; font-weight: 700;">Hancurkan</span>
+          <span class="item-value" style="color: #E11D48; font-weight: 700;">Hancurkan Data</span>
           <div class="arrow-circle">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FDA4AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"></polyline>
@@ -665,7 +667,7 @@
 
       <div class="item-divider"></div>
 
-      <!-- Reset / Uji Ulang Alur Pengguna Baru (FTUE) -->
+      <!-- Reset Pengenalan Aplikasi -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row" onclick={() => mekaarStore.resetFtueSimulation()}>
@@ -676,15 +678,75 @@
               <path d="M3 3v5h5"></path>
             </svg>
           </div>
-          <span class="item-title">Uji Ulang Onboarding (Reset FTUE)</span>
+          <div>
+            <div class="item-title">Reset Pengenalan Aplikasi</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Mulai ulang panduan awal & orientasi akun baru</div>
+          </div>
         </div>
         <div class="item-right">
-          <span class="item-value" style="color: #EA580C; font-size: 0.8rem; font-weight: 600;">Simulasi Cold-Start</span>
+          <span class="item-value" style="color: #EA580C; font-size: 0.8rem; font-weight: 600;">Mulai Ulang</span>
           <div class="arrow-circle">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <polyline points="9 18 15 12 9 6"></polyline>
             </svg>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section: Informasi & Panduan -->
+  <div class="settings-group">
+    <span class="group-title">Informasi & Panduan</span>
+    <div class="clean-card with-ticks list-tile-card">
+      <span class="pencil-tick tick-bl">⌞</span>
+      <span class="pencil-tick tick-tr">⌝</span>
+
+      <!-- Kamus Istilah Keamanan (Security Glossary) -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="setting-item-row" onclick={() => (showGlossaryModal = true)}>
+        <div class="item-left">
+          <div class="item-icon-circle icon-purple">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+            </svg>
+          </div>
+          <div>
+            <div class="item-title">Kamus Istilah Keamanan (Security Glossary)</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Penjelasan ramah tentang Mekaar Mesh, E2EE, Call Relay & Stego Photo</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Pelajari</span>
+          <div class="arrow-circle">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="9 18 15 12 9 6"></polyline>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <div class="item-divider"></div>
+
+      <!-- Tentang MEKAAR -->
+      <div class="setting-item-row">
+        <div class="item-left">
+          <div class="item-icon-circle icon-blue-subtle">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"/>
+              <line x1="12" y1="16" x2="12" y2="12"/>
+              <line x1="12" y1="8" x2="12.01" y2="8"/>
+            </svg>
+          </div>
+          <div>
+            <div class="item-title">Tentang MEKAAR Tactical Suite</div>
+            <div style="font-size: 0.76rem; color: var(--text-secondary);">Versi 0.1.0 • E2EE Mesh Platform</div>
+          </div>
+        </div>
+        <div class="item-right">
+          <span class="aegis-badge">Produksi</span>
         </div>
       </div>
     </div>
@@ -726,12 +788,12 @@
 <!-- Modal Dialog Endpoint Tailscale -->
 <Dialog
   open={showTailscaleModal}
-  title="Konfigurasi Server Relay"
+  title="Audit Node Mekaar Mesh Network"
   onclose={() => (showTailscaleModal = false)}
 >
   <div style="display: flex; flex-direction: column; gap: 12px; font-size: 0.88rem;">
     <p style="color: var(--text-secondary);">
-      Aplikasi terhubung ke relay <strong>teplok-pc</strong> Linux via Tailscale Mesh.
+      Aplikasi terhubung ke node <strong>Mekaar Mesh Network</strong> melalui terowongan terenkripsi privat.
     </p>
     <div style="background: #F1F5F9; padding: 12px; border-radius: 12px; font-family: var(--font-mono); font-size: 0.8rem;">
       <div>HTTP: {TAILSCALE_HTTP}</div>
@@ -914,7 +976,7 @@
       Pilih siapa saja yang dapat melihat waktu terakhir kali Anda online di jaringan:
     </p>
     {#each [
-      { label: 'Semua Orang', val: 'everyone', desc: 'Dapat dilihat oleh semua node terdaftar di jaringan teplok-pc' },
+      { label: 'Semua Orang', val: 'everyone', desc: 'Dapat dilihat oleh semua kontak terdaftar di Mekaar Mesh Network' },
       { label: 'Kontak Saya (Rekomendasi)', val: 'contacts', desc: 'Hanya kontak terverifikasi di daftar buku alamat Anda' },
       { label: 'Tidak Ada (Maksimal Privasi)', val: 'nobody', desc: 'Status online & waktu terakhir tidak pernah dibagikan' }
     ] as item}
@@ -968,6 +1030,12 @@
     {/each}
   </div>
 </Dialog>
+
+<!-- Kamus Istilah Keamanan (Security Glossary) Dialog -->
+<SecurityGlossaryDialog
+  open={showGlossaryModal}
+  onclose={() => (showGlossaryModal = false)}
+/>
 
 <style>
   .settings-page-container {
