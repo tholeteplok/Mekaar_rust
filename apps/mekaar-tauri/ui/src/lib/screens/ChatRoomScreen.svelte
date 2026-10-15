@@ -9,10 +9,12 @@
   import SecureMediaVaultDialog from '../components/SecureMediaVaultDialog.svelte';
   import MediaLightboxModal from '../components/MediaLightboxModal.svelte';
   import Dialog from '../components/Dialog.svelte';
+  import ContactDetailSheet from '../components/ContactDetailSheet.svelte';
 
   let replyingTo = $state<MessageModel | null>(null);
   let editingMessage = $state<MessageModel | null>(null);
   let showRoomOptions = $state(false);
+  let showContactDetail = $state(false);
   let showStegoDecoder = $state(false);
   let selectedStegoSrc = $state('');
   let selectedStegoName = $state('');
@@ -121,6 +123,28 @@
     { label: '1 Hari', sec: 86400 },
     { label: '1 Minggu', sec: 604800 }
   ];
+
+  const peerContact = $derived.by(() => {
+    if (!activeConv || activeConv.isGroup) return null;
+    const peerParticipant = activeConv.participants.find((p) => p.userId !== mekaarStore.currentUser.id);
+    if (peerParticipant) {
+      const byId = mekaarStore.getContactByUserId(peerParticipant.userId);
+      if (byId) return byId;
+    }
+    return (
+      mekaarStore.contacts.find((c) => c.displayName === activeConv.title) ?? {
+        id: `usr-${activeConv.id}`,
+        username: `@${activeConv.title.toLowerCase().replace(/\s+/g, '')}`,
+        displayName: activeConv.title,
+        avatarColor: activeConv.avatarColor,
+        fingerprint: 'ED25519: VERIFIED-AEGIS',
+        isOnline: activeConv.isOnline,
+        isGuardian: !!activeConv.isGuardian,
+        isBlocked: false,
+        notes: 'Sesi obrolan E2EE langsung'
+      }
+    );
+  });
 </script>
 
 {#if activeConv}
@@ -139,10 +163,19 @@
         </svg>
       </button>
 
-      <!-- 2. Center Contact Pill -->
+      <!-- 2. Center Contact Pill (Klik membuka ContactDetailSheet untuk 1-on-1 chat) -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="center-contact-pill" onclick={() => (showRoomOptions = true)}>
+      <div
+        class="center-contact-pill"
+        onclick={() => {
+          if (!activeConv.isGroup && peerContact) {
+            showContactDetail = true;
+          } else {
+            showRoomOptions = true;
+          }
+        }}
+      >
         <SketchAvatar
           name={activeConv.title}
           size={36}
@@ -490,6 +523,18 @@
       </div>
 
       <div class="options-actions-list">
+        {#if !activeConv.isGroup && peerContact}
+          <button
+            type="button"
+            class="sheet-action-row"
+            onclick={() => {
+              showRoomOptions = false;
+              showContactDetail = true;
+            }}
+          >
+            <span>👤 Detail Kontak & Verifikasi Aegis</span>
+          </button>
+        {/if}
         <button
           type="button"
           class="sheet-action-row"
@@ -554,6 +599,14 @@
       </div>
     </div>
   </BottomSheet>
+
+  <!-- Contact Detail & Action Hub Sheet -->
+  <ContactDetailSheet
+    open={showContactDetail}
+    contact={peerContact}
+    conversationId={activeConv.id}
+    onclose={() => (showContactDetail = false)}
+  />
 
   <!-- Disappearing Messages Timer Dialog -->
   <Dialog

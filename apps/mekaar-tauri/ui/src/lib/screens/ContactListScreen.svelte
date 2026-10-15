@@ -7,6 +7,7 @@
   import MyQrDialog from '../components/MyQrDialog.svelte';
   import ContactQrScanDialog from '../components/ContactQrScanDialog.svelte';
   import ChatRequestsDialog from '../components/ChatRequestsDialog.svelte';
+  import ContactDetailSheet from '../components/ContactDetailSheet.svelte';
 
   let radarFilter = $state<'semua' | 'kontak'>('semua');
   let sortMode = $state<'az' | 'recent'>('az');
@@ -143,21 +144,6 @@
       (r) => r.title === contact.displayName || r.id === `conv-${contact.id}`
     );
     return !!conv?.isVaultHidden;
-  }
-
-  function toggleVaultForSelected() {
-    if (!selectedContact) return;
-    const conv = mekaarStore.conversations.find(
-      (r) => r.title === selectedContact!.displayName || r.id === `conv-${selectedContact!.id}`
-    );
-    if (conv) {
-      mekaarStore.toggleVaultHidden(conv.id);
-    }
-  }
-
-  function toggleBlockForSelected() {
-    if (!selectedContact) return;
-    mekaarStore.toggleContactBlock(selectedContact.id);
   }
 </script>
 
@@ -435,57 +421,15 @@
   </div>
 </Dialog>
 
-<!-- Modal Info Kontak & Privasi -->
-<Dialog
+<!-- Bottom Sheet Detail Kontak Terpusat & Action Hub -->
+<ContactDetailSheet
   open={showContactInfoDialog}
-  title="Informasi Kontak & Keamanan"
+  contact={selectedContact}
   onclose={() => (showContactInfoDialog = false)}
->
-  {#if selectedContact}
-    <div class="contact-details-box">
-      <div class="details-profile-header">
-        <SketchAvatar
-          name={selectedContact.displayName}
-          size={56}
-          online={selectedContact.isOnline}
-          isGuardian={selectedContact.isGuardian}
-        />
-        <div class="details-name-column">
-          <h4>{selectedContact.displayName}</h4>
-          <p>{selectedContact.username}</p>
-        </div>
-      </div>
-
-      <div class="details-field">
-        <span class="field-title">FINGERPRINT KUNCI PUBLIK (ED25519)</span>
-        <code class="fingerprint-code">{selectedContact.fingerprint}</code>
-      </div>
-
-      <div class="details-field">
-        <span class="field-title">CATATAN KONTAK</span>
-        <p class="field-value">{selectedContact.notes || 'Kontak terverifikasi Aegis'}</p>
-      </div>
-
-      <div class="details-actions-list">
-        <button
-          type="button"
-          class="btn-detail-action"
-          onclick={toggleVaultForSelected}
-        >
-          {isContactVaultHidden(selectedContact) ? '👁️ Tampilkan dari Vault' : '🔒 Sembunyikan ke Private Vault'}
-        </button>
-
-        <button
-          type="button"
-          class="btn-detail-action {selectedContact.isBlocked ? 'btn-unblock' : 'btn-block'}"
-          onclick={toggleBlockForSelected}
-        >
-          {selectedContact.isBlocked ? '✓ Buka Blokir Kontak' : '⛔ Blokir Pengguna Ini'}
-        </button>
-      </div>
-    </div>
-  {/if}
-</Dialog>
+  onOpenChat={(convId) => {
+    mekaarStore.openConversation(convId);
+  }}
+/>
 
 <!-- Dialog Kode QR Profil Telegram Style -->
 <MyQrDialog
@@ -865,101 +809,6 @@
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  /* Contact Details Dialog Box */
-  .contact-details-box {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    padding: 8px 0;
-  }
-
-  .details-profile-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .details-name-column h4 {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--text-primary, #0F172A);
-    margin: 0;
-  }
-
-  .details-name-column p {
-    font-size: 0.85rem;
-    color: var(--brand-blue, #0284C7);
-    margin: 2px 0 0 0;
-  }
-
-  .details-field {
-    background-color: var(--bg-surface, #F8FAFC);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    border-radius: 10px;
-    padding: 10px 12px;
-  }
-
-  .field-title {
-    font-size: 0.7rem;
-    font-weight: 800;
-    color: var(--text-secondary, #64748B);
-    display: block;
-    margin-bottom: 4px;
-    letter-spacing: 0.5px;
-  }
-
-  .fingerprint-code {
-    font-size: 0.82rem;
-    color: var(--brand-blue, #0284C7);
-    font-family: monospace;
-    font-weight: 700;
-    word-break: break-all;
-  }
-
-  .field-value {
-    font-size: 0.85rem;
-    color: var(--text-primary, #0F172A);
-    margin: 0;
-  }
-
-  .details-actions-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-top: 8px;
-  }
-
-  .btn-detail-action {
-    width: 100%;
-    height: 42px;
-    border-radius: var(--radius-pill, 999px);
-    border: 1px solid var(--border-subtle, #CBD5E1);
-    background: transparent;
-    color: var(--text-primary, #0F172A);
-    font-size: 0.85rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .btn-detail-action:hover {
-    background-color: var(--border-light, #F1F5F9);
-  }
-
-  .btn-detail-action.btn-block {
-    color: #DC2626;
-    border-color: rgba(239, 68, 68, 0.4);
-  }
-
-  .btn-detail-action.btn-block:hover {
-    background-color: rgba(239, 68, 68, 0.08);
-  }
-
-  .btn-detail-action.btn-unblock {
-    color: #059669;
-    border-color: rgba(16, 185, 129, 0.4);
   }
 
   @keyframes fadeIn {

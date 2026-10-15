@@ -1429,6 +1429,79 @@ class MekaarStore {
     }).catch(() => {});
   }
 
+  toggleGuardianContact(contactId: string): boolean {
+    const contact = this.contacts.find((c) => c.id === contactId);
+    if (!contact) return false;
+    contact.isGuardian = !contact.isGuardian;
+
+    // Sinkronisasi dengan array guardians
+    if (contact.isGuardian) {
+      if (!this.guardians.some((g) => g.id === `grd-${contact.id}` || g.username === contact.username)) {
+        this.guardians = [
+          ...this.guardians,
+          {
+            id: `grd-${contact.id}`,
+            name: contact.displayName,
+            username: contact.username,
+            avatarColor: contact.avatarColor,
+            relation: 'Rekan Lapangan',
+            status: 'active',
+            canViewLiveLocation: true,
+            canReceiveSosAlert: true,
+            batteryPercent: 95,
+            lastUpdated: 'Baru saja diangkat sebagai Guardian'
+          }
+        ];
+      }
+    } else {
+      this.guardians = this.guardians.filter(
+        (g) => g.id !== `grd-${contact.id}` && g.username !== contact.username
+      );
+    }
+
+    // Sinkronisasi dengan percakapan
+    const conv = this.conversations.find(
+      (c) => c.title === contact.displayName || c.id === `conv-${contact.id}`
+    );
+    if (conv) {
+      conv.isGuardian = contact.isGuardian;
+    }
+
+    safeInvoke('toggle_guardian', {
+      guardianId: contact.id,
+      active: contact.isGuardian
+    }).catch(() => {});
+
+    return contact.isGuardian;
+  }
+
+  toggleMuteConversation(convId: string): boolean {
+    const conv = this.conversations.find((c) => c.id === convId);
+    if (!conv) return false;
+    conv.isMuted = !conv.isMuted;
+    safeInvoke('toggle_mute_conversation', {
+      conversationId: convId,
+      isMuted: conv.isMuted
+    }).catch(() => {});
+    return conv.isMuted;
+  }
+
+  clearConversationMessages(convId: string) {
+    this.messagesByConv[convId] = [];
+    const conv = this.conversations.find((c) => c.id === convId);
+    if (conv) {
+      conv.subtitle = 'Riwayat obrolan dibersihkan';
+      conv.unreadCount = 0;
+    }
+    safeInvoke('clear_conversation_messages', {
+      conversationId: convId
+    }).catch(() => {});
+  }
+
+  getContactByUserId(userId: string): ContactModel | undefined {
+    return this.contacts.find((c) => c.id === userId || c.username === userId || `@${userId}` === c.username);
+  }
+
   async startCall(conv: Conversation, isVideo: boolean, direction: 'outgoing' | 'incoming' = 'outgoing') {
     if (this.callDurationTimer) {
       clearInterval(this.callDurationTimer);

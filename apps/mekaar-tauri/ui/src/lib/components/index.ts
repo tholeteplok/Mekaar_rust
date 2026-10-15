@@ -25,3 +25,4 @@ export { default as EmojiPickerPopover } from './EmojiPickerPopover.svelte';
 export { default as MediaLightboxModal } from './MediaLightboxModal.svelte';
 export { default as LiveLocationCard } from './LiveLocationCard.svelte';
 export { default as CallFloatingPip } from './CallFloatingPip.svelte';
+export { default as ContactDetailSheet } from './ContactDetailSheet.svelte';
