@@ -1071,6 +1071,57 @@ class MekaarStore {
     }
   }
 
+  editMessage(convId: string, msgId: string, newText: string) {
+    const list = this.messagesByConv[convId];
+    if (!list) return;
+    const msg = list.find((m) => m.id === msgId);
+    if (!msg) return;
+    msg.text = newText.trim();
+    msg.isEdited = true;
+
+    safeInvoke('edit_e2ee_message', {
+      roomId: convId,
+      messageId: msgId,
+      newContent: newText.trim()
+    }).catch(() => {});
+  }
+
+  revokeMessage(convId: string, msgId: string, forEveryone: boolean) {
+    const list = this.messagesByConv[convId];
+    if (!list) return;
+    if (forEveryone) {
+      const msg = list.find((m) => m.id === msgId);
+      if (msg) {
+        msg.isRevoked = true;
+        msg.text = 'Pesan ini telah ditarik';
+        msg.attachment = undefined;
+        msg.reactions = {};
+      }
+    } else {
+      this.messagesByConv[convId] = list.filter((m) => m.id !== msgId);
+    }
+
+    safeInvoke('revoke_e2ee_message', {
+      roomId: convId,
+      messageId: msgId,
+      forEveryone
+    }).catch(() => {});
+  }
+
+  pinMessage(convId: string, msgId: string | null) {
+    const conv = this.conversations.find((c) => c.id === convId);
+    if (conv) {
+      conv.pinnedMessageId = msgId || undefined;
+    }
+  }
+
+  setDisappearingTimer(convId: string, seconds: number) {
+    const conv = this.conversations.find((c) => c.id === convId);
+    if (conv) {
+      conv.disappearingSeconds = seconds;
+    }
+  }
+
   createGroup(title: string, memberIds: string[]) {
     const selectedContacts = this.contacts.filter((c) => memberIds.includes(c.id));
     const newId = `conv-grp-${Date.now()}`;

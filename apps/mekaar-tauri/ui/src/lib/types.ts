@@ -70,6 +70,8 @@ export interface MessageModel {
   expiresAt?: string;
   reactions: Record<string, string[]>;
   attachment?: AttachmentModel;
+  isEdited?: boolean;
+  isRevoked?: boolean;
 }
 
 export interface RoomParticipantPreferences {
@@ -96,6 +98,7 @@ export interface Conversation {
   isArchived?: boolean;
   isVaultHidden?: boolean;
   disappearingSeconds: number;
+  pinnedMessageId?: string;
   chatTheme: ChatThemeId;
   participants: RoomParticipantPreferences[];
 }

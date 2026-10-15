@@ -4,13 +4,29 @@
 
   interface Props {
     message: MessageModel;
+    searchQuery?: string;
+    isTargetJump?: boolean;
     onreply?: (msg: MessageModel) => void;
     onreact?: (msgId: string, emoji: string) => void;
     onopenstego?: (imgSrc: string, name: string) => void;
     onopenlightbox?: (imgSrc: string, name: string, sizeLabel?: string, isStego?: boolean) => void;
+    onedit?: (msg: MessageModel) => void;
+    onrevoke?: (msg: MessageModel) => void;
+    onpin?: (msg: MessageModel) => void;
   }
 
-  let { message, onreply, onreact, onopenstego, onopenlightbox }: Props = $props();
+  let {
+    message,
+    searchQuery = '',
+    isTargetJump = false,
+    onreply,
+    onreact,
+    onopenstego,
+    onopenlightbox,
+    onedit,
+    onrevoke,
+    onpin
+  }: Props = $props();
 
   // Voice player state
   let isPlayingAudio = $state(false);
@@ -18,8 +34,9 @@
   let playbackSpeed = $state<1 | 1.5 | 2>(1);
   let audioTimer: any = null;
 
-  // Quick reaction bar
+  // Popover menus state
   let showReactionMenu = $state(false);
+  let showMoreMenu = $state(false);
   const quickEmojis = ['👍', '❤️', '😂', '😮', '😢', '🙏'];
 
   function toggleAudio() {
@@ -75,43 +92,73 @@
 
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
+  id="bubble-{message.id}"
   class="bubble-row {message.isSelf ? 'self' : 'peer'}"
-  onmouseleave={() => (showReactionMenu = false)}
+  onmouseleave={() => {
+    showReactionMenu = false;
+    showMoreMenu = false;
+  }}
 >
   <div class="bubble-stack">
     <!-- Bubble Container -->
-    <div class="bubble-container {message.isSelf ? 'bubble-self' : 'bubble-peer'}">
-      <!-- Quick Reaction Float Trigger (visible on hover) -->
-      <div class="bubble-hover-actions {message.isSelf ? 'actions-self' : 'actions-peer'}">
-        <button
-          type="button"
-          class="hover-action-btn"
-          onclick={() => (showReactionMenu = !showReactionMenu)}
-          title="Beri Reaksi Emoji"
-          aria-label="Reaksi"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-            <line x1="9" y1="9" x2="9.01" y2="9"></line>
-            <line x1="15" y1="9" x2="15.01" y2="9"></line>
-          </svg>
-        </button>
-        {#if onreply}
+    <div class="bubble-container {message.isSelf ? 'bubble-self' : 'bubble-peer'} {isTargetJump ? 'target-jump-pulse' : ''}">
+      <!-- Quick Reaction & Actions Float Trigger (visible on hover) -->
+      {#if !message.isRevoked}
+        <div class="bubble-hover-actions {message.isSelf ? 'actions-self' : 'actions-peer'}">
+          <!-- Emoji Reaction Trigger -->
           <button
             type="button"
             class="hover-action-btn"
-            onclick={() => onreply!(message)}
-            title="Balas Pesan"
-            aria-label="Balas"
+            onclick={() => {
+              showMoreMenu = false;
+              showReactionMenu = !showReactionMenu;
+            }}
+            title="Beri Reaksi Emoji"
+            aria-label="Reaksi"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <polyline points="9 17 4 12 9 7"></polyline>
-              <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+              <circle cx="12" cy="12" r="10"></circle>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
+              <line x1="9" y1="9" x2="9.01" y2="9"></line>
+              <line x1="15" y1="9" x2="15.01" y2="9"></line>
             </svg>
           </button>
-        {/if}
-      </div>
+
+          <!-- Reply Button -->
+          {#if onreply}
+            <button
+              type="button"
+              class="hover-action-btn"
+              onclick={() => onreply!(message)}
+              title="Balas Pesan"
+              aria-label="Balas"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="9 17 4 12 9 7"></polyline>
+                <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
+              </svg>
+            </button>
+          {/if}
+
+          <!-- More Options Menu Trigger -->
+          <button
+            type="button"
+            class="hover-action-btn"
+            onclick={() => {
+              showReactionMenu = false;
+              showMoreMenu = !showMoreMenu;
+            }}
+            title="Opsi Pesan Lanjutan"
+            aria-label="Opsi Pesan"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <circle cx="12" cy="5" r="2"></circle>
+              <circle cx="12" cy="12" r="2"></circle>
+              <circle cx="12" cy="19" r="2"></circle>
+            </svg>
+          </button>
+        </div>
+      {/if}
 
       <!-- Quick Reaction Popup Toolbar -->
       {#if showReactionMenu}
@@ -128,177 +175,273 @@
         </div>
       {/if}
 
+      <!-- More Options Dropdown Menu -->
+      {#if showMoreMenu}
+        <div class="more-options-menu {message.isSelf ? 'menu-self' : 'menu-peer'}">
+          {#if onreply}
+            <button
+              type="button"
+              class="menu-item-btn"
+              onclick={() => {
+                showMoreMenu = false;
+                onreply!(message);
+              }}
+            >
+              <span>↩️</span> Balas Pesan
+            </button>
+          {/if}
+
+          {#if message.isSelf && !message.isRevoked && onedit}
+            <button
+              type="button"
+              class="menu-item-btn"
+              onclick={() => {
+                showMoreMenu = false;
+                onedit!(message);
+              }}
+            >
+              <span>✏️</span> Edit Pesan
+            </button>
+          {/if}
+
+          {#if onpin}
+            <button
+              type="button"
+              class="menu-item-btn"
+              onclick={() => {
+                showMoreMenu = false;
+                onpin!(message);
+              }}
+            >
+              <span>📌</span> Sematkan Pesan
+            </button>
+          {/if}
+
+          {#if !message.isRevoked && onrevoke}
+            <button
+              type="button"
+              class="menu-item-btn danger-item"
+              onclick={() => {
+                showMoreMenu = false;
+                onrevoke!(message);
+              }}
+            >
+              <span>🗑️</span> {message.isSelf ? 'Tarik Pesan' : 'Hapus untuk Saya'}
+            </button>
+          {/if}
+        </div>
+      {/if}
+
       {#if !message.isSelf && message.senderName}
         <div class="sender-name">{message.senderName}</div>
       {/if}
 
-      {#if message.replyPreviewText}
+      {#if message.replyPreviewText && !message.isRevoked}
         <div class="reply-box {message.isSelf ? 'reply-self' : 'reply-peer'}">
           <span class="reply-author">{message.replySenderName ?? 'Pesan'}:</span>
           <span class="reply-text">{message.replyPreviewText}</span>
         </div>
       {/if}
 
-      <!-- Attachment Rendering -->
-      {#if message.attachment}
-        {#if message.attachment.kind === 'image'}
-          <div class="image-attachment-wrap">
-            {#if message.attachment.urlOrPreview && message.attachment.urlOrPreview.startsWith('data:image')}
-              <button
-                type="button"
-                class="img-lightbox-trigger-btn"
-                onclick={() => onopenlightbox?.(
-                  message.attachment!.urlOrPreview,
-                  message.attachment!.name,
-                  message.attachment!.sizeLabel,
-                  message.attachment!.isStego
-                )}
-                title="Klik untuk pratinjau layar penuh & zoom"
-              >
-                <img
-                  src={message.attachment.urlOrPreview}
-                  alt={message.attachment.name}
-                  class="bubble-inline-img"
-                />
-                <div class="img-zoom-hint-overlay">
-                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5">
-                    <circle cx="11" cy="11" r="8"></circle>
-                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                    <line x1="11" y1="8" x2="11" y2="14"></line>
-                    <line x1="8" y1="11" x2="14" y2="11"></line>
-                  </svg>
-                </div>
-              </button>
-            {:else}
-              <button
-                type="button"
-                class="img-generic-preview"
-                onclick={() => onopenlightbox?.(
-                  message.attachment!.urlOrPreview,
-                  message.attachment!.name,
-                  message.attachment!.sizeLabel,
-                  message.attachment!.isStego
-                )}
-              >
-                <span>🖼️ {message.attachment.name}</span>
-              </button>
-            {/if}
-
-            <!-- Stego Badge & Extraction Action -->
-            {#if message.attachment.isStego}
-              <div class="stego-banner-overlay">
-                <div class="stego-badge-label">
-                  <span>🕵️ Steganografi LSB</span>
-                </div>
-                {#if onopenstego}
-                  <button
-                    type="button"
-                    class="btn-extract-stego-pill"
-                    onclick={() => onopenstego!(message.attachment!.urlOrPreview, message.attachment!.name)}
-                  >
-                    Ekstrak Pesan
-                  </button>
-                {/if}
-              </div>
-            {/if}
-            <div class="img-meta-row">
-              <span class="img-size-sub">{message.attachment.sizeLabel}</span>
-            </div>
-          </div>
-        {:else if message.attachment.kind === 'voice'}
-          <!-- Voice Note Player Pill -->
-          <div class="voice-bubble-pill {message.isSelf ? 'voice-self' : 'voice-peer'}">
-            <button
-              type="button"
-              class="voice-play-circle"
-              onclick={toggleAudio}
-              aria-label={isPlayingAudio ? 'Jeda Audio' : 'Putar Audio'}
-            >
-              {#if isPlayingAudio}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="6" y="4" width="4" height="16"></rect>
-                  <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-              {:else}
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                </svg>
-              {/if}
-            </button>
-
-            <div class="voice-waveform-col">
-              <!-- Interactive Timeline Scrubber -->
-              <!-- svelte-ignore a11y_click_events_have_key_events -->
-              <div
-                class="timeline-track"
-                onclick={handleSeek}
-                onkeydown={(e) => {
-                  if (e.key === 'ArrowRight') audioProgress = Math.min(100, audioProgress + 5);
-                  else if (e.key === 'ArrowLeft') audioProgress = Math.max(0, audioProgress - 5);
-                }}
-                role="slider"
-                tabindex="0"
-                aria-valuenow={Math.round(audioProgress)}
-                aria-valuemin="0"
-                aria-valuemax="100"
-              >
-                <div class="waveform-bars-row">
-                  {#each [8, 14, 20, 10, 16, 24, 12, 18, 6, 14, 22, 16, 8, 12, 18, 10, 14] as h, i}
-                    {@const isPassed = (i / 17) * 100 <= audioProgress}
-                    <span
-                      class="wave-bar {isPassed ? 'wave-bar-passed' : 'wave-bar-future'} {isPlayingAudio && i % 3 === 0 ? 'anim-wave' : ''}"
-                      style="height: {h}px;"
-                    ></span>
-                  {/each}
-                </div>
-                <!-- Progress Line Indicator -->
-                <div class="progress-fill-line" style="width: {audioProgress}%;"></div>
-              </div>
-
-              <!-- Audio Timer & Speed Toggle -->
-              <div class="voice-bottom-row">
-                <span class="voice-duration-label">
-                  {isPlayingAudio || audioProgress > 0
-                    ? formatAudioDuration(audioProgress)
-                    : message.attachment.sizeLabel}
-                </span>
+      <!-- REVOKED MESSAGE PRESENTATION -->
+      {#if message.isRevoked}
+        <div class="revoked-message-body {message.isSelf ? 'revoked-self' : 'revoked-peer'}">
+          <span class="revoked-icon">🚫</span>
+          <span class="revoked-text">Pesan ini telah ditarik</span>
+        </div>
+      {:else}
+        <!-- Attachment Rendering -->
+        {#if message.attachment}
+          {#if message.attachment.kind === 'image'}
+            <div class="image-attachment-wrap">
+              {#if message.attachment.urlOrPreview && message.attachment.urlOrPreview.startsWith('data:image')}
                 <button
                   type="button"
-                  class="speed-toggle-pill {message.isSelf ? 'speed-self' : 'speed-peer'}"
-                  onclick={cycleSpeed}
-                  title="Ubah kecepatan audio"
+                  class="img-lightbox-trigger-btn"
+                  onclick={() => onopenlightbox?.(
+                    message.attachment!.urlOrPreview,
+                    message.attachment!.name,
+                    message.attachment!.sizeLabel,
+                    message.attachment!.isStego
+                  )}
+                  title="Klik untuk pratinjau layar penuh & zoom"
                 >
-                  {playbackSpeed}x
+                  <img
+                    src={message.attachment.urlOrPreview}
+                    alt={message.attachment.name}
+                    class="bubble-inline-img"
+                  />
+                  <div class="img-zoom-hint-overlay">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                      <line x1="11" y1="8" x2="11" y2="14"></line>
+                      <line x1="8" y1="11" x2="14" y2="11"></line>
+                    </svg>
+                  </div>
                 </button>
+              {:else}
+                <button
+                  type="button"
+                  class="img-generic-preview"
+                  onclick={() => onopenlightbox?.(
+                    message.attachment!.urlOrPreview,
+                    message.attachment!.name,
+                    message.attachment!.sizeLabel,
+                    message.attachment!.isStego
+                  )}
+                >
+                  <span>🖼️ {message.attachment.name}</span>
+                </button>
+              {/if}
+
+              <!-- Stego Badge & Extraction Action -->
+              {#if message.attachment.isStego}
+                <div class="stego-banner-overlay">
+                  <div class="stego-badge-label">
+                    <span>🕵️ Steganografi LSB</span>
+                  </div>
+                  {#if onopenstego}
+                    <button
+                      type="button"
+                      class="btn-extract-stego-pill"
+                      onclick={() => onopenstego!(message.attachment!.urlOrPreview, message.attachment!.name)}
+                    >
+                      Ekstrak Pesan
+                    </button>
+                  {/if}
+                </div>
+              {/if}
+              <div class="img-meta-row">
+                <span class="img-size-sub">{message.attachment.sizeLabel}</span>
               </div>
             </div>
-          </div>
-        {:else}
-          <!-- Document / Location Attachment Box -->
-          <div class="attachment-box {message.isSelf ? 'att-self' : 'att-peer'}">
-            <span class="att-icon">
-              {#if message.attachment.kind === 'location'}📍{:else}📄{/if}
-            </span>
-            <div class="att-info">
-              <span class="att-name">{message.attachment.name}</span>
-              <span class="att-size">{message.attachment.sizeLabel}</span>
+          {:else if message.attachment.kind === 'voice'}
+            <!-- Voice Note Player Pill -->
+            <div class="voice-bubble-pill {message.isSelf ? 'voice-self' : 'voice-peer'}">
+              <button
+                type="button"
+                class="voice-play-circle"
+                onclick={toggleAudio}
+                aria-label={isPlayingAudio ? 'Jeda Audio' : 'Putar Audio'}
+              >
+                {#if isPlayingAudio}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                  </svg>
+                {:else}
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                {/if}
+              </button>
+
+              <div class="voice-waveform-col">
+                <!-- Interactive Timeline Scrubber -->
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <div
+                  class="timeline-track"
+                  onclick={handleSeek}
+                  onkeydown={(e) => {
+                    if (e.key === 'ArrowRight') audioProgress = Math.min(100, audioProgress + 5);
+                    else if (e.key === 'ArrowLeft') audioProgress = Math.max(0, audioProgress - 5);
+                  }}
+                  role="slider"
+                  tabindex="0"
+                  aria-valuenow={Math.round(audioProgress)}
+                  aria-valuemin="0"
+                  aria-valuemax="100"
+                >
+                  <div class="waveform-bars-row">
+                    {#each [8, 14, 20, 10, 16, 24, 12, 18, 6, 14, 22, 16, 8, 12, 18, 10, 14] as h, i}
+                      {@const isPassed = (i / 17) * 100 <= audioProgress}
+                      <span
+                        class="wave-bar {isPassed ? 'wave-bar-passed' : 'wave-bar-future'} {isPlayingAudio && i % 3 === 0 ? 'anim-wave' : ''}"
+                        style="height: {h}px;"
+                      ></span>
+                    {/each}
+                  </div>
+                  <!-- Progress Line Indicator -->
+                  <div class="progress-fill-line" style="width: {audioProgress}%;"></div>
+                </div>
+
+                <!-- Audio Timer & Speed Toggle -->
+                <div class="voice-bottom-row">
+                  <span class="voice-duration-label">
+                    {isPlayingAudio || audioProgress > 0
+                      ? formatAudioDuration(audioProgress)
+                      : message.attachment.sizeLabel}
+                  </span>
+                  <button
+                    type="button"
+                    class="speed-toggle-pill {message.isSelf ? 'speed-self' : 'speed-peer'}"
+                    onclick={cycleSpeed}
+                    title="Ubah kecepatan audio"
+                  >
+                    {playbackSpeed}x
+                  </button>
+                </div>
+              </div>
             </div>
+          {:else}
+            <!-- Document / Location Attachment Box -->
+            <div class="attachment-box {message.isSelf ? 'att-self' : 'att-peer'}">
+              <span class="att-icon">
+                {#if message.attachment.kind === 'location'}📍{:else}📄{/if}
+              </span>
+              <div class="att-info">
+                <span class="att-name">{message.attachment.name}</span>
+                <span class="att-size">{message.attachment.sizeLabel}</span>
+              </div>
+            </div>
+          {/if}
+        {/if}
+
+        <!-- Text Body with Search Highlight Support -->
+        {#if message.text}
+          <div class="message-body">
+            {#if searchQuery && searchQuery.trim()}
+              {@const q = searchQuery.trim().toLowerCase()}
+              {@const lower = message.text.toLowerCase()}
+              {#if lower.includes(q)}
+                {@const parts = message.text.split(new RegExp(`(${searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'))}
+                {#each parts as part}
+                  {#if part.toLowerCase() === q}
+                    <mark class="search-match-highlight">{part}</mark>
+                  {:else}
+                    {part}
+                  {/if}
+                {/each}
+              {:else}
+                {message.text}
+              {/if}
+            {:else}
+              {message.text}
+            {/if}
           </div>
         {/if}
       {/if}
 
-      {#if message.text}
-        <div class="message-body">{message.text}</div>
-      {/if}
-
-      <!-- Bubble Meta: Lock, Timestamp, Delivery Status -->
+      <!-- Bubble Meta: Disappearing Timer, Lock, Timestamp, Edited label, Delivery Status -->
       <div class="bubble-footer {message.isSelf ? 'footer-self' : 'footer-peer'}">
+        {#if message.disappearingSeconds || message.expiresAt}
+          <span class="disappearing-badge" title="Pesan Lenyap Otomatis">
+            ⏳ {message.expiresAt || `${message.disappearingSeconds}s`}
+          </span>
+        {/if}
+
         <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="lock-icon" title="Enkripsi E2EE Signal Protocol">
           <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
         </svg>
+
+        {#if message.isEdited}
+          <span class="edited-badge" title="Pesan telah diedit">(diedit)</span>
+        {/if}
+
         <span class="msg-time">{message.timestamp}</span>
 
-        {#if message.isSelf}
+        {#if message.isSelf && !message.isRevoked}
           <!-- Telegram / Signal 4-State Delivery Receipts -->
           {#if message.status === 'sending'}
             <span class="status-receipt sending" title="Mengirim...">🕒</span>
@@ -316,13 +459,13 @@
     </div>
 
     <!-- Reaction Badges Row (Below Bubble) -->
-    {#if message.reactions && Object.keys(message.reactions).length > 0}
+    {#if !message.isRevoked && message.reactions && Object.keys(message.reactions).length > 0}
       <div class="reactions-badge-row {message.isSelf ? 'row-self' : 'row-peer'}">
         {#each Object.entries(message.reactions) as [emoji, users]}
           {#if users.length > 0}
             <button
               type="button"
-              class="reaction-badge-pill {users.includes('self') ? 'reacted-by-me' : ''}"
+              class="reaction-badge-pill {users.includes('self') || users.includes('usr-teplok-01') ? 'reacted-by-me' : ''}"
               onclick={() => handleAddReaction(emoji)}
               title="{users.join(', ')}"
             >
@@ -365,6 +508,27 @@
     box-shadow: 0 1px 4px rgba(21, 38, 65, 0.05);
     word-break: break-word;
     box-sizing: border-box;
+    transition: box-shadow 0.3s ease, border-color 0.3s ease;
+  }
+
+  /* Target Jump Pulse Animation */
+  .target-jump-pulse {
+    animation: jumpGlow 1.8s ease;
+  }
+
+  @keyframes jumpGlow {
+    0% {
+      box-shadow: 0 0 0 3px #38BDF8, 0 4px 16px rgba(56, 189, 248, 0.4);
+      transform: scale(1.02);
+    }
+    50% {
+      box-shadow: 0 0 0 4px #0284C7, 0 6px 20px rgba(2, 132, 199, 0.3);
+      transform: scale(1.03);
+    }
+    100% {
+      box-shadow: 0 1px 4px rgba(21, 38, 65, 0.05);
+      transform: scale(1);
+    }
   }
 
   /* Outgoing: Vibrant Blue */
@@ -477,6 +641,58 @@
     transform: scale(1.3);
   }
 
+  /* More Options Dropdown Menu */
+  .more-options-menu {
+    position: absolute;
+    top: -10px;
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-subtle, #E2E8F0);
+    border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+    display: flex;
+    flex-direction: column;
+    padding: 4px;
+    z-index: 25;
+    min-width: 160px;
+    animation: popIn 0.15s ease;
+  }
+
+  .menu-self {
+    right: 0;
+  }
+
+  .menu-peer {
+    left: 0;
+  }
+
+  .menu-item-btn {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-primary, #0F172A);
+    border-radius: 8px;
+    cursor: pointer;
+    text-align: left;
+    transition: background-color 0.12s ease;
+  }
+
+  .menu-item-btn:hover {
+    background-color: #F1F5F9;
+  }
+
+  .menu-item-btn.danger-item {
+    color: #E11D48;
+  }
+
+  .menu-item-btn.danger-item:hover {
+    background-color: #FFF1F2;
+  }
+
   .sender-name {
     font-size: 0.78rem;
     font-weight: 700;
@@ -512,6 +728,38 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* Revoked Message Presentation */
+  .revoked-message-body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    font-style: italic;
+    font-size: 0.88rem;
+  }
+
+  .revoked-self {
+    color: rgba(255, 255, 255, 0.8);
+  }
+
+  .revoked-peer {
+    color: var(--text-secondary, #64748B);
+  }
+
+  .revoked-icon {
+    font-style: normal;
+    font-size: 0.95rem;
+  }
+
+  /* Search Highlight */
+  .search-match-highlight {
+    background-color: #FEF08A;
+    color: #854D0E;
+    padding: 1px 3px;
+    border-radius: 3px;
+    font-weight: 700;
   }
 
   /* Image Attachment */
@@ -786,8 +1034,20 @@
     color: var(--text-secondary, #64748B);
   }
 
+  .disappearing-badge {
+    font-size: 0.68rem;
+    opacity: 0.85;
+    margin-right: 2px;
+  }
+
   .lock-icon {
     opacity: 0.75;
+  }
+
+  .edited-badge {
+    font-size: 0.68rem;
+    opacity: 0.8;
+    font-style: italic;
   }
 
   .msg-time {
@@ -814,7 +1074,7 @@
   }
 
   .status-receipt.read {
-    color: #38BDF8; /* Telegram blue / Signal teal double-check */
+    color: #38BDF8;
     text-shadow: 0 0 3px rgba(56, 189, 248, 0.4);
   }
 

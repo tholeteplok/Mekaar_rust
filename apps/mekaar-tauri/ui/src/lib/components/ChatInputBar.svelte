@@ -5,16 +5,22 @@
 
   interface Props {
     replyingTo?: MessageModel | null;
+    editingMessage?: MessageModel | null;
     emojiPacks?: EmojiPackModel[];
     oncancelreply?: () => void;
+    oncanceledit?: () => void;
     onsend: (text: string, attachment?: MessageModel['attachment']) => void;
+    onsaveedit?: (msgId: string, newText: string) => void;
   }
 
   let {
     replyingTo = null,
+    editingMessage = null,
     emojiPacks = [],
     oncancelreply,
-    onsend
+    oncanceledit,
+    onsend,
+    onsaveedit
   }: Props = $props();
 
   let text = $state('');
@@ -22,8 +28,24 @@
   let showAttachDialog = $state(false);
   let showEmojiPicker = $state(false);
 
+  // Sync text when editingMessage changes
+  $effect(() => {
+    if (editingMessage) {
+      text = editingMessage.text;
+    }
+  });
+
   function submitText() {
     if (!text.trim()) return;
+
+    if (editingMessage) {
+      onsaveedit?.(editingMessage.id, text.trim());
+      text = '';
+      oncanceledit?.();
+      showEmojiPicker = false;
+      return;
+    }
+
     onsend(text.trim());
     text = '';
     showEmojiPicker = false;
@@ -65,13 +87,34 @@
     />
   </div>
 
-  {#if replyingTo}
+  <!-- Replying Banner -->
+  {#if replyingTo && !editingMessage}
     <div class="reply-floating-bar">
       <div class="reply-meta">
         <span class="reply-label">Membalas {replyingTo.senderName}:</span>
         <span class="reply-text-preview">{replyingTo.text}</span>
       </div>
       <button type="button" class="close-reply-btn" onclick={oncancelreply}>✕</button>
+    </div>
+  {/if}
+
+  <!-- Editing Banner -->
+  {#if editingMessage}
+    <div class="edit-floating-bar">
+      <div class="edit-meta">
+        <span class="edit-label">✏️ Mengedit Pesan:</span>
+        <span class="edit-text-preview">{editingMessage.text}</span>
+      </div>
+      <button
+        type="button"
+        class="close-edit-btn"
+        onclick={() => {
+          text = '';
+          oncanceledit?.();
+        }}
+      >
+        ✕
+      </button>
     </div>
   {/if}
 
@@ -109,22 +152,38 @@
       <input
         type="text"
         class="text-field"
-        placeholder={isRecording ? '🎙️ Merekam suara terenkripsi...' : 'Ketik pesan...'}
+        placeholder={isRecording ? '🎙️ Merekam suara terenkripsi...' : editingMessage ? 'Edit teks pesan...' : 'Ketik pesan...'}
         bind:value={text}
         onkeydown={(e) => e.key === 'Enter' && submitText()}
       />
 
       {#if text.trim()}
-        <button
-          type="button"
-          class="send-arrow-btn"
-          onclick={submitText}
-          aria-label="Kirim Pesan"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-          </svg>
-        </button>
+        {#if editingMessage}
+          <!-- Checkmark Save Button for Edit Mode -->
+          <button
+            type="button"
+            class="send-arrow-btn edit-mode-btn"
+            onclick={submitText}
+            aria-label="Simpan Perubahan"
+            title="Simpan Perubahan"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+          </button>
+        {:else}
+          <!-- Regular Send Button -->
+          <button
+            type="button"
+            class="send-arrow-btn"
+            onclick={submitText}
+            aria-label="Kirim Pesan"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+            </svg>
+          </button>
+        {/if}
       {/if}
     </div>
 
@@ -182,11 +241,37 @@
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-light);
     box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
+    animation: slideUp 0.15s ease;
   }
 
-  .reply-meta {
+  .edit-floating-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 14px;
+    background: #EFF6FF;
+    border-radius: var(--radius-pill);
+    border: 1px solid #BFDBFE;
+    box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
+    animation: slideUp 0.15s ease;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .reply-meta, .edit-meta {
     display: flex;
     flex-direction: column;
+    min-width: 0;
+    flex: 1;
   }
 
   .reply-label {
@@ -195,18 +280,28 @@
     color: var(--brand-blue);
   }
 
-  .reply-text-preview {
-    font-size: 0.82rem;
-    color: var(--text-secondary);
+  .edit-label {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--brand-blue);
   }
 
-  .close-reply-btn {
+  .reply-text-preview, .edit-text-preview {
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .close-reply-btn, .close-edit-btn {
     background: transparent;
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
     font-size: 0.9rem;
     padding: 4px;
+    margin-left: 8px;
   }
 
   .dock-row {
@@ -299,11 +394,19 @@
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: transform 0.12s ease;
+    transition: transform 0.12s ease, background-color 0.15s ease;
   }
 
   .send-arrow-btn:active {
     transform: scale(0.9);
+  }
+
+  .edit-mode-btn {
+    background-color: #10B981;
+  }
+
+  .edit-mode-btn:hover {
+    background-color: #059669;
   }
 
   @keyframes mic-rec-pulse {

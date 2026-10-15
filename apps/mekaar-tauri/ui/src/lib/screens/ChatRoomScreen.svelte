@@ -8,13 +8,28 @@
   import StegoDecoderDialog from '../components/StegoDecoderDialog.svelte';
   import SecureMediaVaultDialog from '../components/SecureMediaVaultDialog.svelte';
   import MediaLightboxModal from '../components/MediaLightboxModal.svelte';
+  import Dialog from '../components/Dialog.svelte';
 
   let replyingTo = $state<MessageModel | null>(null);
+  let editingMessage = $state<MessageModel | null>(null);
   let showRoomOptions = $state(false);
   let showStegoDecoder = $state(false);
   let selectedStegoSrc = $state('');
   let selectedStegoName = $state('');
   let showMediaVault = $state(false);
+
+  // Revoke Dialog State
+  let revokeTarget = $state<MessageModel | null>(null);
+  let showRevokeDialog = $state(false);
+
+  // Disappearing Timer Modal State
+  let showDisappearingModal = $state(false);
+
+  // In-Chat Search State
+  let isSearchOpen = $state(false);
+  let searchQuery = $state('');
+  let currentMatchIndex = $state(0);
+  let targetJumpId = $state('');
 
   // Lightbox Modal state
   let lightboxState = $state({
@@ -41,6 +56,17 @@
     }
   }
 
+  function jumpToMessage(msgId: string) {
+    targetJumpId = msgId;
+    const el = document.getElementById(`bubble-${msgId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    setTimeout(() => {
+      if (targetJumpId === msgId) targetJumpId = '';
+    }, 2200);
+  }
+
   const activeConv = $derived(
     mekaarStore.conversations.find((c) => c.id === mekaarStore.selectedConversationId) ??
       mekaarStore.conversations[0]
@@ -49,6 +75,30 @@
   const messages = $derived(
     activeConv ? mekaarStore.messagesByConv[activeConv.id] ?? [] : []
   );
+
+  // Pinned Message lookup
+  const pinnedMessage = $derived(
+    activeConv?.pinnedMessageId ? messages.find((m) => m.id === activeConv.pinnedMessageId) : null
+  );
+
+  // Search matches
+  const matchedMessageIds = $derived.by(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.trim().toLowerCase();
+    return messages.filter((m) => !m.isRevoked && m.text.toLowerCase().includes(q)).map((m) => m.id);
+  });
+
+  function jumpToNextSearchMatch() {
+    if (matchedMessageIds.length === 0) return;
+    currentMatchIndex = (currentMatchIndex + 1) % matchedMessageIds.length;
+    jumpToMessage(matchedMessageIds[currentMatchIndex]);
+  }
+
+  function jumpToPrevSearchMatch() {
+    if (matchedMessageIds.length === 0) return;
+    currentMatchIndex = (currentMatchIndex - 1 + matchedMessageIds.length) % matchedMessageIds.length;
+    jumpToMessage(matchedMessageIds[currentMatchIndex]);
+  }
 
   // Group messages with date separators
   const dateGroups = $derived.by(() => {
@@ -62,6 +112,15 @@
       { date: 'Hari Ini', msgs: messages.slice(4) }
     ];
   });
+
+  const disappearingDurations = [
+    { label: 'Nonaktif', sec: 0 },
+    { label: '30 Detik', sec: 30 },
+    { label: '5 Menit', sec: 300 },
+    { label: '1 Jam', sec: 3600 },
+    { label: '1 Hari', sec: 86400 },
+    { label: '1 Minggu', sec: 604800 }
+  ];
 </script>
 
 {#if activeConv}
@@ -106,8 +165,43 @@
         </div>
       </div>
 
-      <!-- 3. Call & Options Buttons -->
-      <div style="display: flex; align-items: center; gap: 4px;">
+      <!-- 3. Actions Header: Search, Disappearing Timer, Calls & Options -->
+      <div class="header-actions-row">
+        <!-- In-Chat Search Trigger Button -->
+        <button
+          type="button"
+          class="circle-nav-btn {isSearchOpen ? 'active-tool' : ''}"
+          onclick={() => {
+            isSearchOpen = !isSearchOpen;
+            if (!isSearchOpen) {
+              searchQuery = '';
+              targetJumpId = '';
+            }
+          }}
+          aria-label="Cari dalam Obrolan"
+          title="Cari dalam Obrolan"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+        </button>
+
+        <!-- Disappearing Timer Selector Button -->
+        <button
+          type="button"
+          class="circle-nav-btn {activeConv.disappearingSeconds > 0 ? 'active-timer' : ''}"
+          onclick={() => (showDisappearingModal = true)}
+          aria-label="Pesan Lenyap Otomatis"
+          title={activeConv.disappearingSeconds > 0 ? `Pesan Lenyap: ${Math.round(activeConv.disappearingSeconds / 60)}m` : 'Pesan Lenyap: Nonaktif'}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={activeConv.disappearingSeconds > 0 ? '#E11D48' : 'var(--brand-blue)'} stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+        </button>
+
+        <!-- Voice Call Button -->
         <button
           type="button"
           class="circle-nav-btn"
@@ -120,6 +214,7 @@
           </svg>
         </button>
 
+        <!-- Video Call Button -->
         <button
           type="button"
           class="circle-nav-btn"
@@ -133,6 +228,7 @@
           </svg>
         </button>
 
+        <!-- Options Button -->
         <button
           type="button"
           class="circle-nav-btn"
@@ -149,6 +245,94 @@
       </div>
     </header>
 
+    <!-- In-Chat Search Bar (Dropdown Under Header) -->
+    {#if isSearchOpen}
+      <div class="in-chat-search-bar">
+        <div class="search-input-field">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input
+            type="text"
+            class="in-chat-search-input"
+            placeholder="Cari kata kunci dalam obrolan..."
+            bind:value={searchQuery}
+            onkeydown={(e) => {
+              if (e.key === 'Enter') jumpToNextSearchMatch();
+            }}
+          />
+        </div>
+
+        {#if searchQuery.trim()}
+          <span class="search-match-counter">
+            {matchedMessageIds.length > 0 ? `${currentMatchIndex + 1} dari ${matchedMessageIds.length}` : '0 cocok'}
+          </span>
+          <div class="search-nav-arrows">
+            <button
+              type="button"
+              class="search-nav-btn"
+              onclick={jumpToPrevSearchMatch}
+              disabled={matchedMessageIds.length === 0}
+              title="Kecocokan Sebelumnya (▲)"
+            >
+              ▲
+            </button>
+            <button
+              type="button"
+              class="search-nav-btn"
+              onclick={jumpToNextSearchMatch}
+              disabled={matchedMessageIds.length === 0}
+              title="Kecocokan Berikutnya (▼)"
+            >
+              ▼
+            </button>
+          </div>
+        {/if}
+
+        <button
+          type="button"
+          class="close-search-btn"
+          onclick={() => {
+            isSearchOpen = false;
+            searchQuery = '';
+            targetJumpId = '';
+          }}
+          title="Tutup Pencarian"
+        >
+          ✕
+        </button>
+      </div>
+    {/if}
+
+    <!-- Pinned Message Banner -->
+    {#if pinnedMessage}
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="pinned-message-bar"
+        onclick={() => jumpToMessage(pinnedMessage.id)}
+        title="Klik untuk melompat ke pesan yang disematkan"
+      >
+        <span class="pinned-icon">📌</span>
+        <div class="pinned-text-wrap">
+          <span class="pinned-label">Pesan Disematkan • {pinnedMessage.senderName}</span>
+          <span class="pinned-preview">{pinnedMessage.text || (pinnedMessage.attachment ? `[Lampiran ${pinnedMessage.attachment.name}]` : 'Pesan')}</span>
+        </div>
+        <button
+          type="button"
+          class="unpin-btn"
+          onclick={(e) => {
+            e.stopPropagation();
+            mekaarStore.pinMessage(activeConv.id, null);
+          }}
+          title="Lepas Sematan"
+        >
+          ✕
+        </button>
+      </div>
+    {/if}
+
     <!-- Scrollable Messages Feed with Scroll FAB -->
     <main
       class="chat-messages-viewport"
@@ -163,8 +347,22 @@
           {#each group.msgs as msg (msg.id)}
             <ChatBubble
               message={msg}
+              searchQuery={searchQuery}
+              isTargetJump={targetJumpId === msg.id}
               onreply={(m) => (replyingTo = m)}
               onreact={(msgId, emoji) => mekaarStore.toggleReaction(activeConv.id, msgId, emoji)}
+              onedit={(m) => {
+                editingMessage = m;
+                replyingTo = null;
+              }}
+              onrevoke={(m) => {
+                revokeTarget = m;
+                showRevokeDialog = true;
+              }}
+              onpin={(m) => {
+                const currentPinned = activeConv.pinnedMessageId === m.id ? null : m.id;
+                mekaarStore.pinMessage(activeConv.id, currentPinned);
+              }}
               onopenlightbox={(src, name, sizeLabel, isStego) => {
                 lightboxState = {
                   open: true,
@@ -203,8 +401,14 @@
     <!-- Floating Chat Input Bar -->
     <ChatInputBar
       {replyingTo}
+      {editingMessage}
       emojiPacks={mekaarStore.emojiPacks}
       oncancelreply={() => (replyingTo = null)}
+      oncanceledit={() => (editingMessage = null)}
+      onsaveedit={(msgId, newText) => {
+        mekaarStore.editMessage(activeConv.id, msgId, newText);
+        editingMessage = null;
+      }}
       onsend={(text, att) => {
         mekaarStore.sendMessage(activeConv.id, text, replyingTo, att);
         replyingTo = null;
@@ -231,6 +435,16 @@
       </div>
 
       <div class="options-actions-list">
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            showRoomOptions = false;
+            showDisappearingModal = true;
+          }}
+        >
+          <span>⏳ Atur Timer Pesan Lenyap Otomatis ({activeConv.disappearingSeconds > 0 ? `${Math.round(activeConv.disappearingSeconds / 60)}m` : 'Nonaktif'})</span>
+        </button>
         <button
           type="button"
           class="sheet-action-row"
@@ -285,6 +499,90 @@
       </div>
     </div>
   </BottomSheet>
+
+  <!-- Disappearing Messages Timer Dialog -->
+  <Dialog
+    open={showDisappearingModal}
+    title="⏳ Timer Pesan Lenyap Otomatis"
+    onclose={() => (showDisappearingModal = false)}
+  >
+    <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 14px;">
+      Pesan baru yang dikirim setelah timer diatur akan otomatis terhapus secara permanen dari perangkat pengirim dan penerima setelah durasi berlalu.
+    </p>
+
+    <div style="display: flex; flex-direction: column; gap: 8px;">
+      {#each disappearingDurations as item}
+        <button
+          type="button"
+          class="sheet-action-row {activeConv.disappearingSeconds === item.sec ? 'selected-timer' : ''}"
+          onclick={() => {
+            mekaarStore.setDisappearingTimer(activeConv.id, item.sec);
+            showDisappearingModal = false;
+          }}
+        >
+          <span>{item.label}</span>
+          {#if activeConv.disappearingSeconds === item.sec}
+            <span style="color: var(--brand-blue); font-weight: 700;">✓ Aktif</span>
+          {/if}
+        </button>
+      {/each}
+    </div>
+  </Dialog>
+
+  <!-- Tarik / Hapus Pesan Confirmation Dialog -->
+  <Dialog
+    open={showRevokeDialog}
+    title="🗑️ Hapus / Tarik Pesan"
+    onclose={() => (showRevokeDialog = false)}
+  >
+    {#if revokeTarget}
+      <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 16px;">
+        Pilih bagaimana Anda ingin menghapus pesan:
+        <br />
+        <em style="color: var(--text-primary); font-weight: 600;">"{revokeTarget.text || 'Lampiran Berkas'}"</em>
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 10px;">
+        {#if revokeTarget.isSelf}
+          <button
+            type="button"
+            class="sheet-action-row danger-action"
+            onclick={() => {
+              if (revokeTarget) mekaarStore.revokeMessage(activeConv.id, revokeTarget.id, true);
+              showRevokeDialog = false;
+              revokeTarget = null;
+            }}
+          >
+            <span>🚫 Tarik untuk Semua Orang (Revoke)</span>
+          </button>
+        {/if}
+
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            if (revokeTarget) mekaarStore.revokeMessage(activeConv.id, revokeTarget.id, false);
+            showRevokeDialog = false;
+            revokeTarget = null;
+          }}
+        >
+          <span>🗑️ Hapus untuk Saya Saja</span>
+        </button>
+
+        <button
+          type="button"
+          class="sheet-action-row"
+          style="background: #F1F5F9; color: var(--text-secondary); text-align: center;"
+          onclick={() => {
+            showRevokeDialog = false;
+            revokeTarget = null;
+          }}
+        >
+          Batal
+        </button>
+      </div>
+    {/if}
+  </Dialog>
 
   <!-- Media Lightbox Modal Fullscreen -->
   <MediaLightboxModal
@@ -357,11 +655,27 @@
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
     flex-shrink: 0;
-    transition: transform 0.12s ease;
+    transition: transform 0.12s ease, background-color 0.15s ease;
   }
 
   .circle-nav-btn:active {
     transform: scale(0.92);
+  }
+
+  .circle-nav-btn.active-tool {
+    background-color: rgba(2, 132, 199, 0.12);
+    border-color: var(--brand-blue, #0284C7);
+  }
+
+  .circle-nav-btn.active-timer {
+    background-color: #FFF1F2;
+    border-color: #FDA4AF;
+  }
+
+  .header-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
   }
 
   /* Center Floating Contact Pill */
@@ -434,6 +748,142 @@
     to {
       opacity: 1;
     }
+  }
+
+  /* In-Chat Search Bar */
+  .in-chat-search-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 16px 8px 16px;
+    background-color: var(--bg-primary);
+    border-bottom: 1px solid var(--border-subtle, #E2E8F0);
+    z-index: 25;
+    animation: slideDown 0.15s ease;
+  }
+
+  @keyframes slideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .search-input-field {
+    flex: 1;
+    height: 38px;
+    border-radius: var(--radius-pill);
+    background-color: #FFFFFF;
+    border: 1px solid var(--border-light, #CBD5E1);
+    display: flex;
+    align-items: center;
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .in-chat-search-input {
+    flex: 1;
+    background: transparent;
+    border: none;
+    outline: none;
+    font-size: 0.85rem;
+    color: var(--text-primary);
+  }
+
+  .search-match-counter {
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    white-space: nowrap;
+  }
+
+  .search-nav-arrows {
+    display: flex;
+    gap: 2px;
+  }
+
+  .search-nav-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    background: #FFFFFF;
+    border: 1px solid var(--border-subtle, #E2E8F0);
+    color: var(--text-primary);
+    font-size: 0.7rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .search-nav-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .close-search-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  /* Pinned Message Bar */
+  .pinned-message-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 16px;
+    background-color: #F0FDF4;
+    border-bottom: 1px solid #BBF7D0;
+    cursor: pointer;
+    z-index: 20;
+    transition: background-color 0.15s ease;
+  }
+
+  .pinned-message-bar:hover {
+    background-color: #DCFCE7;
+  }
+
+  .pinned-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+  }
+
+  .pinned-text-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .pinned-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: #15803D;
+  }
+
+  .pinned-preview {
+    font-size: 0.82rem;
+    color: #166534;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .unpin-btn {
+    background: none;
+    border: none;
+    color: #15803D;
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 4px;
   }
 
   /* Messages Viewport */
@@ -523,10 +973,18 @@
     font-size: 0.95rem;
     font-weight: 600;
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .sheet-action-row:active {
     background: #F1F5F9;
+  }
+
+  .sheet-action-row.selected-timer {
+    border-color: var(--brand-blue, #0284C7);
+    background-color: #EFF6FF;
   }
 
   .danger-action {
