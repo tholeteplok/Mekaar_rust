@@ -11,6 +11,28 @@
   import Dialog from '../components/Dialog.svelte';
   import ContactDetailSheet from '../components/ContactDetailSheet.svelte';
   import ChatRoomPrivacySheet from '../components/ChatRoomPrivacySheet.svelte';
+  import {
+    CaretLeft,
+    MagnifyingGlass,
+    Timer,
+    Phone,
+    VideoCamera,
+    ShieldCheck,
+    LockKey,
+    DotsThreeVertical,
+    CaretUp,
+    CaretDown,
+    X,
+    CornersOut,
+    PhoneDisconnect,
+    PushPin,
+    UserCheck,
+    FolderSimpleLock,
+    Key,
+    Trash,
+    Prohibit,
+    Check
+  } from 'phosphor-svelte';
 
   let replyingTo = $state<MessageModel | null>(null);
   let editingMessage = $state<MessageModel | null>(null);
@@ -168,9 +190,7 @@
         onclick={handleLeaveRoom}
         aria-label="Kembali ke Daftar Chat"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
+        <CaretLeft size={20} weight="bold" />
       </button>
 
       <!-- 2. Center Contact Pill (Klik membuka ContactDetailSheet untuk 1-on-1 chat) -->
@@ -224,10 +244,7 @@
           aria-label="Cari dalam Obrolan"
           title="Cari dalam Obrolan"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+          <MagnifyingGlass size={18} weight="bold" color="var(--brand-blue)" />
         </button>
 
         <!-- Disappearing Timer Selector Button -->
@@ -238,10 +255,7 @@
           aria-label="Pesan Lenyap Otomatis"
           title={activeConv.disappearingSeconds > 0 ? `Pesan Lenyap: ${Math.round(activeConv.disappearingSeconds / 60)}m` : 'Pesan Lenyap: Nonaktif'}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={activeConv.disappearingSeconds > 0 ? '#E11D48' : 'var(--brand-blue)'} stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
+          <Timer size={18} weight={activeConv.disappearingSeconds > 0 ? "fill" : "bold"} color={activeConv.disappearingSeconds > 0 ? '#E11D48' : 'var(--brand-blue)'} />
         </button>
 
         <!-- Voice Call Button -->
@@ -252,9 +266,7 @@
           aria-label="Panggilan Suara"
           title="Panggilan Suara E2EE"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-          </svg>
+          <Phone size={18} weight="bold" color="var(--brand-blue)" />
         </button>
 
         <!-- Video Call Button -->
@@ -265,10 +277,7 @@
           aria-label="Panggilan Video"
           title="Panggilan Video E2EE"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="23 7 16 12 23 17 23 7"/>
-            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
-          </svg>
+          <VideoCamera size={18} weight="bold" color="var(--brand-blue)" />
         </button>
 
         <!-- Mutual Privacy Shield Button -->
@@ -279,7 +288,11 @@
           aria-label="Proteksi Privasi Obrolan Ekstrem"
           title={activeConv.isScreenProtected ? 'Proteksi Layar & Konten Aktif (2 Arah)' : 'Pengaturan Privasi Obrolan'}
         >
-          <span style="font-size: 15px;">{activeConv.isScreenProtected ? '🛡️' : '🔒'}</span>
+          {#if activeConv.isScreenProtected}
+            <ShieldCheck size={18} weight="fill" color="var(--brand-blue)" />
+          {:else}
+            <LockKey size={18} weight="bold" color="var(--brand-blue)" />
+          {/if}
         </button>
 
         <!-- Options Button -->
@@ -290,11 +303,7 @@
           aria-label="Opsi Obrolan"
           title="Opsi Obrolan"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--brand-blue)">
-            <circle cx="6" cy="12" r="2.2"/>
-            <circle cx="12" cy="12" r="2.2"/>
-            <circle cx="18" cy="12" r="2.2"/>
-          </svg>
+          <DotsThreeVertical size={20} weight="bold" color="var(--brand-blue)" />
         </button>
       </div>
     </header>
@@ -303,10 +312,7 @@
     {#if isSearchOpen}
       <div class="in-chat-search-bar">
         <div class="search-input-field">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+          <MagnifyingGlass size={16} weight="bold" color="#64748B" />
           <input
             type="text"
             class="in-chat-search-input"
@@ -328,18 +334,18 @@
               class="search-nav-btn"
               onclick={jumpToPrevSearchMatch}
               disabled={matchedMessageIds.length === 0}
-              title="Kecocokan Sebelumnya (▲)"
+              title="Kecocokan Sebelumnya"
             >
-              ▲
+              <CaretUp size={14} weight="bold" />
             </button>
             <button
               type="button"
               class="search-nav-btn"
               onclick={jumpToNextSearchMatch}
               disabled={matchedMessageIds.length === 0}
-              title="Kecocokan Berikutnya (▼)"
+              title="Kecocokan Berikutnya"
             >
-              ▼
+              <CaretDown size={14} weight="bold" />
             </button>
           </div>
         {/if}
@@ -354,7 +360,7 @@
           }}
           title="Tutup Pencarian"
         >
-          ✕
+          <X size={16} weight="bold" />
         </button>
       </div>
     {/if}
@@ -370,8 +376,12 @@
       >
         <div class="call-banner-left">
           <span class="call-banner-pulse"></span>
-          <span class="call-banner-title">
-            {mekaarStore.activeCall.isVideo ? '🎥 Panggilan Video' : '📞 Panggilan Suara'} Berlangsung
+          <span class="call-banner-title" style="display: inline-flex; align-items: center; gap: 6px;">
+            {#if mekaarStore.activeCall.isVideo}
+              <VideoCamera size={16} weight="fill" /> Panggilan Video
+            {:else}
+              <Phone size={16} weight="fill" /> Panggilan Suara
+            {/if} Berlangsung
           </span>
           <span class="call-banner-timer">
             {Math.floor(mekaarStore.activeCall.durationSeconds / 60).toString().padStart(2, '0')}:{(mekaarStore.activeCall.durationSeconds % 60).toString().padStart(2, '0')}
@@ -385,8 +395,10 @@
               e.stopPropagation();
               mekaarStore.toggleCallMinimize();
             }}
+            style="display: inline-flex; align-items: center; gap: 4px;"
           >
-            Perbesar ➔
+            <span>Perbesar</span>
+            <CornersOut size={14} weight="bold" />
           </button>
           <button
             type="button"
@@ -396,8 +408,10 @@
               mekaarStore.endCall();
             }}
             title="Akhiri Panggilan"
+            style="display: inline-flex; align-items: center; gap: 4px;"
           >
-            ☎️ Akhiri
+            <PhoneDisconnect size={14} weight="bold" />
+            <span>Akhiri</span>
           </button>
         </div>
       </div>
@@ -412,7 +426,9 @@
         onclick={() => jumpToMessage(pinnedMessage.id)}
         title="Klik untuk melompat ke pesan yang disematkan"
       >
-        <span class="pinned-icon">📌</span>
+        <span class="pinned-icon" style="display: flex; align-items: center;">
+          <PushPin size={18} weight="fill" color="var(--brand-blue)" />
+        </span>
         <div class="pinned-text-wrap">
           <span class="pinned-label">Pesan Disematkan • {pinnedMessage.senderName}</span>
           <span class="pinned-preview">{pinnedMessage.text || (pinnedMessage.attachment ? `[Lampiran ${pinnedMessage.attachment.name}]` : 'Pesan')}</span>
@@ -426,7 +442,7 @@
           }}
           title="Lepas Sematan"
         >
-          ✕
+          <X size={14} weight="bold" />
         </button>
       </div>
     {/if}
@@ -502,9 +518,7 @@
         title="Gulir ke pesan terbaru"
         aria-label="Gulir ke bawah"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"></polyline>
-        </svg>
+        <CaretDown size={20} weight="bold" />
       </button>
     {/if}
 
@@ -538,8 +552,8 @@
         <SketchAvatar name={activeConv.title} size={56} online={activeConv.isOnline} />
         <div>
           <h3 style="font-size: 1.1rem; font-weight: 700;">{activeConv.title}</h3>
-          <p style="font-size: 0.85rem; color: var(--text-secondary);">
-            🔒 E2EE Chat • Aegis Protocol
+          <p style="font-size: 0.85rem; color: var(--text-secondary); display: flex; align-items: center; gap: 5px;">
+            <LockKey size={14} weight="bold" color="var(--brand-blue)" /> E2EE Chat • Aegis Protocol
           </p>
         </div>
       </div>
@@ -554,7 +568,10 @@
               showContactDetail = true;
             }}
           >
-            <span>👤 Detail Kontak & Verifikasi Aegis</span>
+            <span style="display: flex; align-items: center; gap: 8px;">
+              <UserCheck size={18} weight="bold" color="var(--brand-blue)" />
+              Detail Kontak & Verifikasi Aegis
+            </span>
           </button>
         {/if}
         <button
@@ -565,7 +582,10 @@
             showPrivacySheet = true;
           }}
         >
-          <span>🛡️ Privasi Obrolan Ekstrem (2 Arah)</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <ShieldCheck size={18} weight="bold" color="var(--brand-blue)" />
+            Privasi Obrolan Ekstrem (2 Arah)
+          </span>
         </button>
         <button
           type="button"
@@ -575,7 +595,10 @@
             showDisappearingModal = true;
           }}
         >
-          <span>⏳ Atur Timer Pesan Lenyap Otomatis ({activeConv.disappearingSeconds > 0 ? `${Math.round(activeConv.disappearingSeconds / 60)}m` : 'Nonaktif'})</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <Timer size={18} weight="bold" color="var(--brand-blue)" />
+            Atur Timer Pesan Lenyap Otomatis ({activeConv.disappearingSeconds > 0 ? `${Math.round(activeConv.disappearingSeconds / 60)}m` : 'Nonaktif'})
+          </span>
         </button>
         <button
           type="button"
@@ -585,7 +608,10 @@
             mekaarStore.startCall(activeConv, false);
           }}
         >
-          <span>📞 Mulai Panggilan Suara E2EE</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <Phone size={18} weight="bold" color="var(--brand-blue)" />
+            Mulai Panggilan Suara E2EE
+          </span>
         </button>
         <button
           type="button"
@@ -595,7 +621,10 @@
             mekaarStore.startCall(activeConv, true);
           }}
         >
-          <span>🎥 Mulai Panggilan Video E2EE</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <VideoCamera size={18} weight="bold" color="var(--brand-blue)" />
+            Mulai Panggilan Video E2EE
+          </span>
         </button>
         <button
           type="button"
@@ -605,7 +634,10 @@
             showMediaVault = true;
           }}
         >
-          <span>🗄️ Brankas Media & Berkas Terenkripsi</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <FolderSimpleLock size={18} weight="bold" color="var(--brand-blue)" />
+            Brankas Media & Berkas Terenkripsi
+          </span>
         </button>
         <button
           type="button"
@@ -615,7 +647,10 @@
             mekaarStore.forensicDialogOpen = true;
           }}
         >
-          <span>🔐 Ekspor Verifikasi Kriptografi Forensik</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <Key size={18} weight="bold" color="var(--brand-blue)" />
+            Ekspor Verifikasi Kriptografi Forensik
+          </span>
         </button>
         <button
           type="button"
@@ -626,7 +661,10 @@
             }
           }}
         >
-          <span>🗑️ Hapus Riwayat Obrolan</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <Trash size={18} weight="bold" color="#E11D48" />
+            Hapus Riwayat Obrolan
+          </span>
         </button>
       </div>
     </div>
@@ -650,7 +688,7 @@
   <!-- Disappearing Messages Timer Dialog -->
   <Dialog
     open={showDisappearingModal}
-    title="⏳ Timer Pesan Lenyap Otomatis"
+    title="Timer Pesan Lenyap Otomatis"
     onclose={() => (showDisappearingModal = false)}
   >
     <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 14px;">
@@ -669,7 +707,9 @@
         >
           <span>{item.label}</span>
           {#if activeConv.disappearingSeconds === item.sec}
-            <span style="color: var(--brand-blue); font-weight: 700;">✓ Aktif</span>
+            <span style="color: var(--brand-blue); font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+              <Check size={16} weight="bold" /> Aktif
+            </span>
           {/if}
         </button>
       {/each}
@@ -679,7 +719,7 @@
   <!-- Tarik / Hapus Pesan Confirmation Dialog -->
   <Dialog
     open={showRevokeDialog}
-    title="🗑️ Hapus / Tarik Pesan"
+    title="Hapus / Tarik Pesan"
     onclose={() => (showRevokeDialog = false)}
   >
     {#if revokeTarget}
@@ -700,7 +740,10 @@
               revokeTarget = null;
             }}
           >
-            <span>🚫 Tarik untuk Semua Orang (Revoke)</span>
+            <span style="display: flex; align-items: center; gap: 8px;">
+              <Prohibit size={18} weight="bold" color="#E11D48" />
+              Tarik untuk Semua Orang (Revoke)
+            </span>
           </button>
         {/if}
 
@@ -713,7 +756,10 @@
             revokeTarget = null;
           }}
         >
-          <span>🗑️ Hapus untuk Saya Saja</span>
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <Trash size={18} weight="bold" color="var(--text-primary)" />
+            Hapus untuk Saya Saja
+          </span>
         </button>
 
         <button

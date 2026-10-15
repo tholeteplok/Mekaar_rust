@@ -75,7 +75,7 @@
   </div>
 
   <!-- User Attributes Card with Corner Ticks -->
-  <Card withTicks={true} padding="16px">
+  <Card withTicks={false} padding="16px">
     <div class="profile-rows-list">
       <!-- Nama -->
       <div class="attr-row">
@@ -142,7 +142,7 @@
   <!-- Section Keamanan Akun -->
   <div class="security-section">
     <span class="section-title">KEAMANAN AKUN</span>
-    <Card withTicks={true} padding="16px">
+    <Card withTicks={false} padding="16px">
       <div class="pin-security-row">
         <span class="pin-label">PIN Kunci</span>
         <div class="pin-badge-wrap">

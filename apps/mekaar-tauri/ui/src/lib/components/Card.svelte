@@ -12,7 +12,7 @@
 
   let {
     interactive = false,
-    withTicks = true,
+    withTicks = false,
     padding = '16px',
     style = '',
     onclick,

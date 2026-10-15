@@ -8,9 +8,28 @@
   import ContactQrScanDialog from '../components/ContactQrScanDialog.svelte';
   import ChatRequestsDialog from '../components/ChatRequestsDialog.svelte';
   import ContactDetailSheet from '../components/ContactDetailSheet.svelte';
+  import {
+    Bell,
+    QrCode,
+    MagnifyingGlass,
+    ShieldCheck,
+    LockKey,
+    LockSimple,
+    Broadcast,
+    ArrowsClockwise,
+    Users,
+    SortAscending,
+    ClockCounterClockwise,
+    List,
+    SquaresFour,
+    Plus,
+    ChatCircleDots,
+    Info
+  } from 'phosphor-svelte';
 
   let radarFilter = $state<'semua' | 'kontak'>('semua');
   let sortMode = $state<'az' | 'recent'>('az');
+  let isGridView = $state(false);
   let searchQuery = $state('');
   let isSearchActive = $state(false);
 
@@ -158,7 +177,9 @@
         title="Permintaan Chat Masuk"
         aria-label="Permintaan Chat Masuk"
       >
-        <span class="bell-icon">🔔</span>
+        <span class="bell-icon" style="display: flex; align-items: center;">
+          <Bell size={18} weight="bold" />
+        </span>
         <span class="req-count-pill">{mekaarStore.pendingChatRequestsCount} Permintaan</span>
       </button>
     {/if}
@@ -171,12 +192,7 @@
       title="Kode QR & Pindai"
       aria-label="Kode QR"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue, #0284C7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="3" width="7" height="7"></rect>
-        <rect x="14" y="3" width="7" height="7"></rect>
-        <rect x="14" y="14" width="7" height="7"></rect>
-        <rect x="3" y="14" width="7" height="7"></rect>
-      </svg>
+      <QrCode size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
     </button>
 
     <!-- Search Button -->
@@ -187,10 +203,7 @@
       title="Cari Kontak"
       aria-label="Cari Kontak"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue, #0284C7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
+      <MagnifyingGlass size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
     </button>
   {/snippet}
 </AppBar>
@@ -199,7 +212,10 @@
   <!-- Toast Notification -->
   {#if vaultToast}
     <div class="vault-toast-banner">
-      <span>🛡️ {vaultToast}</span>
+      <span style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <ShieldCheck size={18} weight="bold" color="var(--brand-teal, #0D9488)" />
+        <span>{vaultToast}</span>
+      </span>
     </div>
   {/if}
 
@@ -219,18 +235,22 @@
   {#if mekaarStore.vaultUnlocked}
     <div class="vault-status-banner">
       <div class="vault-status-left">
-        <span class="vault-status-icon">👁️</span>
+        <span class="vault-status-icon" style="display: flex; align-items: center;">
+          <LockKey size={18} weight="bold" color="var(--brand-teal, #0D9488)" />
+        </span>
         <span class="vault-status-text">Private Vault Terbuka</span>
       </div>
       <button
         type="button"
         class="btn-vault-lock"
+        style="display: flex; align-items: center; gap: 4px;"
         onclick={() => {
           mekaarStore.vaultUnlocked = false;
           triggerVaultToast('Private Vault Dikunci Kembali');
         }}
       >
-        🔒 Kunci
+        <LockSimple size={15} weight="bold" />
+        <span>Kunci</span>
       </button>
     </div>
   {/if}
@@ -239,7 +259,9 @@
   <div class="section-radar">
     <div class="radar-header-row">
       <div class="radar-title-wrap">
-        <span class="radar-icon">🌀</span>
+        <span class="radar-icon" style="display: flex; align-items: center;">
+          <Broadcast size={20} weight="bold" color="var(--brand-blue, #0284C7)" />
+        </span>
         <span class="radar-title">Teman Sekitar</span>
       </div>
       <div class="radar-segment">
@@ -264,7 +286,7 @@
         title="Pindai Ulang Radar"
         aria-label="Pindai Ulang"
       >
-        🔄
+        <ArrowsClockwise size={18} weight="bold" color="var(--brand-blue, #0284C7)" />
       </button>
     </div>
 
@@ -281,15 +303,13 @@
     </div>
   </div>
 
-  <!-- Section 2: Kontak Card with Corner Ticks -->
+  <!-- Section 2: Kontak Card (Clean Flat Card with List/Grid Toggle) -->
   <div class="contacts-card-wrap">
-    <Card withTicks={true} padding="16px">
+    <Card withTicks={false} padding="16px">
       <!-- Card Toolbar Header -->
       <div class="card-toolbar-row">
         <div class="card-toolbar-left">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--brand-blue, #0284C7)">
-            <path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/>
-          </svg>
+          <Users size={18} weight="bold" color="var(--brand-blue, #0284C7)" />
           <span class="toolbar-title">Kontak</span>
           <span class="count-pill">{sortedContacts.length}</span>
         </div>
@@ -300,85 +320,181 @@
               type="button"
               class="sort-btn {sortMode === 'az' ? 'active' : ''}"
               onclick={() => (sortMode = 'az')}
+              style="display: flex; align-items: center; gap: 4px;"
             >
-              A-Z
+              <SortAscending size={14} weight="bold" />
+              <span>A-Z</span>
             </button>
             <button
               type="button"
               class="sort-btn {sortMode === 'recent' ? 'active' : ''}"
               onclick={() => (sortMode = 'recent')}
+              style="display: flex; align-items: center; gap: 4px;"
             >
-              Baru Ditambahkan
+              <ClockCounterClockwise size={14} weight="bold" />
+              <span>Baru Ditambahkan</span>
             </button>
           </div>
         </div>
 
-        <button
-          type="button"
-          class="toolbar-more-btn"
-          onclick={() => (showAddContactDialog = true)}
-          title="Tambah Kontak"
-          aria-label="Tambah Kontak"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-        </button>
+        <div class="card-toolbar-right-actions">
+          <!-- Toggle List vs Grid View (Paritas Mekaar_chat) -->
+          <div class="view-mode-toggle">
+            <button
+              type="button"
+              class="view-mode-btn {!isGridView ? 'active' : ''}"
+              onclick={() => (isGridView = false)}
+              title="Tampilan Daftar (List)"
+              aria-label="Tampilan Daftar"
+              style="display: flex; align-items: center; justify-content: center;"
+            >
+              <List size={18} weight="bold" />
+            </button>
+            <button
+              type="button"
+              class="view-mode-btn {isGridView ? 'active' : ''}"
+              onclick={() => (isGridView = true)}
+              title="Tampilan Kotak (Grid)"
+              aria-label="Tampilan Kotak"
+              style="display: flex; align-items: center; justify-content: center;"
+            >
+              <SquaresFour size={18} weight="bold" />
+            </button>
+          </div>
+
+          <button
+            type="button"
+            class="toolbar-more-btn"
+            onclick={() => (showAddContactDialog = true)}
+            title="Tambah Kontak"
+            aria-label="Tambah Kontak"
+            style="display: flex; align-items: center; justify-content: center;"
+          >
+            <Plus size={18} weight="bold" />
+          </button>
+        </div>
       </div>
 
       <div class="divider-line"></div>
 
-      <!-- Contacts List in Card -->
-      <div class="contacts-items-list">
-        {#each sortedContacts as contact (contact.id)}
-          <!-- svelte-ignore a11y_click_events_have_key_events -->
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="contact-item-row"
-            onclick={() => handleStartChat(contact)}
-          >
-            <SketchAvatar
-              name={contact.displayName}
-              size={52}
-              online={contact.isOnline}
-              isGuardian={contact.isGuardian}
-            />
-            <div class="contact-item-info">
-              <div class="contact-name-badges-row">
-                <span class="contact-item-name">{contact.displayName}</span>
+      <!-- Contacts Rendering: List View vs Grid View -->
+      {#if isGridView}
+        <!-- GRID VIEW (2 Kolom Modern Cards) -->
+        <div class="contacts-grid-layout">
+          {#each sortedContacts as contact (contact.id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="contact-grid-card"
+              onclick={() => handleStartChat(contact)}
+            >
+              <SketchAvatar
+                name={contact.displayName}
+                size={58}
+                online={contact.isOnline}
+                isGuardian={contact.isGuardian}
+              />
+              <span class="grid-contact-name">{contact.displayName}</span>
+              <span class="grid-contact-handle">{contact.username}</span>
+
+              <div class="grid-card-badges-row">
                 {#if isContactVaultHidden(contact) && mekaarStore.vaultUnlocked}
-                  <span class="vault-tag-pill">🔒 Vault</span>
+                  <span class="vault-tag-pill" style="display: inline-flex; align-items: center; gap: 3px;">
+                    <LockKey size={11} weight="bold" />
+                    <span>Vault</span>
+                  </span>
                 {/if}
                 {#if contact.isBlocked}
                   <span class="blocked-tag-pill">Diblokir</span>
                 {/if}
               </div>
-              <span class="contact-item-handle">{contact.username}</span>
+
+              <div class="grid-actions-row">
+                <button
+                  type="button"
+                  class="grid-action-btn grid-chat-btn"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    handleStartChat(contact);
+                  }}
+                  title="Mulai Chat"
+                  style="display: flex; align-items: center; justify-content: center; gap: 4px;"
+                >
+                  <ChatCircleDots size={15} weight="fill" />
+                  <span>Chat</span>
+                </button>
+                <button
+                  type="button"
+                  class="grid-action-btn grid-info-btn"
+                  onclick={(e) => {
+                    e.stopPropagation();
+                    openContactInfo(contact);
+                  }}
+                  title="Info Kontak"
+                  style="display: flex; align-items: center; justify-content: center;"
+                >
+                  <Info size={16} weight="bold" />
+                </button>
+              </div>
             </div>
-            <button
-              type="button"
-              class="contact-info-btn"
-              onclick={(e) => {
-                e.stopPropagation();
-                openContactInfo(contact);
-              }}
-              title="Informasi Kontak"
-              aria-label="Info Kontak"
+          {:else}
+            <div style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
+              {searchQuery ? 'Kontak tidak ditemukan.' : 'Belum ada kontak terdaftar.'}
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <!-- LIST VIEW (Signal Style Clean Flat Inset List) -->
+        <div class="contacts-items-list">
+          {#each sortedContacts as contact (contact.id)}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class="contact-item-row"
+              onclick={() => handleStartChat(contact)}
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary, #64748B)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-            </button>
-          </div>
-        {:else}
-          <div style="padding: 24px; text-align: center; color: var(--text-secondary, #64748B); font-size: 0.9rem;">
-            {searchQuery ? 'Kontak tidak ditemukan.' : 'Belum ada kontak terdaftar.'}
-          </div>
-        {/each}
-      </div>
+              <SketchAvatar
+                name={contact.displayName}
+                size={48}
+                online={contact.isOnline}
+                isGuardian={contact.isGuardian}
+              />
+              <div class="contact-item-info">
+                <div class="contact-name-badges-row">
+                  <span class="contact-item-name">{contact.displayName}</span>
+                  {#if isContactVaultHidden(contact) && mekaarStore.vaultUnlocked}
+                    <span class="vault-tag-pill" style="display: inline-flex; align-items: center; gap: 3px;">
+                      <LockKey size={11} weight="bold" />
+                      <span>Vault</span>
+                    </span>
+                  {/if}
+                  {#if contact.isBlocked}
+                    <span class="blocked-tag-pill">Diblokir</span>
+                  {/if}
+                </div>
+                <span class="contact-item-handle">{contact.username}</span>
+              </div>
+              <button
+                type="button"
+                class="contact-info-btn"
+                onclick={(e) => {
+                  e.stopPropagation();
+                  openContactInfo(contact);
+                }}
+                title="Informasi Kontak"
+                aria-label="Info Kontak"
+                style="display: flex; align-items: center; justify-content: center;"
+              >
+                <Info size={20} weight="bold" color="var(--text-secondary, #64748B)" />
+              </button>
+            </div>
+          {:else}
+            <div style="padding: 24px; text-align: center; color: var(--text-secondary, #64748B); font-size: 0.9rem;">
+              {searchQuery ? 'Kontak tidak ditemukan.' : 'Belum ada kontak terdaftar.'}
+            </div>
+          {/each}
+        </div>
+      {/if}
     </Card>
   </div>
 </div>
@@ -721,6 +837,39 @@
     color: #FFFFFF;
   }
 
+  .card-toolbar-right-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .view-mode-toggle {
+    display: flex;
+    align-items: center;
+    background: #F1F5F9;
+    padding: 2px;
+    border-radius: var(--radius-sm, 8px);
+    gap: 2px;
+  }
+
+  .view-mode-btn {
+    border: none;
+    background: transparent;
+    padding: 3px 8px;
+    border-radius: var(--radius-sm, 6px);
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748B);
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.15s ease;
+  }
+
+  .view-mode-btn.active {
+    background: #FFFFFF;
+    color: var(--brand-blue, #0284C7);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
   .toolbar-more-btn {
     background: transparent;
     border: none;
@@ -730,6 +879,76 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  .grid-contact-name {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary, #0F172A);
+    text-align: center;
+    margin-top: 4px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .grid-contact-handle {
+    font-size: 0.78rem;
+    color: var(--text-secondary, #64748B);
+    text-align: center;
+    margin-top: 1px;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .grid-card-badges-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    margin-top: 4px;
+    min-height: 18px;
+  }
+
+  .grid-actions-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    margin-top: 8px;
+  }
+
+  .grid-action-btn {
+    border: none;
+    cursor: pointer;
+    padding: 6px 10px;
+    border-radius: var(--radius-pill, 999px);
+    font-size: 0.78rem;
+    font-weight: 600;
+    transition: opacity 0.15s ease;
+  }
+
+  .grid-action-btn:active {
+    opacity: 0.8;
+  }
+
+  .grid-chat-btn {
+    flex: 1;
+    background: var(--brand-blue, #0284C7);
+    color: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+
+  .grid-info-btn {
+    background: #F1F5F9;
+    color: var(--text-secondary, #64748B);
+    padding: 6px 8px;
   }
 
   .divider-line {

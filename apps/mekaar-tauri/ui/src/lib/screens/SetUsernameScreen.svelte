@@ -60,10 +60,7 @@
   </div>
 
   <!-- Form Stage -->
-  <div class="form-card clean-card with-ticks">
-    <span class="pencil-tick tick-bl">⌞</span>
-    <span class="pencil-tick tick-tr">⌝</span>
-
+  <div class="form-card clean-card">
     <div class="input-group">
       <label for="displayName" class="input-label">Nama Tampilan</label>
       <input

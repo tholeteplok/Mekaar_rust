@@ -62,9 +62,14 @@ class MekaarStore {
   windowFocused = $state(true);
 
   // Preferensi UI/UX & Keamanan (Paritas Mekaar_chat settings)
+  themePreference = $state<'light' | 'dark' | 'system'>('light');
   themeMode = $state<'light' | 'dark'>('light');
-  fontFamily = $state<'Plus Jakarta Sans' | 'DynaPuff'>('Plus Jakarta Sans');
+  fontFamily = $state<string>('Plus Jakarta Sans');
   fontScale = $state<number>(1.0);
+  fontSizeScale = $state<number>(1.0);
+  accentColor = $state<string>('#136CFC');
+  contactsViewMode = $state<'list' | 'grid'>('list');
+  contactsSortBy = $state<'alphabet' | 'recent'>('alphabet');
   screenshotBlock = $state<boolean>(true);
   privacyBlurOnUnfocus = $state<boolean>(true);
   disguisedNotifications = $state<boolean>(false);
@@ -99,7 +104,7 @@ class MekaarStore {
     username: '@tholeteplok',
     displayName: 'Teplok (Node Utama)',
     avatarColor: '#FDE68A',
-    bio: 'Mekaar Rust Native • E2EE • Tailscale Mesh 100.101.96.120',
+    bio: 'Mekaar Rust Native • E2EE • Mekaar Mesh Network',
     publicKeyFingerprint: 'ED25519: 9A74-E122-9A9B-718E-4F10',
     isOnline: true,
     lastSeen: 'Online',
@@ -112,7 +117,7 @@ class MekaarStore {
     {
       id: 'conv-1',
       title: 'Ayu Lestari',
-      subtitle: 'Koneksi WebSocket ke teplok-pc (8085) sudah stabil!',
+      subtitle: 'Sambungan Mekaar Mesh Network stabil!',
       avatarColor: '#BFDBFE',
       isGroup: false,
       unreadCount: 2,
@@ -200,7 +205,7 @@ class MekaarStore {
         conversationId: 'conv-1',
         senderId: 'usr-ayu-02',
         senderName: 'Ayu Lestari',
-        text: 'Halo! Apakah mekaar-server di teplok-pc sudah aktif?',
+        text: 'Halo! Apakah sambungan ke Mekaar Mesh Network sudah aktif?',
         timestamp: '11:39',
         isSelf: false,
         status: 'read',
@@ -211,12 +216,12 @@ class MekaarStore {
         conversationId: 'conv-1',
         senderId: 'usr-teplok-01',
         senderName: 'Teplok',
-        text: 'Sudah aktif via systemd! Pemakaian RAM cuma ~1.3 MB di port 8085 dan tembus Tailscale 100.101.96.120.',
+        text: 'Sudah aktif dan stabil dengan enkripsi Aegis E2EE di seluruh jaringan!',
         timestamp: '11:41',
         isSelf: true,
         status: 'read',
         replyToId: 'msg-101',
-        replyPreviewText: 'Halo! Apakah mekaar-server di teplok-pc sudah aktif?',
+        replyPreviewText: 'Halo! Apakah sambungan ke Mekaar Mesh Network sudah aktif?',
         replySenderName: 'Ayu Lestari',
         reactions: { '🔥': ['usr-ayu-02'] }
       },
@@ -225,7 +230,7 @@ class MekaarStore {
         conversationId: 'conv-1',
         senderId: 'usr-ayu-02',
         senderName: 'Ayu Lestari',
-        text: 'Koneksi WebSocket ke teplok-pc (8085) sudah stabil!',
+        text: 'Koneksi privat Mekaar Mesh Network sudah terverifikasi aman!',
         timestamp: '11:42',
         isSelf: false,
         status: 'read',
@@ -236,7 +241,7 @@ class MekaarStore {
         conversationId: 'conv-1',
         senderId: 'usr-ayu-02',
         senderName: 'Ayu Lestari',
-        text: 'Ini tangkapan layar verifikasi server di Surakarta. Jalur aman terenkripsi LSB.',
+        text: 'Ini tangkapan layar verifikasi jaringan. Jalur privat aman terenkripsi Stego Photo.',
         timestamp: '11:43',
         isSelf: false,
         status: 'read',
@@ -2560,6 +2565,63 @@ class MekaarStore {
     this.pinVerified = false;
     return true;
   }
+
+  applyAppearance() {
+    if (typeof document === 'undefined') return;
+    const root = document.documentElement;
+    // Theme
+    let isDark = false;
+    if (this.themePreference === 'dark') {
+      isDark = true;
+    } else if (this.themePreference === 'system') {
+      isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    if (isDark) {
+      root.setAttribute('data-theme', 'dark');
+      this.themeMode = 'dark';
+    } else {
+      root.removeAttribute('data-theme');
+      this.themeMode = 'light';
+    }
+    // Font
+    root.style.setProperty('--font-active', `'${this.fontFamily}', system-ui, sans-serif`);
+    // Scale
+    root.style.setProperty('--font-scale', this.fontSizeScale.toString());
+    // Accent
+    root.style.setProperty('--brand-blue', this.accentColor);
+    root.style.setProperty('--bubble-self-bg', this.accentColor);
+  }
+
+  setThemePreference(theme: 'light' | 'dark' | 'system') {
+    this.themePreference = theme;
+    this.applyAppearance();
+  }
+
+  setFontFamily(font: string) {
+    this.fontFamily = font;
+    this.applyAppearance();
+  }
+
+  setFontSizeScale(scale: number) {
+    this.fontSizeScale = scale;
+    this.applyAppearance();
+  }
+
+  setAccentColor(color: string) {
+    this.accentColor = color;
+    this.applyAppearance();
+  }
+
+  setContactsViewMode(mode: 'list' | 'grid') {
+    this.contactsViewMode = mode;
+  }
+
+  setContactsSortBy(sort: 'alphabet' | 'recent') {
+    this.contactsSortBy = sort;
+  }
 }
 
 export const mekaarStore = new MekaarStore();
+if (typeof window !== 'undefined') {
+  mekaarStore.applyAppearance();
+}

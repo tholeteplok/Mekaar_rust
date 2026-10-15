@@ -4,6 +4,15 @@
   import Card from '../components/Card.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
   import Dialog from '../components/Dialog.svelte';
+  import {
+    Compass,
+    UsersThree,
+    MagnifyingGlass,
+    NavigationArrow,
+    LockKey,
+    Users,
+    ChatCircleDots
+  } from 'phosphor-svelte';
 
   let selectedSegment = $state<'semua' | 'guardian' | 'arsip'>('semua');
   let isSearchActive = $state(false);
@@ -64,11 +73,7 @@
       title="Peta & Radar Teman Sekitar"
       aria-label="Peta Radar"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-        <line x1="8" y1="2" x2="8" y2="18"/>
-        <line x1="16" y1="6" x2="16" y2="22"/>
-      </svg>
+      <Compass size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
     </button>
 
     <!-- Guardian Hub Button -->
@@ -79,10 +84,7 @@
       title="Guardian & Kawal Perjalanan"
       aria-label="Guardian Hub"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-        <circle cx="12" cy="11" r="3"/>
-      </svg>
+      <UsersThree size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
     </button>
 
     <!-- Search Icon Button -->
@@ -93,10 +95,7 @@
       title="Cari Percakapan"
       aria-label="Cari"
     >
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="11" cy="11" r="8"></circle>
-        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-      </svg>
+      <MagnifyingGlass size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
     </button>
   {/snippet}
 </AppBar>
@@ -114,7 +113,10 @@
       <div style="display: flex; align-items: center; gap: 8px;">
         <span class="trip-pulse-dot"></span>
         <div>
-          <div style="font-size: 0.85rem; font-weight: 700; color: #065F46;">🛵 Kawal Aktif: Menuju {ongoing?.destinationName}</div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: #065F46; display: flex; align-items: center; gap: 6px;">
+            <NavigationArrow size={16} weight="fill" color="#059669" />
+            <span>Kawal Aktif: Menuju {ongoing?.destinationName}</span>
+          </div>
           <div style="font-size: 0.76rem; color: #047857;">ETA {ongoing?.etaMinutes} mnt • Dikawal {ongoing?.activeGuardians.join(', ')}</div>
         </div>
       </div>
@@ -163,7 +165,7 @@
     {#each filteredConversations as conv (conv.id)}
       <Card
         interactive
-        withTicks={true}
+        withTicks={false}
         padding="16px"
         onclick={() => mekaarStore.openConversation(conv.id)}
       >
@@ -181,13 +183,13 @@
               <span class="chat-tile-date">{conv.lastTimestamp}</span>
             </div>
             <div class="chat-tile-row-bottom">
-              <span class="chat-tile-sub">
+              <span class="chat-tile-sub" style="display: flex; align-items: center; gap: 4px;">
                 {#if conv.subtitle.includes('🔒')}
-                  🔒
+                  <LockKey size={13} weight="bold" color="var(--brand-teal, #0D9488)" />
                 {:else if conv.isGroup}
-                  👥
+                  <Users size={13} weight="bold" color="var(--text-secondary, #64748B)" />
                 {/if}
-                {conv.subtitle.replace(/^🔒\s*/, '')}
+                <span>{conv.subtitle.replace(/^🔒\s*/, '')}</span>
               </span>
               {#if conv.unreadCount > 0}
                 <span class="unread-badge">{conv.unreadCount}</span>
@@ -198,7 +200,9 @@
       </Card>
     {:else}
       <div class="empty-feed">
-        <div style="font-size: 2.2rem; margin-bottom: 8px;">💬</div>
+        <div style="margin-bottom: 8px; display: flex; justify-content: center;">
+          <ChatCircleDots size={48} weight="duotone" color="var(--brand-blue, #0284C7)" />
+        </div>
         <p style="font-weight: 600; color: var(--text-primary);">Belum Ada Obrolan</p>
         <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
           Gunakan tombol '+' di kanan bawah untuk memulai obrolan baru terenkripsi.

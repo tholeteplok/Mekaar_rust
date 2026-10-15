@@ -1,5 +1,16 @@
 <script lang="ts">
   import { decodeStegoMessage } from '../services/steganography';
+  import {
+    FileMagnifyingGlass,
+    Image,
+    LockKeyOpen,
+    Info,
+    WarningCircle,
+    ShieldCheck,
+    Copy,
+    Check,
+    X
+  } from 'phosphor-svelte';
 
   let {
     open = false,
@@ -18,19 +29,24 @@
   let isEncrypted = $state(false);
   let isDecoding = $state(false);
   let errorMessage = $state('');
+  let infoMessage = $state('');
   let copied = $state(false);
+  let imgError = $state(false);
 
   $effect(() => {
     if (open && imageSrc) {
       extractedMessage = '';
       errorMessage = '';
-      runDecode();
+      infoMessage = '';
+      imgError = false;
+      runDecode(false);
     }
   });
 
-  async function runDecode() {
+  async function runDecode(isManual = true) {
     isDecoding = true;
     errorMessage = '';
+    infoMessage = '';
     copied = false;
 
     try {
@@ -41,13 +57,18 @@
       } else {
         if (res.isEncrypted) {
           isEncrypted = true;
-          errorMessage = res.message;
-        } else {
+          infoMessage = 'Pesan dalam citra ini dilindungi kata sandi. Masukkan kunci sandi lalu tekan Dekode.';
+        } else if (isManual) {
           errorMessage = res.message || 'Gagal mengekstrak pesan tersembunyi.';
+        } else {
+          // Pada auto-scan awal jika belum ditemukan pesan, berikan info ramah
+          infoMessage = 'Masukkan kata sandi jika pesan steganografi dienkripsi, lalu tekan Dekode.';
         }
       }
     } catch (err: any) {
-      errorMessage = err?.message || 'Kesalahan saat decoding steganografi.';
+      if (isManual) {
+        errorMessage = err?.message || 'Kesalahan saat decoding steganografi.';
+      }
     } finally {
       isDecoding = false;
     }
@@ -74,24 +95,38 @@
       <!-- Header -->
       <div class="dialog-header-row">
         <div class="header-title-wrap">
-          <span class="stego-icon">🕵️</span>
+          <span class="stego-icon" style="display: flex; align-items: center;">
+            <FileMagnifyingGlass size={24} weight="bold" color="var(--brand-teal, #0D9488)" />
+          </span>
           <div>
             <h3 class="dialog-title">Stego Photo Decoder</h3>
             <p class="dialog-sub">Ekstraksi pesan rahasia yang tersembunyi di dalam foto</p>
           </div>
         </div>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">
-          ✕
+        <button
+          type="button"
+          class="close-x-btn"
+          onclick={onclose}
+          aria-label="Tutup"
+          style="display: flex; align-items: center; justify-content: center;"
+        >
+          <X size={18} weight="bold" />
         </button>
       </div>
 
       <!-- Carrier Image Preview -->
       <div class="carrier-preview-box">
-        {#if imageSrc}
-          <img src={imageSrc} alt="Carrier Stego" class="carrier-img" />
+        {#if imageSrc && !imgError}
+          <img
+            src={imageSrc}
+            alt="Carrier Stego"
+            class="carrier-img"
+            onerror={() => (imgError = true)}
+          />
         {:else}
           <div class="carrier-placeholder">
-            <span>🖼️ Foto Pembawa</span>
+            <Image size={40} weight="duotone" color="var(--text-secondary, #64748B)" />
+            <span style="font-size: 0.82rem; color: var(--text-secondary); margin-top: 4px;">Citra Stego Aman</span>
           </div>
         {/if}
         <span class="carrier-name-tag">{carrierName}</span>
@@ -109,23 +144,42 @@
             class="passkey-input"
             placeholder="Masukkan kata sandi dekripsi..."
             bind:value={passkey}
-            onkeydown={(e) => { if (e.key === 'Enter') runDecode(); }}
+            onkeydown={(e) => { if (e.key === 'Enter') runDecode(true); }}
           />
           <button
             type="button"
             class="btn-decode-action"
             disabled={isDecoding}
-            onclick={runDecode}
+            onclick={() => runDecode(true)}
+            style="display: inline-flex; align-items: center; justify-content: center; gap: 4px;"
           >
-            {isDecoding ? 'Menganalisis...' : '🔓 Dekode'}
+            {#if isDecoding}
+              <span>Menganalisis...</span>
+            {:else}
+              <LockKeyOpen size={16} weight="bold" />
+              <span>Dekode</span>
+            {/if}
           </button>
         </div>
       </div>
 
+      <!-- Info Hint / Notice -->
+      {#if infoMessage}
+        <div class="info-banner">
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <Info size={16} weight="bold" color="#1E40AF" />
+            <span>{infoMessage}</span>
+          </span>
+        </div>
+      {/if}
+
       <!-- Error Alert -->
       {#if errorMessage}
         <div class="error-banner">
-          <span>⚠️ {errorMessage}</span>
+          <span style="display: flex; align-items: center; gap: 6px;">
+            <WarningCircle size={16} weight="bold" color="#DC2626" />
+            <span>{errorMessage}</span>
+          </span>
         </div>
       {/if}
 
@@ -133,15 +187,23 @@
       {#if extractedMessage}
         <div class="result-box">
           <div class="result-header">
-            <span class="result-badge">
-              ✓ PESAN RAHASIA TERBUKA {isEncrypted ? '(TERDEKRIPSI)' : ''}
+            <span class="result-badge" style="display: flex; align-items: center; gap: 4px;">
+              <ShieldCheck size={16} weight="bold" />
+              <span>PESAN RAHASIA TERBUKA {isEncrypted ? '(TERDEKRIPSI)' : ''}</span>
             </span>
             <button
               type="button"
               class="btn-copy-secret"
               onclick={handleCopy}
+              style="display: flex; align-items: center; gap: 4px;"
             >
-              {copied ? '✓ Disalin!' : '📋 Salin'}
+              {#if copied}
+                <Check size={14} weight="bold" />
+                <span>Disalin!</span>
+              {:else}
+                <Copy size={14} weight="bold" />
+                <span>Salin</span>
+              {/if}
             </button>
           </div>
           <p class="extracted-text">{extractedMessage}</p>
@@ -149,8 +211,9 @@
       {/if}
 
       <!-- Forensic Notice -->
-      <div class="forensic-notice-pill">
-        🛡️ Pesan ini disematkan langsung ke dalam struktur piksel foto (Stego Photo) dan tidak dapat dideteksi oleh pemindai lalu lintas jaringan.
+      <div class="forensic-notice-pill" style="display: flex; align-items: center; gap: 6px;">
+        <ShieldCheck size={16} weight="bold" color="var(--brand-teal, #0D9488)" />
+        <span>Pesan ini disematkan langsung ke dalam struktur piksel foto (Stego Photo) dan tidak dapat dideteksi oleh pemindai lalu lintas jaringan.</span>
       </div>
     </div>
   </div>
@@ -316,6 +379,16 @@
     border: none;
     cursor: pointer;
     white-space: nowrap;
+  }
+
+  .info-banner {
+    background-color: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    border-radius: 10px;
+    padding: 8px 12px;
+    font-size: 0.78rem;
+    color: #1E40AF;
+    margin-bottom: 10px;
   }
 
   .error-banner {

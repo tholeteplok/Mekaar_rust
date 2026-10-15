@@ -28,3 +28,4 @@ export { default as CallFloatingPip } from './CallFloatingPip.svelte';
 export { default as ContactDetailSheet } from './ContactDetailSheet.svelte';
 export { default as ChatRoomPrivacySheet } from './ChatRoomPrivacySheet.svelte';
 export { default as SecurityGlossaryDialog } from './SecurityGlossaryDialog.svelte';
+export { default as AppearanceSettingsDialog } from './AppearanceSettingsDialog.svelte';

@@ -12,7 +12,36 @@
   import ConnectedDevicesDialog from '../components/ConnectedDevicesDialog.svelte';
   import BlockedListDialog from '../components/BlockedListDialog.svelte';
   import SecurityGlossaryDialog from '../components/SecurityGlossaryDialog.svelte';
+  import AppearanceSettingsDialog from '../components/AppearanceSettingsDialog.svelte';
+  import {
+    Palette,
+    Sun,
+    Moon,
+    DeviceMobileSlash,
+    LockKey,
+    EyeSlash,
+    Clock,
+    Checks,
+    ShieldWarning,
+    ClockCounterClockwise,
+    Desktop,
+    Prohibit,
+    ChatCircleDots,
+    ShieldCheck,
+    Trash,
+    ShareNetwork,
+    FolderSimpleLock,
+    FileText,
+    Key,
+    WarningOctagon,
+    ArrowsClockwise,
+    BookOpen,
+    Info,
+    CaretRight,
+    Check
+  } from 'phosphor-svelte';
 
+  let showAppearanceModal = $state(false);
   let showFontModal = $state(false);
   let showTailscaleModal = $state(false);
   let showDuressModal = $state(false);
@@ -64,11 +93,9 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div
-      class="clean-card with-ticks account-card"
+      class="clean-card account-card"
       onclick={() => mekaarStore.setTab('profile')}
     >
-      <span class="pencil-tick tick-bl">⌞</span>
-      <span class="pencil-tick tick-tr">⌝</span>
       <div class="account-card-left">
         <SketchAvatar
           name={mekaarStore.currentUser.displayName || 'Mika'}
@@ -81,38 +108,34 @@
         </div>
       </div>
       <div class="arrow-circle">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
+        <CaretRight size={16} weight="bold" color="#9FB0C9" />
       </div>
     </div>
   </div>
 
   <!-- Section: Tampilan -->
   <div class="settings-group">
-    <span class="group-title">Tampilan</span>
-    <div class="clean-card with-ticks list-tile-card">
-      <span class="pencil-tick tick-bl">⌞</span>
-      <span class="pencil-tick tick-tr">⌝</span>
-
-      <!-- Tampilan & Font -->
+    <span class="group-title">Tampilan & Gaya</span>
+    <div class="clean-card list-tile-card">
+      <!-- Tampilan, Tema & Font (Appearance Center) -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (showFontModal = true)}>
+      <div class="setting-item-row" onclick={() => (showAppearanceModal = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 7V4h16v3M9 20h6M12 4v16"/>
-            </svg>
+            <Palette size={20} weight="duotone" color="#8B5CF6" />
           </div>
-          <span class="item-title">Tampilan & Font</span>
+          <div>
+            <span class="item-title">Tampilan, Tema & Font</span>
+            <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 1px;">
+              Live chat preview, ukuran huruf & palet warna
+            </div>
+          </div>
         </div>
         <div class="item-right">
-          <span class="item-value">{mekaarStore.fontFamily}</span>
+          <span class="item-value">{mekaarStore.fontFamily} • {Math.round(mekaarStore.fontSizeScale * 100)}%</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -125,18 +148,18 @@
       <div class="setting-item-row" onclick={() => (mekaarStore.themeMode = mekaarStore.themeMode === 'light' ? 'dark' : 'light')}>
         <div class="item-left">
           <div class="item-icon-circle icon-blue">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-            </svg>
+            {#if mekaarStore.themeMode === 'light'}
+              <Sun size={20} weight="duotone" color="var(--brand-blue)" />
+            {:else}
+              <Moon size={20} weight="duotone" color="var(--brand-blue)" />
+            {/if}
           </div>
           <span class="item-title">Tema & Wallpaper Chat</span>
         </div>
         <div class="item-right">
           <span class="item-value">{mekaarStore.themeMode === 'light' ? 'Mode Terang' : 'Mode Gelap'}</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -147,18 +170,12 @@
   {#if !mekaarStore.isDuressActive}
     <div class="settings-group">
       <span class="group-title">Privasi & Mode Samaran</span>
-      <div class="clean-card with-ticks list-tile-card">
-        <span class="pencil-tick tick-bl">⌞</span>
-        <span class="pencil-tick tick-tr">⌝</span>
-
+      <div class="clean-card list-tile-card">
         <!-- Proteksi Layar -->
         <div class="setting-item-row">
           <div class="item-left">
             <div class="item-icon-circle icon-teal">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
-                <line x1="12" y1="18" x2="12.01" y2="18"></line>
-              </svg>
+              <DeviceMobileSlash size={20} weight="duotone" color="#0D9488" />
             </div>
             <span class="item-title">Proteksi Layar</span>
           </div>
@@ -179,10 +196,7 @@
         <div class="setting-item-row" onclick={() => (showAutoLockModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-blue">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
+              <LockKey size={20} weight="duotone" color="var(--brand-blue)" />
             </div>
             <div>
               <div class="item-title">Kunci Otomatis (Auto-Lock)</div>
@@ -198,9 +212,7 @@
                   : `${mekaarStore.autoLockMinutes} Menit`}
             </span>
             <div class="arrow-circle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
           </div>
         </div>
@@ -211,10 +223,7 @@
         <div class="setting-item-row">
           <div class="item-left">
             <div class="item-icon-circle icon-orange">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"></circle>
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-              </svg>
+              <EyeSlash size={20} weight="duotone" color="#EA580C" />
             </div>
             <span class="item-title">Sembunyikan Notifikasi Darurat</span>
           </div>
@@ -235,10 +244,7 @@
         <div class="setting-item-row" onclick={() => (showLastSeenModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-blue-subtle">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-              </svg>
+              <Clock size={20} weight="duotone" color="var(--brand-blue)" />
             </div>
             <span class="item-title">Terakhir Dilihat & Online</span>
           </div>
@@ -251,9 +257,7 @@
                   : 'Kontak Saya'}
             </span>
             <div class="arrow-circle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
           </div>
         </div>
@@ -264,9 +268,7 @@
         <div class="setting-item-row">
           <div class="item-left">
             <div class="item-icon-circle icon-lime">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
-              </svg>
+              <Checks size={20} weight="bold" color="#16A34A" />
             </div>
             <span class="item-title">Bukti Baca (Read Receipt)</span>
           </div>
@@ -287,11 +289,7 @@
         <div class="setting-item-row" onclick={() => (showDuressModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-orange">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                <path d="M12 8v4"/>
-                <path d="M12 16h.01"/>
-              </svg>
+              <ShieldWarning size={20} weight="duotone" color="#EA580C" />
             </div>
             <div>
               <div class="item-title">PIN Paksaan (Duress Cloak)</div>
@@ -301,9 +299,7 @@
           <div class="item-right">
             <span class="item-value">{mekaarStore.duressPinCode ? 'Dikonfigurasi' : 'Belum diatur'}</span>
             <div class="arrow-circle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
           </div>
         </div>
@@ -316,10 +312,7 @@
         <div class="setting-item-row" onclick={() => (showScheduledWipeModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-blue">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <polyline points="12 6 12 12 16 14"></polyline>
-              </svg>
+              <ClockCounterClockwise size={20} weight="duotone" color="var(--brand-blue)" />
             </div>
             <div>
               <div class="item-title">Pembersihan Pesan Terjadwal</div>
@@ -333,9 +326,7 @@
           <div class="item-right">
             <span class="item-value" style="text-transform: capitalize;">{mekaarStore.scheduledWipe.mode}</span>
             <div class="arrow-circle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
           </div>
         </div>
@@ -348,11 +339,7 @@
         <div class="setting-item-row" onclick={() => (showConnectedDevicesModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-blue-subtle">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect>
-                <line x1="8" y1="21" x2="16" y2="21"></line>
-                <line x1="12" y1="17" x2="12" y2="21"></line>
-              </svg>
+              <Desktop size={20} weight="duotone" color="var(--brand-blue)" />
             </div>
             <div>
               <div class="item-title">Perangkat Terhubung</div>
@@ -362,9 +349,7 @@
           <div class="item-right">
             <span class="item-value">Kelola</span>
             <div class="arrow-circle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
           </div>
         </div>
@@ -377,10 +362,7 @@
         <div class="setting-item-row" onclick={() => (showBlockedListModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-orange">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-              </svg>
+              <Prohibit size={20} weight="duotone" color="#EA580C" />
             </div>
             <div>
               <div class="item-title">Daftar Kontak Diblokir</div>
@@ -390,9 +372,7 @@
           <div class="item-right">
             <span class="item-value">{mekaarStore.blockedUsers.length > 0 ? `${mekaarStore.blockedUsers.length} kontak` : 'Kosong'}</span>
             <div class="arrow-circle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
           </div>
         </div>
@@ -405,9 +385,7 @@
         <div class="setting-item-row" onclick={() => (showInvitationModal = true)}>
           <div class="item-left">
             <div class="item-icon-circle icon-purple">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
+              <ChatCircleDots size={20} weight="duotone" color="#8B5CF6" />
             </div>
             <div>
               <div class="item-title">Izin Undangan Obrolan</div>
@@ -423,9 +401,7 @@
                   : 'Persetujuan'}
             </span>
             <div class="arrow-circle">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
           </div>
         </div>
@@ -436,9 +412,7 @@
         <div class="setting-item-row">
           <div class="item-left">
             <div class="item-icon-circle icon-teal">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              </svg>
+              <ShieldCheck size={20} weight="duotone" color="#0D9488" />
             </div>
             <div>
               <div class="item-title">Relay Calls (Sembunyikan IP)</div>
@@ -460,10 +434,7 @@
   <!-- Section: Penyimpanan & Data (Storage & Cache Manager) -->
   <div class="settings-group">
     <span class="group-title">Penyimpanan & Data</span>
-    <div class="clean-card with-ticks list-tile-card">
-      <span class="pencil-tick tick-bl">⌞</span>
-      <span class="pencil-tick tick-tr">⌝</span>
-
+    <div class="clean-card list-tile-card">
       <!-- Storage Breakdown Card -->
       <div class="storage-breakdown-card">
         <div class="storage-bar-wrap">
@@ -496,9 +467,7 @@
       <div class="setting-item-row" onclick={handleClearCache}>
         <div class="item-left">
           <div class="item-icon-circle icon-orange">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-            </svg>
+            <Trash size={20} weight="duotone" color="#EA580C" />
           </div>
           <div>
             <div class="item-title">Bersihkan Cache Sementara</div>
@@ -508,9 +477,7 @@
         <div class="item-right">
           <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Bersihkan</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -520,21 +487,14 @@
   <!-- Section: Server Relay teplok-pc & Forensik -->
   <div class="settings-group">
     <span class="group-title">Sistem & Keamanan Tingkat Lanjut</span>
-    <div class="clean-card with-ticks list-tile-card">
-      <span class="pencil-tick tick-bl">⌞</span>
-      <span class="pencil-tick tick-tr">⌝</span>
-
+    <div class="clean-card list-tile-card">
       <!-- Mekaar Mesh Network Node -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row" onclick={() => (showTailscaleModal = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-blue">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="2" y1="12" x2="22" y2="12"></line>
-              <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-            </svg>
+            <ShareNetwork size={20} weight="duotone" color="var(--brand-blue)" />
           </div>
           <div>
             <div class="item-title">Mekaar Mesh Network</div>
@@ -544,9 +504,7 @@
         <div class="item-right">
           <span class="aegis-badge">Terhubung</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -559,10 +517,7 @@
       <div class="setting-item-row" onclick={() => (showMediaVault = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-blue">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="2"/>
-              <path d="M7 7h.01M7 12h.01M7 17h.01M11 7h6M11 12h6M11 17h6"/>
-            </svg>
+            <FolderSimpleLock size={20} weight="duotone" color="var(--brand-blue)" />
           </div>
           <div>
             <div class="item-title">Media Vault & Stego Photo</div>
@@ -572,9 +527,7 @@
         <div class="item-right">
           <span class="item-value">{mekaarStore.vaultMediaItems.length} berkas</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -587,12 +540,7 @@
       <div class="setting-item-row" onclick={() => (showSecurityAuditModal = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
+            <FileText size={20} weight="duotone" color="#8B5CF6" />
           </div>
           <div>
             <div class="item-title">Security Audit Log</div>
@@ -602,9 +550,7 @@
         <div class="item-right">
           <span class="item-value">{mekaarStore.securityLogs.length} kejadian</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -617,10 +563,7 @@
       <div class="setting-item-row" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-              <circle cx="12" cy="11" r="3"/>
-            </svg>
+            <Key size={20} weight="duotone" color="#8B5CF6" />
           </div>
           <div>
             <div class="item-title">Digital Evidence Export</div>
@@ -629,9 +572,7 @@
         </div>
         <div class="item-right">
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -644,11 +585,7 @@
       <div class="setting-item-row danger-row" onclick={() => (showForensicWipeModal = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-red">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E11D48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
+            <WarningOctagon size={20} weight="duotone" color="#E11D48" />
           </div>
           <div>
             <div class="item-title" style="color: #E11D48;">Panic Wipe (Pemusnahan Darurat)</div>
@@ -658,9 +595,7 @@
         <div class="item-right">
           <span class="item-value" style="color: #E11D48; font-weight: 700;">Hancurkan Data</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FDA4AF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#FDA4AF" />
           </div>
         </div>
       </div>
@@ -673,10 +608,7 @@
       <div class="setting-item-row" onclick={() => mekaarStore.resetFtueSimulation()}>
         <div class="item-left">
           <div class="item-icon-circle icon-orange">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EA580C" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path>
-              <path d="M3 3v5h5"></path>
-            </svg>
+            <ArrowsClockwise size={20} weight="duotone" color="#EA580C" />
           </div>
           <div>
             <div class="item-title">Reset Pengenalan Aplikasi</div>
@@ -686,9 +618,7 @@
         <div class="item-right">
           <span class="item-value" style="color: #EA580C; font-size: 0.8rem; font-weight: 600;">Mulai Ulang</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -698,20 +628,14 @@
   <!-- Section: Informasi & Panduan -->
   <div class="settings-group">
     <span class="group-title">Informasi & Panduan</span>
-    <div class="clean-card with-ticks list-tile-card">
-      <span class="pencil-tick tick-bl">⌞</span>
-      <span class="pencil-tick tick-tr">⌝</span>
-
+    <div class="clean-card list-tile-card">
       <!-- Kamus Istilah Keamanan (Security Glossary) -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="setting-item-row" onclick={() => (showGlossaryModal = true)}>
         <div class="item-left">
           <div class="item-icon-circle icon-purple">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-            </svg>
+            <BookOpen size={20} weight="duotone" color="#8B5CF6" />
           </div>
           <div>
             <div class="item-title">Kamus Istilah Keamanan (Security Glossary)</div>
@@ -721,9 +645,7 @@
         <div class="item-right">
           <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Pelajari</span>
           <div class="arrow-circle">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9FB0C9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="9 18 15 12 9 6"></polyline>
-            </svg>
+            <CaretRight size={16} weight="bold" color="#9FB0C9" />
           </div>
         </div>
       </div>
@@ -734,11 +656,7 @@
       <div class="setting-item-row">
         <div class="item-left">
           <div class="item-icon-circle icon-blue-subtle">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="16" x2="12" y2="12"/>
-              <line x1="12" y1="8" x2="12.01" y2="8"/>
-            </svg>
+            <Info size={20} weight="duotone" color="var(--brand-blue)" />
           </div>
           <div>
             <div class="item-title">Tentang MEKAAR Tactical Suite</div>
@@ -753,37 +671,11 @@
   </div>
 </div>
 
-<!-- Modal Dialog Font & Tampilan -->
-<Dialog
-  open={showFontModal}
-  title="Pilih Jenis Huruf Utama"
-  onclose={() => (showFontModal = false)}
->
-  <div style="display: flex; flex-direction: column; gap: 12px;">
-    <button
-      type="button"
-      class="font-option-btn {mekaarStore.fontFamily === 'Plus Jakarta Sans' ? 'active' : ''}"
-      onclick={() => {
-        mekaarStore.fontFamily = 'Plus Jakarta Sans';
-        showFontModal = false;
-      }}
-    >
-      <span style="font-family: 'Plus Jakarta Sans', sans-serif; font-weight: 700;">Plus Jakarta Sans (Standar Citrea)</span>
-      {#if mekaarStore.fontFamily === 'Plus Jakarta Sans'}<span>✓</span>{/if}
-    </button>
-    <button
-      type="button"
-      class="font-option-btn {mekaarStore.fontFamily === 'DynaPuff' ? 'active' : ''}"
-      onclick={() => {
-        mekaarStore.fontFamily = 'DynaPuff';
-        showFontModal = false;
-      }}
-    >
-      <span style="font-family: 'DynaPuff', cursive; font-weight: 700;">DynaPuff (Gaya Sketsa Krayon)</span>
-      {#if mekaarStore.fontFamily === 'DynaPuff'}<span>✓</span>{/if}
-    </button>
-  </div>
-</Dialog>
+<!-- Modal Dialog Tampilan, Tema & Font (Appearance Center) -->
+<AppearanceSettingsDialog
+  open={showAppearanceModal}
+  onclose={() => (showAppearanceModal = false)}
+/>
 
 <!-- Modal Dialog Endpoint Tailscale -->
 <Dialog
@@ -935,7 +827,7 @@
 <!-- Dialog Kunci Otomatis (Inactivity Timer) -->
 <Dialog
   open={showAutoLockModal}
-  title="⏱️ Kunci Otomatis Aplikasi"
+  title="Kunci Otomatis Aplikasi"
   onclose={() => (showAutoLockModal = false)}
 >
   <div class="modal-options-list">
@@ -959,7 +851,9 @@
         }}
       >
         <span>{item.label}</span>
-        {#if mekaarStore.autoLockMinutes === item.min}<span>✓</span>{/if}
+        {#if mekaarStore.autoLockMinutes === item.min}
+          <Check size={16} weight="bold" color="var(--brand-blue)" />
+        {/if}
       </button>
     {/each}
   </div>
@@ -968,7 +862,7 @@
 <!-- Dialog Terakhir Dilihat & Online -->
 <Dialog
   open={showLastSeenModal}
-  title="👁️ Privasi Terakhir Dilihat & Online"
+  title="Privasi Terakhir Dilihat & Online"
   onclose={() => (showLastSeenModal = false)}
 >
   <div class="modal-options-list">
@@ -992,7 +886,9 @@
           <strong>{item.label}</strong>
           <span style="font-size: 0.74rem; color: var(--text-secondary);">{item.desc}</span>
         </div>
-        {#if mekaarStore.lastSeenPrivacy === item.val}<span>✓</span>{/if}
+        {#if mekaarStore.lastSeenPrivacy === item.val}
+          <Check size={16} weight="bold" color="var(--brand-blue)" />
+        {/if}
       </button>
     {/each}
   </div>
@@ -1001,7 +897,7 @@
 <!-- Dialog Izin Undangan Obrolan -->
 <Dialog
   open={showInvitationModal}
-  title="📨 Izin Undangan Obrolan"
+  title="Izin Undangan Obrolan"
   onclose={() => (showInvitationModal = false)}
 >
   <div class="modal-options-list">
@@ -1025,7 +921,9 @@
           <strong>{item.label}</strong>
           <span style="font-size: 0.74rem; color: var(--text-secondary);">{item.desc}</span>
         </div>
-        {#if mekaarStore.chatInvitationMode === item.val}<span>✓</span>{/if}
+        {#if mekaarStore.chatInvitationMode === item.val}
+          <Check size={16} weight="bold" color="var(--brand-blue)" />
+        {/if}
       </button>
     {/each}
   </div>
@@ -1199,24 +1097,6 @@
 
   input:checked + .slider:before {
     transform: translateX(20px);
-  }
-
-  .font-option-btn {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 16px;
-    border-radius: 12px;
-    border: 1px solid var(--border-subtle);
-    background: #FFFFFF;
-    cursor: pointer;
-    font-size: 0.95rem;
-  }
-
-  .font-option-btn.active {
-    border-color: var(--brand-blue);
-    background-color: #EFF6FF;
-    color: var(--brand-blue);
   }
 
   .cache-floating-toast {

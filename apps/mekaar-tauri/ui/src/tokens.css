@@ -1,8 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=DynaPuff:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@400;700&family=DynaPuff:wght@600;700&family=Fredoka:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 :root {
-  /* Typography - Plus Jakarta Sans for all UI, DynaPuff exclusively for Crayon Avatar */
+  /* Typography - Dynamic Active Font System */
   --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-active: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-crayon: 'DynaPuff', cursive, sans-serif;
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
   --font-scale: 1;
@@ -107,8 +108,8 @@ html, body {
   overflow-x: hidden;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: var(--font-sans);
-  font-size: 15px;
+  font-family: var(--font-active);
+  font-size: calc(15px * var(--font-scale, 1));
   line-height: 1.45;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -235,3 +236,46 @@ button, input, textarea, select {
   font-size: 0.8rem;
   font-weight: 700;
 }
+
+/* Contacts Layout Utilities (Signal & Mekaar_chat Parity) */
+.contacts-flat-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-radius: var(--radius-card);
+  border: 0.75px solid var(--border-subtle);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.contacts-grid-layout {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.contact-grid-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 12px;
+  background: var(--bg-surface);
+  border-radius: var(--radius-card);
+  border: 0.75px solid var(--border-subtle);
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
+}
+
+.contact-grid-card:hover {
+  border-color: var(--brand-blue);
+  box-shadow: var(--shadow-floating);
+  transform: translateY(-2px);
+}
+
+.contact-grid-card:active {
+  transform: scale(0.98);
+}
+

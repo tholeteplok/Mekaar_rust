@@ -1,5 +1,15 @@
 <script lang="ts">
   import type { AttachmentModel } from '../types';
+  import {
+    MapPin,
+    Timer,
+    BatteryCharging,
+    LockKey,
+    Compass,
+    ShieldCheck,
+    StopCircle,
+    CornersOut
+  } from 'phosphor-svelte';
 
   interface Props {
     attachment: AttachmentModel;
@@ -37,14 +47,16 @@
             <span class="ended-title-text">Sesi Lokasi Berakhir</span>
           {/if}
         {:else}
-          <span class="static-pin-icon">📍</span>
+          <span class="static-pin-icon" style="display: flex; align-items: center;">
+            <MapPin size={16} weight="fill" color="#0284C7" />
+          </span>
           <span class="static-title-text">Titik Lokasi Aman</span>
         {/if}
       </div>
 
       {#if isLive && isActive}
-        <span class="live-timer-sub">
-          ⏳ Sisa {attachment.liveExpiresAt || `${attachment.liveDurationMinutes || 60}m lagi`}
+        <span class="live-timer-sub" style="display: inline-flex; align-items: center; gap: 4px;">
+          <Timer size={12} weight="bold" /> Sisa {attachment.liveExpiresAt || `${attachment.liveDurationMinutes || 60}m lagi`}
         </span>
       {/if}
     </div>
@@ -52,11 +64,13 @@
     <!-- Battery & Privacy Badge -->
     <div class="telemetry-badges">
       {#if isLive && attachment.batteryLevel}
-        <span class="battery-badge" title="Tingkat Daya Perangkat Pengirim">
-          🔋 {attachment.batteryLevel}%
+        <span class="battery-badge" title="Tingkat Daya Perangkat Pengirim" style="display: inline-flex; align-items: center; gap: 4px;">
+          <BatteryCharging size={13} weight="bold" /> {attachment.batteryLevel}%
         </span>
       {/if}
-      <span class="e2ee-tag">🔒 GPS E2EE</span>
+      <span class="e2ee-tag" style="display: inline-flex; align-items: center; gap: 4px;">
+        <LockKey size={11} weight="bold" /> GPS E2EE
+      </span>
     </div>
   </div>
 
@@ -107,7 +121,9 @@
 
     <!-- Overlay Hint Pill -->
     <div class="map-hover-hint">
-      <span>Perbesar Peta ➔</span>
+      <span style="display: inline-flex; align-items: center; gap: 4px;">
+        <CornersOut size={13} weight="bold" /> Perbesar Peta
+      </span>
     </div>
   </div>
 
@@ -130,11 +146,7 @@
       class="action-btn btn-open-map"
       onclick={() => onopenmap?.(lat, lng)}
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
-        <line x1="8" y1="2" x2="8" y2="18"></line>
-        <line x1="16" y1="6" x2="16" y2="22"></line>
-      </svg>
+      <Compass size={16} weight="bold" />
       <span>Peta Radar</span>
     </button>
 
@@ -143,9 +155,7 @@
       class="action-btn btn-guard-escort"
       onclick={() => onrequestguardian?.(attachment.name || 'Posko Pengamanan', lat, lng)}
     >
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
-      </svg>
+      <ShieldCheck size={16} weight="bold" />
       <span>Kawal Rute</span>
     </button>
 
@@ -156,7 +166,8 @@
         onclick={onstoplive}
         title="Hentikan siaran lokasi langsung"
       >
-        <span>🛑 Hentikan</span>
+        <StopCircle size={15} weight="bold" />
+        <span>Hentikan</span>
       </button>
     {/if}
   </div>

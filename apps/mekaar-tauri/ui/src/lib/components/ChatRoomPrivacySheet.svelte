@@ -2,6 +2,17 @@
   import { mekaarStore } from '../stores';
   import BottomSheet from './BottomSheet.svelte';
   import type { Conversation } from '../types';
+  import {
+    ShieldCheck,
+    DeviceMobileSlash,
+    Prohibit,
+    EyeSlash,
+    Hourglass,
+    Alarm,
+    Fire,
+    Copy,
+    Check
+  } from 'phosphor-svelte';
 
   interface Props {
     open: boolean;
@@ -78,7 +89,7 @@
   }
 </script>
 
-<BottomSheet {open} title="🛡️ Privasi Obrolan Ekstrem" {onclose}>
+<BottomSheet {open} title="Privasi Obrolan Ekstrem" {onclose}>
   {#if conversation}
     <div class="privacy-sheet-container">
       <!-- Toast Feedback Floating -->
@@ -90,8 +101,8 @@
 
       <!-- 1. Mutual Shield Notice Card -->
       <div class="mutual-shield-card">
-        <div class="shield-badge-icon">
-          🛡️
+        <div class="shield-badge-icon" style="display: flex; align-items: center; justify-content: center;">
+          <ShieldCheck size={28} weight="bold" color="var(--brand-teal, #0D9488)" />
         </div>
         <div class="shield-desc-col">
           <span class="shield-title">Proteksi 2 Arah (Mutual Shield)</span>
@@ -115,8 +126,8 @@
           class="setting-interactive-row"
           onclick={() => (isScreenProtected = !isScreenProtected)}
         >
-          <div class="row-icon-cell icon-teal">
-            📱
+          <div class="row-icon-cell icon-teal" style="display: flex; align-items: center; justify-content: center;">
+            <DeviceMobileSlash size={22} weight="bold" color="var(--brand-teal, #0D9488)" />
           </div>
           <div class="row-text-cell">
             <span class="row-title">Blokir Screenshot & Tangkapan Layar</span>
@@ -138,8 +149,8 @@
           class="setting-interactive-row"
           onclick={() => (isForwardingProtected = !isForwardingProtected)}
         >
-          <div class="row-icon-cell icon-amber">
-            🚫
+          <div class="row-icon-cell icon-amber" style="display: flex; align-items: center; justify-content: center;">
+            <Prohibit size={22} weight="bold" color="#D97706" />
           </div>
           <div class="row-text-cell">
             <span class="row-title">Larang Teruskan & Salin Pesan</span>
@@ -161,8 +172,8 @@
           class="setting-interactive-row"
           onclick={() => (isViewOnceDefault = !isViewOnceDefault)}
         >
-          <div class="row-icon-cell icon-purple">
-            👁️
+          <div class="row-icon-cell icon-purple" style="display: flex; align-items: center; justify-content: center;">
+            <EyeSlash size={22} weight="bold" color="#8B5CF6" />
           </div>
           <div class="row-text-cell">
             <span class="row-title">Mode Sekali Lihat (View-Once) Default</span>
@@ -186,8 +197,8 @@
         <!-- Timer Pesan Lenyap (Countdown Wipe - 2 Arah) -->
         <div class="setting-block-row">
           <div class="block-top-row">
-            <div class="row-icon-cell icon-rose">
-              ⏳
+            <div class="row-icon-cell icon-rose" style="display: flex; align-items: center; justify-content: center;">
+              <Hourglass size={22} weight="bold" color="#E11D48" />
             </div>
             <div class="row-text-cell">
               <span class="row-title">Pesan Lenyap Otomatis (Countdown Wipe)</span>
@@ -215,8 +226,8 @@
         <!-- Pembersihan Terjadwal Ruangan (Scheduled Wipe) -->
         <div class="setting-block-row">
           <div class="block-top-row">
-            <div class="row-icon-cell icon-blue">
-              ⏰
+            <div class="row-icon-cell icon-blue" style="display: flex; align-items: center; justify-content: center;">
+              <Alarm size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
             </div>
             <div class="row-text-cell">
               <span class="row-title">Pembersihan Terjadwal Ruangan</span>
@@ -273,8 +284,8 @@
           class="setting-interactive-row"
           onclick={() => (isBurnOnExit = !isBurnOnExit)}
         >
-          <div class="row-icon-cell icon-red">
-            🔥
+          <div class="row-icon-cell icon-red" style="display: flex; align-items: center; justify-content: center;">
+            <Fire size={22} weight="bold" color="#EF4444" />
           </div>
           <div class="row-text-cell">
             <span class="row-title" style="color: #E11D48;">Hapus Saat Keluar (Burn on Exit)</span>
@@ -334,8 +345,10 @@
               type="button"
               class="copy-micro-btn"
               onclick={() => handleCopyFingerprint('ED25519: 9A74-E122-9A9B-718E-4F10')}
+              style="display: flex; align-items: center; gap: 4px;"
             >
-              📋 Salin
+              <Copy size={13} weight="bold" />
+              <span>Salin</span>
             </button>
           </div>
           <code class="fingerprint-display">ED25519: 9A74-E122-9A9B-718E-4F10</code>
@@ -348,8 +361,10 @@
                 onclose();
                 onopenSas();
               }}
+              style="display: flex; align-items: center; justify-content: center; gap: 6px;"
             >
-              🛡️ Bandingkan Kode SAS (Aegis Shield)
+              <ShieldCheck size={16} weight="bold" />
+              <span>Bandingkan Kode SAS (Aegis Shield)</span>
             </button>
           {/if}
         </div>

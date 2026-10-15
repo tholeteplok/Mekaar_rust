@@ -2,6 +2,27 @@
   import { onDestroy } from 'svelte';
   import type { MessageModel } from '../types';
   import LiveLocationCard from './LiveLocationCard.svelte';
+  import {
+    Smiley,
+    ArrowBendUpLeft,
+    DotsThreeVertical,
+    Copy,
+    Prohibit,
+    PencilSimple,
+    PushPin,
+    Trash,
+    MagnifyingGlassPlus,
+    Image,
+    EyeSlash,
+    Play,
+    Pause,
+    FileText,
+    Timer,
+    LockKey,
+    Clock,
+    Check,
+    Checks
+  } from 'phosphor-svelte';
 
   interface Props {
     message: MessageModel;
@@ -125,12 +146,7 @@
             title="Beri Reaksi Emoji"
             aria-label="Reaksi"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <path d="M8 14s1.5 2 4 2 4-2 4-2"></path>
-              <line x1="9" y1="9" x2="9.01" y2="9"></line>
-              <line x1="15" y1="9" x2="15.01" y2="9"></line>
-            </svg>
+            <Smiley size={14} weight="bold" />
           </button>
 
           <!-- Reply Button -->
@@ -142,10 +158,7 @@
               title="Balas Pesan"
               aria-label="Balas"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 17 4 12 9 7"></polyline>
-                <path d="M20 18v-2a4 4 0 0 0-4-4H4"></path>
-              </svg>
+              <ArrowBendUpLeft size={14} weight="bold" />
             </button>
           {/if}
 
@@ -160,11 +173,7 @@
             title="Opsi Pesan Lanjutan"
             aria-label="Opsi Pesan"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-              <circle cx="12" cy="5" r="2"></circle>
-              <circle cx="12" cy="12" r="2"></circle>
-              <circle cx="12" cy="19" r="2"></circle>
-            </svg>
+            <DotsThreeVertical size={14} weight="bold" />
           </button>
         </div>
       {/if}
@@ -196,7 +205,7 @@
                 onreply!(message);
               }}
             >
-              <span>↩️</span> Balas Pesan
+              <ArrowBendUpLeft size={16} weight="bold" /> Balas Pesan
             </button>
           {/if}
 
@@ -211,11 +220,11 @@
                 }
               }}
             >
-              <span>📋</span> Salin Teks
+              <Copy size={16} weight="bold" /> Salin Teks
             </button>
           {:else if isForwardingProtected}
             <div class="menu-item-btn item-disabled" title="Penyalinan dilarang oleh proteksi privasi obrolan">
-              <span>🚫</span> Salin Dilarang
+              <Prohibit size={16} weight="bold" /> Salin Dilarang
             </div>
           {/if}
 
@@ -228,7 +237,7 @@
                 onedit!(message);
               }}
             >
-              <span>✏️</span> Edit Pesan
+              <PencilSimple size={16} weight="bold" /> Edit Pesan
             </button>
           {/if}
 
@@ -241,7 +250,7 @@
                 onpin!(message);
               }}
             >
-              <span>📌</span> Sematkan Pesan
+              <PushPin size={16} weight="bold" /> Sematkan Pesan
             </button>
           {/if}
 
@@ -254,7 +263,7 @@
                 onrevoke!(message);
               }}
             >
-              <span>🗑️</span> {message.isSelf ? 'Tarik Pesan' : 'Hapus untuk Saya'}
+              <Trash size={16} weight="bold" /> {message.isSelf ? 'Tarik Pesan' : 'Hapus untuk Saya'}
             </button>
           {/if}
         </div>
@@ -274,7 +283,9 @@
       <!-- REVOKED MESSAGE PRESENTATION -->
       {#if message.isRevoked}
         <div class="revoked-message-body {message.isSelf ? 'revoked-self' : 'revoked-peer'}">
-          <span class="revoked-icon">🚫</span>
+          <span class="revoked-icon" style="display: flex; align-items: center;">
+            <Prohibit size={16} weight="bold" color="var(--text-secondary)" />
+          </span>
           <span class="revoked-text">Pesan ini telah ditarik</span>
         </div>
       {:else}
@@ -300,12 +311,7 @@
                     class="bubble-inline-img"
                   />
                   <div class="img-zoom-hint-overlay">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.5">
-                      <circle cx="11" cy="11" r="8"></circle>
-                      <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                      <line x1="11" y1="8" x2="11" y2="14"></line>
-                      <line x1="8" y1="11" x2="14" y2="11"></line>
-                    </svg>
+                    <MagnifyingGlassPlus size={24} weight="bold" color="#FFFFFF" />
                   </div>
                 </button>
               {:else}
@@ -319,7 +325,9 @@
                     message.attachment!.isStego
                   )}
                 >
-                  <span>🖼️ {message.attachment.name}</span>
+                  <span style="display: flex; align-items: center; gap: 6px;">
+                    <Image size={18} weight="bold" /> {message.attachment.name}
+                  </span>
                 </button>
               {/if}
 
@@ -327,7 +335,9 @@
               {#if message.attachment.isStego}
                 <div class="stego-banner-overlay">
                   <div class="stego-badge-label">
-                    <span>🕵️ Steganografi LSB</span>
+                    <span style="display: flex; align-items: center; gap: 4px;">
+                      <EyeSlash size={14} weight="bold" /> Steganografi LSB
+                    </span>
                   </div>
                   {#if onopenstego}
                     <button
@@ -354,14 +364,9 @@
                 aria-label={isPlayingAudio ? 'Jeda Audio' : 'Putar Audio'}
               >
                 {#if isPlayingAudio}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <rect x="6" y="4" width="4" height="16"></rect>
-                    <rect x="14" y="4" width="4" height="16"></rect>
-                  </svg>
+                  <Pause size={14} weight="fill" />
                 {:else}
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                  </svg>
+                  <Play size={14} weight="fill" />
                 {/if}
               </button>
 
@@ -423,7 +428,9 @@
           {:else}
             <!-- Document Attachment Box -->
             <div class="attachment-box {message.isSelf ? 'att-self' : 'att-peer'}">
-              <span class="att-icon">📄</span>
+              <span class="att-icon" style="display: flex; align-items: center;">
+                <FileText size={22} weight="bold" color="var(--brand-blue)" />
+              </span>
               <div class="att-info">
                 <span class="att-name">{message.attachment.name}</span>
                 <span class="att-size">{message.attachment.sizeLabel}</span>
@@ -460,14 +467,14 @@
       <!-- Bubble Meta: Disappearing Timer, Lock, Timestamp, Edited label, Delivery Status -->
       <div class="bubble-footer {message.isSelf ? 'footer-self' : 'footer-peer'}">
         {#if message.disappearingSeconds || message.expiresAt}
-          <span class="disappearing-badge" title="Pesan Lenyap Otomatis">
-            ⏳ {message.expiresAt || `${message.disappearingSeconds}s`}
+          <span class="disappearing-badge" title="Pesan Lenyap Otomatis" style="display: inline-flex; align-items: center; gap: 3px;">
+            <Timer size={11} weight="bold" /> {message.expiresAt || `${message.disappearingSeconds}s`}
           </span>
         {/if}
 
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" class="lock-icon" title="Enkripsi E2EE Signal Protocol">
-          <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zm3.1-9H8.9V6c0-1.71 1.39-3.1 3.1-3.1 1.71 0 3.1 1.39 3.1 3.1v2z"/>
-        </svg>
+        <span style="display: inline-flex; align-items: center;">
+          <LockKey size={11} weight="bold" color="currentColor" />
+        </span>
 
         {#if message.isEdited}
           <span class="edited-badge" title="Pesan telah diedit">(diedit)</span>
@@ -478,15 +485,25 @@
         {#if message.isSelf && !message.isRevoked}
           <!-- Telegram / Signal 4-State Delivery Receipts -->
           {#if message.status === 'sending'}
-            <span class="status-receipt sending" title="Mengirim...">🕒</span>
+            <span class="status-receipt sending" title="Mengirim..." style="display: inline-flex; align-items: center;">
+              <Clock size={12} weight="bold" />
+            </span>
           {:else if message.status === 'sent'}
-            <span class="status-receipt sent" title="Terkirim ke Server">✓</span>
+            <span class="status-receipt sent" title="Terkirim ke Server" style="display: inline-flex; align-items: center;">
+              <Check size={13} weight="bold" />
+            </span>
           {:else if message.status === 'delivered'}
-            <span class="status-receipt delivered" title="Terkirim ke Perangkat">✓✓</span>
+            <span class="status-receipt delivered" title="Terkirim ke Perangkat" style="display: inline-flex; align-items: center;">
+              <Checks size={14} weight="bold" />
+            </span>
           {:else if message.status === 'read'}
-            <span class="status-receipt read" title="Dibaca">✓✓</span>
+            <span class="status-receipt read" title="Dibaca" style="display: inline-flex; align-items: center;">
+              <Checks size={14} weight="bold" color="var(--brand-blue)" />
+            </span>
           {:else}
-            <span class="status-receipt delivered">✓✓</span>
+            <span class="status-receipt delivered" style="display: inline-flex; align-items: center;">
+              <Checks size={14} weight="bold" />
+            </span>
           {/if}
         {/if}
       </div>
@@ -1072,10 +1089,6 @@
     font-size: 0.68rem;
     opacity: 0.85;
     margin-right: 2px;
-  }
-
-  .lock-icon {
-    opacity: 0.75;
   }
 
   .edited-badge {

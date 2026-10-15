@@ -16,9 +16,7 @@
   });
 </script>
 
-<div class="clean-card with-ticks" style="padding: 16px; margin-bottom: 12px;">
-  <span class="pencil-tick tick-bl">⌞</span>
-  <span class="pencil-tick tick-tr">⌝</span>
+<div class="clean-card" style="padding: 16px; margin-bottom: 12px;">
   <button
     type="button"
     onclick={() => (open = !open)}
@@ -54,25 +52,6 @@
     box-sizing: border-box;
   }
 
-  .pencil-tick {
-    position: absolute;
-    color: var(--sketch-grey);
-    font-size: 13px;
-    font-family: monospace;
-    line-height: 1;
-    pointer-events: none;
-    user-select: none;
-  }
-
-  .tick-bl {
-    bottom: -6px;
-    left: -6px;
-  }
-
-  .tick-tr {
-    top: -6px;
-    right: -6px;
-  }
 
   .card-header-btn {
     width: 100%;
