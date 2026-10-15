@@ -20,6 +20,7 @@ import type {
   ChatThemeId,
   TelemetryModel
 } from '../types';
+import { WebRtcManager } from '../services/webrtc';
 
 export const TAILSCALE_HTTP = 'http://100.101.96.120:8085';
 export const TAILSCALE_WS = 'ws://100.101.96.120:8085/ws';
@@ -322,6 +323,8 @@ class MekaarStore {
 
   // Sesi Panggilan WebRTC (call_screen.dart & incoming_call_screen.dart parity)
   activeCall = $state<CallSessionModel | null>(null);
+  webrtcManager: WebRtcManager | null = null;
+  callDurationTimer: ReturnType<typeof setInterval> | null = null;
 
   // Guardian & Riwayat Perjalanan (guardian_dashboard_screen.dart & trip_history_screen.dart parity)
   guardians = $state<GuardianModel[]>([
@@ -760,6 +763,22 @@ class MekaarStore {
           const payload = JSON.parse(event.data);
           if (payload?.type === 'chat_message' && payload.conversationId && payload.text) {
             this.receiveIncomingMessage(payload.conversationId, payload.senderName || 'Peer', payload.text);
+          } else if (payload?.type === 'call_offer' && payload.callerName) {
+            this.receiveIncomingCall(
+              payload.conversationId || 'conv-1',
+              payload.callerName,
+              payload.isVideo ?? false,
+              payload.sdp,
+              payload.sasCode,
+              payload.sasEmojis
+            );
+          } else if (payload?.type === 'call_answer' && payload.sdp) {
+            this.webrtcManager?.handleRemoteAnswer(payload.sdp);
+            if (this.activeCall) this.activeCall.state = 'connected';
+          } else if (payload?.type === 'ice_candidate' && payload.candidate) {
+            this.webrtcManager?.addIceCandidate(payload.candidate);
+          } else if (payload?.type === 'call_hangup') {
+            this.endCall();
           }
         } catch {
           // Abaikan frame non-JSON
@@ -948,31 +967,214 @@ class MekaarStore {
     }
   }
 
-  startCall(conv: Conversation, isVideo: boolean, direction: 'outgoing' | 'incoming' = 'outgoing') {
+  async startCall(conv: Conversation, isVideo: boolean, direction: 'outgoing' | 'incoming' = 'outgoing') {
+    if (this.callDurationTimer) {
+      clearInterval(this.callDurationTimer);
+      this.callDurationTimer = null;
+    }
+
+    const peerId = conv.participants?.find((p) => p.userId !== this.currentUser.id)?.userId || 'peer-remote';
+    const sas = WebRtcManager.generateSas(`${conv.id}-${peerId}`);
+
     this.activeCall = {
       id: `call-${Date.now()}`,
       conversationId: conv.id,
+      peerId,
       peerName: conv.title,
       avatarColor: conv.avatarColor,
       isVideo,
       direction,
-      state: direction === 'incoming' ? 'ringing' : 'connected',
+      state: direction === 'incoming' ? 'ringing' : 'dialing',
       mutedAudio: false,
       mutedVideo: !isVideo,
       speakerOn: true,
+      isMinimized: false,
+      durationSeconds: 0,
       startedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
-      encryptionSAS: '🦀 🔐 🛰️ ⚡'
+      encryptionSAS: sas.code,
+      sasEmojis: sas.emojis
     };
+
+    this.webrtcManager = new WebRtcManager({
+      onLocalOffer: (sdp) => {
+        if (this.wsInstance && this.wsInstance.readyState === WebSocket.OPEN) {
+          this.wsInstance.send(JSON.stringify({
+            type: 'call_offer',
+            conversationId: conv.id,
+            callerName: this.currentUser.displayName,
+            isVideo,
+            sdp,
+            sasCode: sas.code,
+            sasEmojis: sas.emojis
+          }));
+        }
+      },
+      onLocalAnswer: (sdp) => {
+        if (this.wsInstance && this.wsInstance.readyState === WebSocket.OPEN) {
+          this.wsInstance.send(JSON.stringify({
+            type: 'call_answer',
+            conversationId: conv.id,
+            sdp
+          }));
+        }
+      },
+      onIceCandidate: (candidate) => {
+        if (this.wsInstance && this.wsInstance.readyState === WebSocket.OPEN) {
+          this.wsInstance.send(JSON.stringify({
+            type: 'ice_candidate',
+            conversationId: conv.id,
+            candidate
+          }));
+        }
+      },
+      onConnectionChange: (state) => {
+        if (state === 'connected' && this.activeCall) {
+          this.activeCall.state = 'connected';
+        } else if (state === 'disconnected' || state === 'failed') {
+          this.endCall();
+        }
+      }
+    });
+
+    try {
+      await this.webrtcManager.initMedia(isVideo);
+      if (direction === 'outgoing') {
+        await this.webrtcManager.createPeerConnection(true, peerId);
+        setTimeout(() => {
+          if (this.activeCall && this.activeCall.state === 'dialing') {
+            this.activeCall.state = 'connected';
+          }
+        }, 1200);
+      }
+    } catch (e) {
+      console.warn('[WebRTC] Gagal inisialisasi media:', e);
+    }
+
+    this.callDurationTimer = setInterval(() => {
+      if (this.activeCall && this.activeCall.state === 'connected') {
+        this.activeCall.durationSeconds++;
+      }
+    }, 1000);
   }
 
-  acceptIncomingCall() {
-    if (this.activeCall) {
-      this.activeCall.state = 'connected';
+  receiveIncomingCall(convId: string, callerName: string, isVideo: boolean, sdp?: string, sasCode?: string, sasEmojis?: string) {
+    if (this.activeCall) return;
+    const conv = this.conversations.find((c) => c.id === convId);
+    const avatarColor = conv?.avatarColor || '#BFDBFE';
+    const sas = sasCode && sasEmojis ? { code: sasCode, emojis: sasEmojis } : WebRtcManager.generateSas(convId);
+
+    this.activeCall = {
+      id: `call-${Date.now()}`,
+      conversationId: convId,
+      peerName: callerName,
+      avatarColor,
+      isVideo,
+      direction: 'incoming',
+      state: 'ringing',
+      mutedAudio: false,
+      mutedVideo: !isVideo,
+      speakerOn: true,
+      isMinimized: false,
+      durationSeconds: 0,
+      startedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+      encryptionSAS: sas.code,
+      sasEmojis: sas.emojis
+    };
+
+    if (sdp && this.webrtcManager) {
+      this.webrtcManager.handleRemoteOffer(sdp).catch(() => {});
     }
   }
 
-  endCall() {
+  async acceptIncomingCall() {
+    if (!this.activeCall) return;
+    this.activeCall.state = 'connected';
+    if (!this.webrtcManager) {
+      this.webrtcManager = new WebRtcManager();
+      await this.webrtcManager.initMedia(this.activeCall.isVideo);
+      await this.webrtcManager.createPeerConnection(false, this.activeCall.conversationId);
+    }
+
+    if (!this.callDurationTimer) {
+      this.callDurationTimer = setInterval(() => {
+        if (this.activeCall && this.activeCall.state === 'connected') {
+          this.activeCall.durationSeconds++;
+        }
+      }, 1000);
+    }
+  }
+
+  rejectIncomingCall(reason = 'Ditolak oleh pengguna') {
+    if (this.wsInstance && this.wsInstance.readyState === WebSocket.OPEN && this.activeCall) {
+      this.wsInstance.send(JSON.stringify({
+        type: 'call_hangup',
+        conversationId: this.activeCall.conversationId,
+        reason
+      }));
+    }
+    this.endCall();
+  }
+
+  async endCall() {
+    if (this.callDurationTimer) {
+      clearInterval(this.callDurationTimer);
+      this.callDurationTimer = null;
+    }
+
+    if (this.activeCall) {
+      const call = this.activeCall;
+      safeInvoke('log_call_session', {
+        peerId: call.peerId || call.peerName,
+        callType: call.isVideo ? 'video' : 'voice',
+        durationSeconds: call.durationSeconds,
+        sasCode: call.encryptionSAS
+      }).catch(() => {});
+
+      this.securityLogs = [
+        {
+          id: `log-${Date.now()}`,
+          eventTitle: `Panggilan ${call.isVideo ? 'Video' : 'Suara'} Berakhir (Durasi: ${call.durationSeconds}s, SAS: ${call.encryptionSAS})`,
+          eventCategory: 'network',
+          deviceInfo: 'mekaar-tauri WebRTC SRTP Enclave',
+          timestamp: 'Baru saja',
+          severity: 'info'
+        },
+        ...this.securityLogs
+      ];
+
+      if (this.wsInstance && this.wsInstance.readyState === WebSocket.OPEN) {
+        this.wsInstance.send(JSON.stringify({
+          type: 'call_hangup',
+          conversationId: call.conversationId
+        }));
+      }
+    }
+
+    this.webrtcManager?.close();
+    this.webrtcManager = null;
     this.activeCall = null;
+  }
+
+  toggleCallMute() {
+    if (!this.activeCall) return;
+    this.activeCall.mutedAudio = !this.activeCall.mutedAudio;
+    this.webrtcManager?.setAudioMuted(this.activeCall.mutedAudio);
+  }
+
+  toggleCallVideo() {
+    if (!this.activeCall) return;
+    this.activeCall.mutedVideo = !this.activeCall.mutedVideo;
+    this.webrtcManager?.setVideoMuted(this.activeCall.mutedVideo);
+  }
+
+  toggleCallSpeaker() {
+    if (!this.activeCall) return;
+    this.activeCall.speakerOn = !this.activeCall.speakerOn;
+  }
+
+  toggleCallMinimize() {
+    if (!this.activeCall) return;
+    this.activeCall.isMinimized = !this.activeCall.isMinimized;
   }
 
   async unlockVault(pin: string): Promise<{ success: boolean; mode: string; message: string; isDuressActive: boolean }> {

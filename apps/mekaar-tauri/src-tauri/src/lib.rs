@@ -42,6 +42,7 @@ pub fn run() {
             commands::delete_guardian,
             commands::update_telemetry,
             commands::get_telemetry,
+            commands::log_call_session,
         ])
         .run(tauri::generate_context!())
         .expect("error while running mekaar-tauri application");

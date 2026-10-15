@@ -60,11 +60,11 @@
       <MapScreen />
     {/if}
   </MekaarScaffold>
-
-  <CallScreen />
-
-  <ForensicExportDialog
-    open={mekaarStore.forensicDialogOpen}
-    onclose={() => (mekaarStore.forensicDialogOpen = false)}
-  />
 {/if}
+
+<CallScreen />
+
+<ForensicExportDialog
+  open={mekaarStore.forensicDialogOpen}
+  onclose={() => (mekaarStore.forensicDialogOpen = false)}
+/>

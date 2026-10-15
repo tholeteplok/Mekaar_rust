@@ -120,16 +120,20 @@ export interface EmojiPackModel {
 export interface CallSessionModel {
   id: string;
   conversationId: string;
+  peerId?: string;
   peerName: string;
   avatarColor: string;
   isVideo: boolean;
   direction: 'incoming' | 'outgoing';
-  state: 'ringing' | 'connected' | 'ended';
+  state: 'dialing' | 'ringing' | 'connected' | 'ended';
   mutedAudio: boolean;
   mutedVideo: boolean;
   speakerOn: boolean;
+  isMinimized: boolean;
+  durationSeconds: number;
   startedAt: string;
   encryptionSAS: string;
+  sasEmojis?: string;
 }
 
 export interface GuardianModel {

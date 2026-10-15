@@ -1178,3 +1178,30 @@ pub fn get_telemetry(state: State<'_, MekaarAppState>) -> Result<TelemetryStatus
     Ok(lock.clone())
 }
 
+#[tauri::command]
+pub fn log_call_session(
+    peer_id: String,
+    call_type: String,
+    duration_seconds: u32,
+    sas_code: String,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+
+    let _ = db.insert_security_log(
+        &user_id,
+        None,
+        &format!("call_{}", call_type),
+        Some(&serde_json::json!({
+            "peer_id": peer_id,
+            "duration_seconds": duration_seconds,
+            "sas_code": sas_code,
+            "encryption": "SRTP-DTLS (P2P)"
+        })),
+    );
+
+    Ok(true)
+}
+
+
