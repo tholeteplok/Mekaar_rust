@@ -127,3 +127,58 @@ pub struct SosSessionRecord {
     pub ended_reason: Option<String>, // "manual", "timer", "inactivity"
     pub created_at: u64,
 }
+
+/// Struktur data sesi perjalanan dan kawal Guardian.
+/// Selaras dengan `trip_model.dart` dari Flutter.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct UserTripRecord {
+    pub id: Uuid,
+    pub user_id: Uuid,
+    pub origin_name: String,
+    pub destination_name: String,
+    pub dest_lat: f64,
+    pub dest_lng: f64,
+    pub dest_radius: u32,
+    pub eta_minutes: u32,
+    pub status: String, // "ongoing", "arrived_auto", "arrived_confirmed", "delayed_alerted", "completed"
+    pub started_at: u64,
+    pub ended_at: Option<u64>,
+    pub active_guardians_json: String, // JSON array of guardian names
+    pub progress_percent: u32,
+    pub created_at: u64,
+}
+
+/// Struktur data zona aman / lokasi tersimpan.
+/// Selaras dengan `saved_place_model.dart` dari Flutter.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct SavedPlaceRecord {
+    pub id: String, // e.g. "plc-01", "home", "office"
+    pub user_id: Uuid,
+    pub name: String,
+    pub category: String, // "home", "office", "safe_zone", "favorite"
+    pub address: Option<String>,
+    pub latitude: f64,
+    pub longitude: f64,
+    pub radius_meters: u32,
+    pub auto_notify_guardian: bool,
+    pub updated_at: u64,
+}
+
+/// Struktur data kontak Guardian pelindung.
+/// Selaras dengan `guardian_model.dart` dari Flutter.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct GuardianRecord {
+    pub id: String,
+    pub user_id: Uuid,
+    pub name: String,
+    pub username: String,
+    pub avatar_color: String,
+    pub relation: String,
+    pub status: String, // "active", "standby", "pending_request"
+    pub can_view_live_location: bool,
+    pub can_receive_sos_alert: bool,
+    pub battery_percent: u8,
+    pub last_latitude: Option<f64>,
+    pub last_longitude: Option<f64>,
+    pub updated_at: u64,
+}

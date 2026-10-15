@@ -4,7 +4,10 @@
 //! Menyediakan persistensi aman untuk seluruh data aplikasi di disk klien.
 
 use crate::error::StorageError;
-use crate::models::{ChatRoom, Contact, DeliveryStatus, LocalMessage, SecurityLog, SosSessionRecord};
+use crate::models::{
+    ChatRoom, Contact, DeliveryStatus, GuardianRecord, LocalMessage, SavedPlaceRecord, SecurityLog,
+    SosSessionRecord, UserTripRecord,
+};
 use mekaar_proto::MessageType;
 use rusqlite::{params, Connection};
 use sha2::{Digest, Sha256};
@@ -133,7 +136,56 @@ impl EncryptedDatabase {
                 key_name TEXT PRIMARY KEY,
                 key_data TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
-            );",
+            );
+
+            CREATE TABLE IF NOT EXISTS user_trips (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                origin_name TEXT NOT NULL,
+                destination_name TEXT NOT NULL,
+                dest_lat REAL NOT NULL,
+                dest_lng REAL NOT NULL,
+                dest_radius INTEGER NOT NULL,
+                eta_minutes INTEGER NOT NULL,
+                status TEXT NOT NULL,
+                started_at INTEGER NOT NULL,
+                ended_at INTEGER,
+                active_guardians_json TEXT NOT NULL,
+                progress_percent INTEGER NOT NULL,
+                created_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_trips_user ON user_trips(user_id);
+
+            CREATE TABLE IF NOT EXISTS saved_places (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                category TEXT NOT NULL,
+                address TEXT,
+                latitude REAL NOT NULL,
+                longitude REAL NOT NULL,
+                radius_meters INTEGER NOT NULL,
+                auto_notify_guardian INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_places_user ON saved_places(user_id);
+
+            CREATE TABLE IF NOT EXISTS guardians (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                username TEXT NOT NULL,
+                avatar_color TEXT NOT NULL,
+                relation TEXT NOT NULL,
+                status TEXT NOT NULL,
+                can_view_live_location INTEGER NOT NULL,
+                can_receive_sos_alert INTEGER NOT NULL,
+                battery_percent INTEGER NOT NULL,
+                last_latitude REAL,
+                last_longitude REAL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_guardians_user ON guardians(user_id);",
         )?;
 
         Ok(())
@@ -719,6 +771,274 @@ impl EncryptedDatabase {
             is_muted: row.get::<_, i32>(8)? != 0,
             is_vault_hidden: row.get::<_, i32>(9)? != 0,
         })
+    }
+
+    // ── User Trips & Kawal Perjalanan ──────────────────────────────────
+
+    pub fn list_trips(&self, user_id: &Uuid) -> Result<Vec<UserTripRecord>, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, user_id, origin_name, destination_name, dest_lat, dest_lng,
+                    dest_radius, eta_minutes, status, started_at, ended_at,
+                    active_guardians_json, progress_percent, created_at
+             FROM user_trips
+             WHERE user_id = ?1
+             ORDER BY created_at DESC",
+        )?;
+
+        let rows = stmt.query_map(params![user_id.to_string()], |row| {
+            let id_str: String = row.get(0)?;
+            let uid_str: String = row.get(1)?;
+            let started: i64 = row.get(9)?;
+            let ended: Option<i64> = row.get(10)?;
+            let created: i64 = row.get(13)?;
+            Ok(UserTripRecord {
+                id: Uuid::parse_str(&id_str).unwrap_or_default(),
+                user_id: Uuid::parse_str(&uid_str).unwrap_or_default(),
+                origin_name: row.get(2)?,
+                destination_name: row.get(3)?,
+                dest_lat: row.get(4)?,
+                dest_lng: row.get(5)?,
+                dest_radius: row.get::<_, i64>(6)? as u32,
+                eta_minutes: row.get::<_, i64>(7)? as u32,
+                status: row.get(8)?,
+                started_at: started as u64,
+                ended_at: ended.map(|v| v as u64),
+                active_guardians_json: row.get(11)?,
+                progress_percent: row.get::<_, i64>(12)? as u32,
+                created_at: created as u64,
+            })
+        })?;
+
+        let mut trips = Vec::new();
+        for r in rows {
+            trips.push(r?);
+        }
+        Ok(trips)
+    }
+
+    pub fn upsert_trip(&self, trip: &UserTripRecord) -> Result<(), StorageError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO user_trips (
+                id, user_id, origin_name, destination_name, dest_lat, dest_lng,
+                dest_radius, eta_minutes, status, started_at, ended_at,
+                active_guardians_json, progress_percent, created_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)
+            ON CONFLICT(id) DO UPDATE SET
+                origin_name = excluded.origin_name,
+                destination_name = excluded.destination_name,
+                dest_lat = excluded.dest_lat,
+                dest_lng = excluded.dest_lng,
+                dest_radius = excluded.dest_radius,
+                eta_minutes = excluded.eta_minutes,
+                status = excluded.status,
+                ended_at = excluded.ended_at,
+                active_guardians_json = excluded.active_guardians_json,
+                progress_percent = excluded.progress_percent",
+            params![
+                trip.id.to_string(),
+                trip.user_id.to_string(),
+                trip.origin_name,
+                trip.destination_name,
+                trip.dest_lat,
+                trip.dest_lng,
+                trip.dest_radius as i64,
+                trip.eta_minutes as i64,
+                trip.status,
+                trip.started_at as i64,
+                trip.ended_at.map(|v| v as i64),
+                trip.active_guardians_json,
+                trip.progress_percent as i64,
+                trip.created_at as i64,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn complete_trip(&self, trip_id: &Uuid, status: &str) -> Result<(), StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+
+        conn.execute(
+            "UPDATE user_trips
+             SET status = ?1, progress_percent = 100, ended_at = ?2
+             WHERE id = ?3",
+            params![status, now, trip_id.to_string()],
+        )?;
+        Ok(())
+    }
+
+    // ── Saved Places & Zona Aman ───────────────────────────────────────
+
+    pub fn list_saved_places(&self, user_id: &Uuid) -> Result<Vec<SavedPlaceRecord>, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, user_id, name, category, address, latitude, longitude,
+                    radius_meters, auto_notify_guardian, updated_at
+             FROM saved_places
+             WHERE user_id = ?1
+             ORDER BY updated_at DESC",
+        )?;
+
+        let rows = stmt.query_map(params![user_id.to_string()], |row| {
+            let uid_str: String = row.get(1)?;
+            let auto_notify: i64 = row.get(8)?;
+            let updated: i64 = row.get(9)?;
+            Ok(SavedPlaceRecord {
+                id: row.get(0)?,
+                user_id: Uuid::parse_str(&uid_str).unwrap_or_default(),
+                name: row.get(2)?,
+                category: row.get(3)?,
+                address: row.get(4)?,
+                latitude: row.get(5)?,
+                longitude: row.get(6)?,
+                radius_meters: row.get::<_, i64>(7)? as u32,
+                auto_notify_guardian: auto_notify != 0,
+                updated_at: updated as u64,
+            })
+        })?;
+
+        let mut places = Vec::new();
+        for r in rows {
+            places.push(r?);
+        }
+        Ok(places)
+    }
+
+    pub fn upsert_saved_place(&self, place: &SavedPlaceRecord) -> Result<(), StorageError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO saved_places (
+                id, user_id, name, category, address, latitude, longitude,
+                radius_meters, auto_notify_guardian, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                category = excluded.category,
+                address = excluded.address,
+                latitude = excluded.latitude,
+                longitude = excluded.longitude,
+                radius_meters = excluded.radius_meters,
+                auto_notify_guardian = excluded.auto_notify_guardian,
+                updated_at = excluded.updated_at",
+            params![
+                place.id,
+                place.user_id.to_string(),
+                place.name,
+                place.category,
+                place.address,
+                place.latitude,
+                place.longitude,
+                place.radius_meters as i64,
+                if place.auto_notify_guardian { 1 } else { 0 },
+                place.updated_at as i64,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_saved_place(&self, user_id: &Uuid, place_id: &str) -> Result<bool, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute(
+            "DELETE FROM saved_places WHERE id = ?1 AND user_id = ?2",
+            params![place_id, user_id.to_string()],
+        )?;
+        Ok(affected > 0)
+    }
+
+    // ── Guardians & Pendamping ─────────────────────────────────────────
+
+    pub fn list_guardians(&self, user_id: &Uuid) -> Result<Vec<GuardianRecord>, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, user_id, name, username, avatar_color, relation, status,
+                    can_view_live_location, can_receive_sos_alert, battery_percent,
+                    last_latitude, last_longitude, updated_at
+             FROM guardians
+             WHERE user_id = ?1
+             ORDER BY updated_at DESC",
+        )?;
+
+        let rows = stmt.query_map(params![user_id.to_string()], |row| {
+            let uid_str: String = row.get(1)?;
+            let can_loc: i64 = row.get(7)?;
+            let can_sos: i64 = row.get(8)?;
+            let bat: i64 = row.get(9)?;
+            let updated: i64 = row.get(12)?;
+            Ok(GuardianRecord {
+                id: row.get(0)?,
+                user_id: Uuid::parse_str(&uid_str).unwrap_or_default(),
+                name: row.get(2)?,
+                username: row.get(3)?,
+                avatar_color: row.get(4)?,
+                relation: row.get(5)?,
+                status: row.get(6)?,
+                can_view_live_location: can_loc != 0,
+                can_receive_sos_alert: can_sos != 0,
+                battery_percent: bat as u8,
+                last_latitude: row.get(10)?,
+                last_longitude: row.get(11)?,
+                updated_at: updated as u64,
+            })
+        })?;
+
+        let mut guardians = Vec::new();
+        for r in rows {
+            guardians.push(r?);
+        }
+        Ok(guardians)
+    }
+
+    pub fn upsert_guardian(&self, guardian: &GuardianRecord) -> Result<(), StorageError> {
+        let conn = self.conn.lock().unwrap();
+        conn.execute(
+            "INSERT INTO guardians (
+                id, user_id, name, username, avatar_color, relation, status,
+                can_view_live_location, can_receive_sos_alert, battery_percent,
+                last_latitude, last_longitude, updated_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
+            ON CONFLICT(id) DO UPDATE SET
+                name = excluded.name,
+                username = excluded.username,
+                avatar_color = excluded.avatar_color,
+                relation = excluded.relation,
+                status = excluded.status,
+                can_view_live_location = excluded.can_view_live_location,
+                can_receive_sos_alert = excluded.can_receive_sos_alert,
+                battery_percent = excluded.battery_percent,
+                last_latitude = excluded.last_latitude,
+                last_longitude = excluded.last_longitude,
+                updated_at = excluded.updated_at",
+            params![
+                guardian.id,
+                guardian.user_id.to_string(),
+                guardian.name,
+                guardian.username,
+                guardian.avatar_color,
+                guardian.relation,
+                guardian.status,
+                if guardian.can_view_live_location { 1 } else { 0 },
+                if guardian.can_receive_sos_alert { 1 } else { 0 },
+                guardian.battery_percent as i64,
+                guardian.last_latitude,
+                guardian.last_longitude,
+                guardian.updated_at as i64,
+            ],
+        )?;
+        Ok(())
+    }
+
+    pub fn delete_guardian(&self, user_id: &Uuid, guardian_id: &str) -> Result<bool, StorageError> {
+        let conn = self.conn.lock().unwrap();
+        let affected = conn.execute(
+            "DELETE FROM guardians WHERE id = ?1 AND user_id = ?2",
+            params![guardian_id, user_id.to_string()],
+        )?;
+        Ok(affected > 0)
     }
 }
 

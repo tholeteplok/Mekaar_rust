@@ -157,12 +157,25 @@ export interface TripModel {
   id: string;
   originName: string;
   destinationName: string;
+  destLat?: number;
+  destLng?: number;
+  destRadius?: number;
   startedAt: string;
   endedAt?: string;
   etaMinutes: number;
-  status: 'ongoing' | 'completed' | 'sos_triggered';
+  status: 'ongoing' | 'completed' | 'sos_triggered' | 'arrived_auto' | 'arrived_confirmed' | 'delayed_alerted';
   activeGuardians: string[];
   progressPercent: number;
+}
+
+export interface TelemetryModel {
+  latitude: number;
+  longitude: number;
+  batteryLevel: number;
+  isInSafeZone: boolean;
+  isInDangerZone: boolean;
+  activeZoneName?: string;
+  updatedAt: number;
 }
 
 export interface NearbyFriendModel {

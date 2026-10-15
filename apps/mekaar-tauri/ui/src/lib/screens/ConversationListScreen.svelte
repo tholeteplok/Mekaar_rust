@@ -56,13 +56,28 @@
   showAegisBadge={true}
 >
   {#snippet actions()}
-    <!-- Guardian Icon Button -->
+    <!-- Map / Radar Icon Button -->
     <button
       type="button"
       class="icon-action-btn"
-      onclick={() => (selectedSegment = 'guardian')}
-      title="Filter Guardian"
-      aria-label="Guardian"
+      onclick={() => mekaarStore.setTab('map')}
+      title="Peta & Radar Teman Sekitar"
+      aria-label="Peta Radar"
+    >
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+        <line x1="8" y1="2" x2="8" y2="18"/>
+        <line x1="16" y1="6" x2="16" y2="22"/>
+      </svg>
+    </button>
+
+    <!-- Guardian Hub Button -->
+    <button
+      type="button"
+      class="icon-action-btn"
+      onclick={() => mekaarStore.setTab('guardian')}
+      title="Guardian & Kawal Perjalanan"
+      aria-label="Guardian Hub"
     >
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
@@ -87,6 +102,26 @@
 </AppBar>
 
 <div class="chat-list-container">
+  <!-- Ongoing Trip Banner -->
+  {#if mekaarStore.trips.some((t) => t.status === 'ongoing')}
+    {@const ongoing = mekaarStore.trips.find((t) => t.status === 'ongoing')}
+    <!-- svelte-ignore a11y_click_events_have_key_events -->
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="ongoing-trip-banner"
+      onclick={() => mekaarStore.setTab('guardian')}
+    >
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span class="trip-pulse-dot"></span>
+        <div>
+          <div style="font-size: 0.85rem; font-weight: 700; color: #065F46;">🛵 Kawal Aktif: Menuju {ongoing?.destinationName}</div>
+          <div style="font-size: 0.76rem; color: #047857;">ETA {ongoing?.etaMinutes} mnt • Dikawal {ongoing?.activeGuardians.join(', ')}</div>
+        </div>
+      </div>
+      <span class="sketch-badge" style="background: #10B981; color: #FFFFFF; font-size: 0.72rem;">Pantau ➔</span>
+    </div>
+  {/if}
+
   {#if isSearchActive}
     <div class="search-bar-wrap">
       <input
@@ -207,6 +242,26 @@
     display: flex;
     flex-direction: column;
     gap: 12px;
+  }
+
+  .ongoing-trip-banner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: #ECFDF5;
+    border: 1.5px solid #10B981;
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    box-shadow: 0 2px 4px rgba(16, 185, 129, 0.12);
+  }
+
+  .trip-pulse-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #10B981;
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.3);
   }
 
   .icon-action-btn {

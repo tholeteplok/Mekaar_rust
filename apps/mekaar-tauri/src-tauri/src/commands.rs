@@ -4,7 +4,10 @@ use mekaar_crypto::{
     derive_room_key, encrypt_message, IdentityPublicKey,
 };
 use mekaar_proto::MessageType;
-use mekaar_storage::{ChatRoom, Contact, DeliveryStatus, EncryptedDatabase, LocalMessage, SecurityLog};
+use mekaar_storage::{
+    ChatRoom, Contact, DeliveryStatus, EncryptedDatabase, GuardianRecord, LocalMessage,
+    SavedPlaceRecord, SecurityLog, UserTripRecord,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -130,6 +133,32 @@ pub struct ForensicExportResponse {
     pub public_key: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TelemetryStatus {
+    pub latitude: f64,
+    pub longitude: f64,
+    pub battery_level: u8,
+    pub is_in_safe_zone: bool,
+    pub is_in_danger_zone: bool,
+    pub active_zone_name: Option<String>,
+    pub updated_at: u64,
+}
+
+impl Default for TelemetryStatus {
+    fn default() -> Self {
+        Self {
+            latitude: -7.5568,
+            longitude: 110.8521,
+            battery_level: 84,
+            is_in_safe_zone: true,
+            is_in_danger_zone: false,
+            active_zone_name: Some("Rumah Utama (Zona Aman)".to_string()),
+            updated_at: 0,
+        }
+    }
+}
+
 // ── App State ───────────────────────────────────────────────────────────
 
 pub struct MekaarAppState {
@@ -144,6 +173,7 @@ pub struct MekaarAppState {
     pub db: Mutex<Option<EncryptedDatabase>>,
     pub sos_engine: Arc<SosPanicEngine>,
     pub user_id: Mutex<Uuid>,
+    pub telemetry: Mutex<TelemetryStatus>,
 }
 
 impl Default for MekaarAppState {
@@ -162,6 +192,7 @@ impl Default for MekaarAppState {
             db: Mutex::new(None),
             sos_engine,
             user_id: Mutex::new(Uuid::parse_str("f47ac10b-58cc-4372-a567-0e02b2c3d479").unwrap()),
+            telemetry: Mutex::new(TelemetryStatus::default()),
         }
     }
 }
@@ -264,6 +295,130 @@ fn get_or_init_db(state: &MekaarAppState, pin: &str) -> Result<EncryptedDatabase
         created_at: 1728900000000,
         updated_at: 1728900000000,
         status: DeliveryStatus::Read,
+    });
+
+    // Seed User Trips
+    let _ = db.upsert_trip(&UserTripRecord {
+        id: Uuid::parse_str("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa").unwrap(),
+        user_id: my_id,
+        origin_name: "Stasiun Solo Balapan".to_string(),
+        destination_name: "Rumah (Jebres, Surakarta)".to_string(),
+        dest_lat: -7.5568,
+        dest_lng: 110.8521,
+        dest_radius: 150,
+        eta_minutes: 12,
+        status: "ongoing".to_string(),
+        started_at: 1728900000000,
+        ended_at: None,
+        active_guardians_json: serde_json::to_string(&vec!["Ayu Lestari", "Bima Pratama"]).unwrap(),
+        progress_percent: 68,
+        created_at: 1728900000000,
+    });
+
+    let _ = db.upsert_trip(&UserTripRecord {
+        id: Uuid::parse_str("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb").unwrap(),
+        user_id: my_id,
+        origin_name: "Kantor Pusat".to_string(),
+        destination_name: "Stasiun Solo Balapan".to_string(),
+        dest_lat: -7.5580,
+        dest_lng: 110.8210,
+        dest_radius: 150,
+        eta_minutes: 25,
+        status: "completed".to_string(),
+        started_at: 1728800000000,
+        ended_at: Some(1728801500000),
+        active_guardians_json: serde_json::to_string(&vec!["Ayu Lestari"]).unwrap(),
+        progress_percent: 100,
+        created_at: 1728800000000,
+    });
+
+    // Seed Saved Places
+    let _ = db.upsert_saved_place(&SavedPlaceRecord {
+        id: "plc-01".to_string(),
+        user_id: my_id,
+        name: "Rumah Utama (Zona Aman)".to_string(),
+        category: "home".to_string(),
+        address: Some("Jl. Ki Hajar Dewantara, Jebres, Surakarta".to_string()),
+        latitude: -7.5568,
+        longitude: 110.8521,
+        radius_meters: 150,
+        auto_notify_guardian: true,
+        updated_at: 1728900000000,
+    });
+
+    let _ = db.upsert_saved_place(&SavedPlaceRecord {
+        id: "plc-02".to_string(),
+        user_id: my_id,
+        name: "Server Lab (teplok-pc)".to_string(),
+        category: "office".to_string(),
+        address: Some("Laweyan, Surakarta".to_string()),
+        latitude: -7.5682,
+        longitude: 110.7984,
+        radius_meters: 100,
+        auto_notify_guardian: true,
+        updated_at: 1728900000000,
+    });
+
+    let _ = db.upsert_saved_place(&SavedPlaceRecord {
+        id: "plc-03".to_string(),
+        user_id: my_id,
+        name: "RSUD Dr. Moewardi (Pos Medis)".to_string(),
+        category: "safe_zone".to_string(),
+        address: Some("Jl. Kolonel Sutarto No.132, Surakarta".to_string()),
+        latitude: -7.5592,
+        longitude: 110.8415,
+        radius_meters: 250,
+        auto_notify_guardian: false,
+        updated_at: 1728900000000,
+    });
+
+    // Seed Guardians
+    let _ = db.upsert_guardian(&GuardianRecord {
+        id: "grd-01".to_string(),
+        user_id: my_id,
+        name: "Ayu Lestari".to_string(),
+        username: "@ayulestari".to_string(),
+        avatar_color: "#BFDBFE".to_string(),
+        relation: "Guardian Utama".to_string(),
+        status: "active".to_string(),
+        can_view_live_location: true,
+        can_receive_sos_alert: true,
+        battery_percent: 86,
+        last_latitude: Some(-7.5561),
+        last_longitude: Some(110.8318),
+        updated_at: 1728900000000,
+    });
+
+    let _ = db.upsert_guardian(&GuardianRecord {
+        id: "grd-02".to_string(),
+        user_id: my_id,
+        name: "Bima Pratama".to_string(),
+        username: "@bimapratama".to_string(),
+        avatar_color: "#FBCFE8".to_string(),
+        relation: "Rekan Siaga".to_string(),
+        status: "standby".to_string(),
+        can_view_live_location: true,
+        can_receive_sos_alert: true,
+        battery_percent: 74,
+        last_latitude: Some(-7.5624),
+        last_longitude: Some(110.8215),
+        updated_at: 1728900000000,
+    });
+
+    let _ = db.upsert_guardian(&GuardianRecord {
+        id: "grd-03".to_string(),
+        user_id: my_id,
+        name: "Dimas Wijaya".to_string(),
+        username: "@dimasw".to_string(),
+        avatar_color: "#FDE68A".to_string(),
+        relation: "Keluarga".to_string(),
+        status: "pending_request".to_string(),
+        can_view_live_location: false,
+        can_receive_sos_alert: true,
+        battery_percent: 91,
+        last_latitude: None,
+        last_longitude: None,
+        updated_at: 1728900000000,
     });
 
     *lock = Some(db.clone());
@@ -736,3 +891,290 @@ pub fn trigger_device_lost_wipe(confirmation_code: String, state: State<'_, Meka
     *unlocked = false;
     Ok(true)
 }
+
+// ── Modul Guardian, Kawal Perjalanan & Peta Interaktif ──────────────────
+
+#[tauri::command]
+pub fn get_trips(state: State<'_, MekaarAppState>) -> Result<Vec<UserTripRecord>, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let trips = db.list_trips(&user_id).map_err(|e| e.to_string())?;
+    Ok(trips)
+}
+
+#[tauri::command]
+pub fn start_trip(
+    origin_name: String,
+    destination_name: String,
+    dest_lat: f64,
+    dest_lng: f64,
+    dest_radius: u32,
+    eta_minutes: u32,
+    active_guardians: Vec<String>,
+    state: State<'_, MekaarAppState>,
+) -> Result<UserTripRecord, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let guardians_json = serde_json::to_string(&active_guardians).unwrap_or_else(|_| "[]".to_string());
+
+    let trip = UserTripRecord {
+        id: Uuid::new_v4(),
+        user_id,
+        origin_name,
+        destination_name,
+        dest_lat,
+        dest_lng,
+        dest_radius,
+        eta_minutes,
+        status: "ongoing".to_string(),
+        started_at: now,
+        ended_at: None,
+        active_guardians_json: guardians_json,
+        progress_percent: 5,
+        created_at: now,
+    };
+
+    db.upsert_trip(&trip).map_err(|e| e.to_string())?;
+
+    let _ = db.insert_security_log(
+        &user_id,
+        None,
+        "trip_started",
+        Some(&serde_json::json!({
+            "trip_id": trip.id.to_string(),
+            "destination": trip.destination_name,
+            "eta": trip.eta_minutes
+        })),
+    );
+
+    Ok(trip)
+}
+
+#[tauri::command]
+pub fn complete_trip(
+    trip_id: String,
+    status: Option<String>,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let t_uuid = Uuid::parse_str(&trip_id).map_err(|e| e.to_string())?;
+    let final_status = status.unwrap_or_else(|| "arrived_confirmed".to_string());
+    db.complete_trip(&t_uuid, &final_status).map_err(|e| e.to_string())?;
+
+    let user_id = *state.user_id.lock().unwrap();
+    let _ = db.insert_security_log(
+        &user_id,
+        None,
+        "trip_completed",
+        Some(&serde_json::json!({
+            "trip_id": trip_id,
+            "status": final_status
+        })),
+    );
+
+    Ok(true)
+}
+
+#[tauri::command]
+pub fn get_saved_places(state: State<'_, MekaarAppState>) -> Result<Vec<SavedPlaceRecord>, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let places = db.list_saved_places(&user_id).map_err(|e| e.to_string())?;
+    Ok(places)
+}
+
+#[tauri::command]
+pub fn add_saved_place(
+    id: Option<String>,
+    name: String,
+    category: String,
+    address: Option<String>,
+    latitude: f64,
+    longitude: f64,
+    radius_meters: u32,
+    auto_notify_guardian: bool,
+    state: State<'_, MekaarAppState>,
+) -> Result<SavedPlaceRecord, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let place_id = id.unwrap_or_else(|| format!("plc-{}", Uuid::new_v4().simple()));
+
+    let place = SavedPlaceRecord {
+        id: place_id,
+        user_id,
+        name,
+        category,
+        address,
+        latitude,
+        longitude,
+        radius_meters,
+        auto_notify_guardian,
+        updated_at: now,
+    };
+
+    db.upsert_saved_place(&place).map_err(|e| e.to_string())?;
+    Ok(place)
+}
+
+#[tauri::command]
+pub fn delete_saved_place(place_id: String, state: State<'_, MekaarAppState>) -> Result<bool, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let success = db.delete_saved_place(&user_id, &place_id).map_err(|e| e.to_string())?;
+    Ok(success)
+}
+
+#[tauri::command]
+pub fn get_guardians(state: State<'_, MekaarAppState>) -> Result<Vec<GuardianRecord>, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let guardians = db.list_guardians(&user_id).map_err(|e| e.to_string())?;
+    Ok(guardians)
+}
+
+#[tauri::command]
+pub fn add_guardian(
+    name: String,
+    username: String,
+    avatar_color: String,
+    relation: String,
+    can_view_live_location: bool,
+    can_receive_sos_alert: bool,
+    state: State<'_, MekaarAppState>,
+) -> Result<GuardianRecord, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let guardian = GuardianRecord {
+        id: format!("grd-{}", Uuid::new_v4().simple()),
+        user_id,
+        name,
+        username,
+        avatar_color,
+        relation,
+        status: "active".to_string(),
+        can_view_live_location,
+        can_receive_sos_alert,
+        battery_percent: 95,
+        last_latitude: Some(-7.5568),
+        last_longitude: Some(110.8521),
+        updated_at: now,
+    };
+
+    db.upsert_guardian(&guardian).map_err(|e| e.to_string())?;
+    Ok(guardian)
+}
+
+#[tauri::command]
+pub fn update_guardian_status(
+    guardian_id: String,
+    status: String,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let guardians = db.list_guardians(&user_id).map_err(|e| e.to_string())?;
+    if let Some(mut grd) = guardians.into_iter().find(|g| g.id == guardian_id) {
+        grd.status = status;
+        grd.updated_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        db.upsert_guardian(&grd).map_err(|e| e.to_string())?;
+        Ok(true)
+    } else {
+        Err("Guardian not found".to_string())
+    }
+}
+
+#[tauri::command]
+pub fn delete_guardian(guardian_id: String, state: State<'_, MekaarAppState>) -> Result<bool, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let success = db.delete_guardian(&user_id, &guardian_id).map_err(|e| e.to_string())?;
+    Ok(success)
+}
+
+fn haversine_distance(lat1: f64, lon1: f64, lat2: f64, lon2: f64) -> f64 {
+    let r = 6_371_000.0;
+    let phi1 = lat1.to_radians();
+    let phi2 = lat2.to_radians();
+    let delta_phi = (lat2 - lat1).to_radians();
+    let delta_lambda = (lon2 - lon1).to_radians();
+
+    let a = (delta_phi / 2.0).sin().powi(2)
+        + phi1.cos() * phi2.cos() * (delta_lambda / 2.0).sin().powi(2);
+    let c = 2.0 * a.sqrt().atan2((1.0 - a).sqrt());
+
+    r * c
+}
+
+#[tauri::command]
+pub fn update_telemetry(
+    latitude: f64,
+    longitude: f64,
+    battery_level: u8,
+    state: State<'_, MekaarAppState>,
+) -> Result<TelemetryStatus, String> {
+    let db = get_or_init_db(&state, "123456")?;
+    let user_id = *state.user_id.lock().unwrap();
+    let places = db.list_saved_places(&user_id).unwrap_or_default();
+
+    let mut is_in_safe_zone = false;
+    let mut is_in_danger_zone = false;
+    let mut active_zone_name = None;
+
+    for place in places {
+        let dist = haversine_distance(latitude, longitude, place.latitude, place.longitude);
+        if dist <= place.radius_meters as f64 {
+            if place.category == "safe_zone" || place.category == "home" || place.category == "office" {
+                is_in_safe_zone = true;
+                active_zone_name = Some(place.name.clone());
+            } else if place.category == "danger_zone" {
+                is_in_danger_zone = true;
+                active_zone_name = Some(place.name.clone());
+            }
+        }
+    }
+
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+
+    let new_telem = TelemetryStatus {
+        latitude,
+        longitude,
+        battery_level,
+        is_in_safe_zone,
+        is_in_danger_zone,
+        active_zone_name,
+        updated_at: now,
+    };
+
+    let mut lock = state.telemetry.lock().map_err(|e| e.to_string())?;
+    *lock = new_telem.clone();
+
+    Ok(new_telem)
+}
+
+#[tauri::command]
+pub fn get_telemetry(state: State<'_, MekaarAppState>) -> Result<TelemetryStatus, String> {
+    let lock = state.telemetry.lock().map_err(|e| e.to_string())?;
+    Ok(lock.clone())
+}
+

@@ -17,7 +17,8 @@ import type {
   SecurityLogModel,
   BlockedUserModel,
   DeviceLostModel,
-  ChatThemeId
+  ChatThemeId,
+  TelemetryModel
 } from '../types';
 
 export const TAILSCALE_HTTP = 'http://100.101.96.120:8085';
@@ -469,6 +470,17 @@ class MekaarStore {
       autoNotifyGuardian: false
     }
   ]);
+
+  // Telemetri Langsung & Geofencing Guardian
+  telemetry = $state<TelemetryModel>({
+    latitude: -7.5568,
+    longitude: 110.8521,
+    batteryLevel: 84,
+    isInSafeZone: true,
+    isInDangerZone: false,
+    activeZoneName: 'Rumah Utama (Zona Aman)',
+    updatedAt: Date.now()
+  });
 
   // Sesi SOS (sos_active_screen.dart, sos_countdown_screen.dart, sos_settings_screen.dart parity)
   sosSession = $state<SosSessionModel>({
@@ -1141,9 +1153,400 @@ class MekaarStore {
           severity: l.eventType.includes('DURESS') || l.eventType.includes('SOS') ? 'critical' : 'info'
         }));
       }
+
+      // 5. Perjalanan & Kawal Trip dari SQLCipher
+      const backendTrips = await safeInvoke<Array<{
+        id: string;
+        origin_name: string;
+        destination_name: string;
+        dest_lat: number;
+        dest_lng: number;
+        dest_radius: number;
+        eta_minutes: number;
+        status: string;
+        started_at: number;
+        ended_at?: number | null;
+        active_guardians_json: string;
+        progress_percent: number;
+      }>>('get_trips');
+
+      if (backendTrips && backendTrips.length > 0) {
+        this.trips = backendTrips.map((t) => {
+          let guardians: string[] = [];
+          try {
+            guardians = JSON.parse(t.active_guardians_json);
+          } catch {
+            guardians = ['Guardian Mekaar'];
+          }
+          return {
+            id: t.id,
+            originName: t.origin_name,
+            destinationName: t.destination_name,
+            destLat: t.dest_lat,
+            destLng: t.dest_lng,
+            destRadius: t.dest_radius,
+            startedAt: new Date(t.started_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+            endedAt: t.ended_at ? new Date(t.ended_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : undefined,
+            etaMinutes: t.eta_minutes,
+            status: (t.status === 'completed' || t.status === 'arrived_confirmed') ? 'completed' : 'ongoing',
+            activeGuardians: guardians,
+            progressPercent: t.progress_percent
+          };
+        });
+      }
+
+      // 6. Zona Aman & Lokasi Tersimpan dari SQLCipher
+      const backendPlaces = await safeInvoke<Array<{
+        id: string;
+        name: string;
+        category: string;
+        address?: string | null;
+        latitude: number;
+        longitude: number;
+        radius_meters: number;
+        auto_notify_guardian: boolean;
+      }>>('get_saved_places');
+
+      if (backendPlaces && backendPlaces.length > 0) {
+        this.savedPlaces = backendPlaces.map((p) => ({
+          id: p.id,
+          name: p.name,
+          category: p.category as SavedPlaceModel['category'],
+          address: p.address || '',
+          latitude: p.latitude,
+          longitude: p.longitude,
+          radiusMeters: p.radius_meters,
+          autoNotifyGuardian: p.auto_notify_guardian
+        }));
+      }
+
+      // 7. Kontak Guardian dari SQLCipher
+      const backendGuardians = await safeInvoke<Array<{
+        id: string;
+        name: string;
+        username: string;
+        avatar_color: string;
+        relation: string;
+        status: string;
+        can_view_live_location: boolean;
+        can_receive_sos_alert: boolean;
+        battery_percent: number;
+        updated_at: number;
+      }>>('get_guardians');
+
+      if (backendGuardians && backendGuardians.length > 0) {
+        this.guardians = backendGuardians.map((g) => ({
+          id: g.id,
+          name: g.name,
+          username: g.username,
+          avatarColor: g.avatar_color,
+          relation: g.relation,
+          status: g.status as GuardianModel['status'],
+          canViewLiveLocation: g.can_view_live_location,
+          canReceiveSosAlert: g.can_receive_sos_alert,
+          batteryPercent: g.battery_percent,
+          lastUpdated: 'Aktif terenkripsi'
+        }));
+      }
+
+      // 8. Telemetri & Status Geofence
+      const telem = await safeInvoke<TelemetryModel>('get_telemetry');
+      if (telem) {
+        this.telemetry = telem;
+      }
     } catch (e) {
       console.warn('[MekaarStore] syncFromBackend error:', e);
     }
+  }
+
+  // ── Modul Guardian & Kawal Perjalanan ──────────────────────────────────
+
+  async startTrip(params: {
+    originName: string;
+    destinationName: string;
+    destLat?: number;
+    destLng?: number;
+    destRadius?: number;
+    etaMinutes: number;
+    activeGuardians: string[];
+  }): Promise<TripModel> {
+    const lat = params.destLat ?? -7.5568;
+    const lng = params.destLng ?? 110.8521;
+    const radius = params.destRadius ?? 150;
+
+    const res = await safeInvoke<{
+      id: string;
+      origin_name: string;
+      destination_name: string;
+      dest_lat: number;
+      dest_lng: number;
+      dest_radius: number;
+      eta_minutes: number;
+      status: string;
+      started_at: number;
+      ended_at?: number | null;
+      active_guardians_json: string;
+      progress_percent: number;
+    }>('start_trip', {
+      originName: params.originName,
+      destinationName: params.destinationName,
+      destLat: lat,
+      destLng: lng,
+      destRadius: radius,
+      etaMinutes: params.etaMinutes,
+      activeGuardians: params.activeGuardians
+    });
+
+    const newTrip: TripModel = res
+      ? {
+          id: res.id,
+          originName: res.origin_name,
+          destinationName: res.destination_name,
+          destLat: res.dest_lat,
+          destLng: res.dest_lng,
+          destRadius: res.dest_radius,
+          startedAt: new Date(res.started_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          etaMinutes: res.eta_minutes,
+          status: 'ongoing',
+          activeGuardians: params.activeGuardians,
+          progressPercent: res.progress_percent
+        }
+      : {
+          id: `trip-${Date.now()}`,
+          originName: params.originName,
+          destinationName: params.destinationName,
+          destLat: lat,
+          destLng: lng,
+          destRadius: radius,
+          startedAt: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }),
+          etaMinutes: params.etaMinutes,
+          status: 'ongoing',
+          activeGuardians: params.activeGuardians,
+          progressPercent: 5
+        };
+
+    this.trips = [newTrip, ...this.trips];
+
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: `Perjalanan Baru Dimulai: Menuju ${newTrip.destinationName}`,
+        eventCategory: 'vault',
+        deviceInfo: 'mekaar-tauri Trip Guard',
+        timestamp: 'Baru saja',
+        severity: 'info'
+      },
+      ...this.securityLogs
+    ];
+
+    return newTrip;
+  }
+
+  async completeTrip(tripId: string, status = 'arrived_confirmed'): Promise<boolean> {
+    const trip = this.trips.find((t) => t.id === tripId);
+    if (trip) {
+      trip.status = 'completed';
+      trip.progressPercent = 100;
+      trip.endedAt = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    const ok = await safeInvoke<boolean>('complete_trip', { tripId, status });
+
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: 'Perjalanan Selesai: Tiba dengan Selamat di Lokasi Tujuan',
+        eventCategory: 'vault',
+        deviceInfo: 'mekaar-tauri Geofence Guard',
+        timestamp: 'Baru saja',
+        severity: 'info'
+      },
+      ...this.securityLogs
+    ];
+
+    return ok ?? true;
+  }
+
+  async addSavedPlace(params: {
+    name: string;
+    category: SavedPlaceModel['category'];
+    address: string;
+    latitude: number;
+    longitude: number;
+    radiusMeters: number;
+    autoNotifyGuardian: boolean;
+  }): Promise<SavedPlaceModel> {
+    const res = await safeInvoke<{
+      id: string;
+      name: string;
+      category: string;
+      address?: string | null;
+      latitude: number;
+      longitude: number;
+      radius_meters: number;
+      auto_notify_guardian: boolean;
+    }>('add_saved_place', {
+      name: params.name,
+      category: params.category,
+      address: params.address,
+      latitude: params.latitude,
+      longitude: params.longitude,
+      radiusMeters: params.radiusMeters,
+      autoNotifyGuardian: params.autoNotifyGuardian
+    });
+
+    const newPlace: SavedPlaceModel = res
+      ? {
+          id: res.id,
+          name: res.name,
+          category: res.category as SavedPlaceModel['category'],
+          address: res.address || '',
+          latitude: res.latitude,
+          longitude: res.longitude,
+          radiusMeters: res.radius_meters,
+          autoNotifyGuardian: res.auto_notify_guardian
+        }
+      : {
+          id: `plc-${Date.now()}`,
+          name: params.name,
+          category: params.category,
+          address: params.address,
+          latitude: params.latitude,
+          longitude: params.longitude,
+          radiusMeters: params.radiusMeters,
+          autoNotifyGuardian: params.autoNotifyGuardian
+        };
+
+    this.savedPlaces = [newPlace, ...this.savedPlaces];
+    return newPlace;
+  }
+
+  async deleteSavedPlace(placeId: string): Promise<boolean> {
+    this.savedPlaces = this.savedPlaces.filter((p) => p.id !== placeId);
+    const ok = await safeInvoke<boolean>('delete_saved_place', { placeId });
+    return ok ?? true;
+  }
+
+  async addGuardian(params: {
+    name: string;
+    username: string;
+    avatarColor?: string;
+    relation: string;
+    canViewLiveLocation: boolean;
+    canReceiveSosAlert: boolean;
+  }): Promise<GuardianModel> {
+    const avatarColor = params.avatarColor ?? '#BFDBFE';
+    const res = await safeInvoke<{
+      id: string;
+      name: string;
+      username: string;
+      avatar_color: string;
+      relation: string;
+      status: string;
+      can_view_live_location: boolean;
+      can_receive_sos_alert: boolean;
+      battery_percent: number;
+    }>('add_guardian', {
+      name: params.name,
+      username: params.username,
+      avatarColor,
+      relation: params.relation,
+      canViewLiveLocation: params.canViewLiveLocation,
+      canReceiveSosAlert: params.canReceiveSosAlert
+    });
+
+    const newGuardian: GuardianModel = res
+      ? {
+          id: res.id,
+          name: res.name,
+          username: res.username,
+          avatarColor: res.avatar_color,
+          relation: res.relation,
+          status: 'active',
+          canViewLiveLocation: res.can_view_live_location,
+          canReceiveSosAlert: res.can_receive_sos_alert,
+          batteryPercent: res.battery_percent,
+          lastUpdated: 'Baru saja'
+        }
+      : {
+          id: `grd-${Date.now()}`,
+          name: params.name,
+          username: params.username,
+          avatarColor,
+          relation: params.relation,
+          status: 'active',
+          canViewLiveLocation: params.canViewLiveLocation,
+          canReceiveSosAlert: params.canReceiveSosAlert,
+          batteryPercent: 95,
+          lastUpdated: 'Baru saja'
+        };
+
+    this.guardians = [newGuardian, ...this.guardians];
+    return newGuardian;
+  }
+
+  async updateGuardianStatus(guardianId: string, status: GuardianModel['status']): Promise<boolean> {
+    const grd = this.guardians.find((g) => g.id === guardianId);
+    if (grd) {
+      grd.status = status;
+    }
+    const ok = await safeInvoke<boolean>('update_guardian_status', { guardianId, status });
+    return ok ?? true;
+  }
+
+  async deleteGuardian(guardianId: string): Promise<boolean> {
+    this.guardians = this.guardians.filter((g) => g.id !== guardianId);
+    const ok = await safeInvoke<boolean>('delete_guardian', { guardianId });
+    return ok ?? true;
+  }
+
+  async updateLiveTelemetry(latitude: number, longitude: number, batteryLevel: number): Promise<TelemetryModel> {
+    const res = await safeInvoke<TelemetryModel>('update_telemetry', {
+      latitude,
+      longitude,
+      batteryLevel
+    });
+
+    if (res) {
+      this.telemetry = res;
+      return res;
+    }
+
+    let isInSafeZone = false;
+    let isInDangerZone = false;
+    let activeZoneName: string | undefined = undefined;
+
+    for (const place of this.savedPlaces) {
+      const r = 6371000;
+      const p1 = (latitude * Math.PI) / 180;
+      const p2 = (place.latitude * Math.PI) / 180;
+      const dp = ((place.latitude - latitude) * Math.PI) / 180;
+      const dl = ((place.longitude - longitude) * Math.PI) / 180;
+      const a =
+        Math.sin(dp / 2) * Math.sin(dp / 2) +
+        Math.cos(p1) * Math.cos(p2) * Math.sin(dl / 2) * Math.sin(dl / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const dist = r * c;
+
+      if (dist <= place.radiusMeters) {
+        if (place.category === 'safe_zone' || place.category === 'home' || place.category === 'office') {
+          isInSafeZone = true;
+          activeZoneName = place.name;
+        }
+      }
+    }
+
+    const fallback: TelemetryModel = {
+      latitude,
+      longitude,
+      batteryLevel,
+      isInSafeZone,
+      isInDangerZone,
+      activeZoneName: activeZoneName ?? (isInSafeZone ? 'Zona Aman' : undefined),
+      updatedAt: Date.now()
+    };
+    this.telemetry = fallback;
+    return fallback;
   }
 
   async activateSos(isSilent = false) {

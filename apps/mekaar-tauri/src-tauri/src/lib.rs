@@ -30,6 +30,18 @@ pub fn run() {
             commands::update_app_settings,
             commands::set_screenshot_protection,
             commands::trigger_device_lost_wipe,
+            commands::get_trips,
+            commands::start_trip,
+            commands::complete_trip,
+            commands::get_saved_places,
+            commands::add_saved_place,
+            commands::delete_saved_place,
+            commands::get_guardians,
+            commands::add_guardian,
+            commands::update_guardian_status,
+            commands::delete_guardian,
+            commands::update_telemetry,
+            commands::get_telemetry,
         ])
         .run(tauri::generate_context!())
         .expect("error while running mekaar-tauri application");

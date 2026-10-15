@@ -12,4 +12,7 @@ pub mod models;
 
 pub use db::EncryptedDatabase;
 pub use error::StorageError;
-pub use models::{ChatRoom, Contact, DeliveryStatus, LocalMessage, SecurityLog, SosSessionRecord};
+pub use models::{
+    ChatRoom, Contact, DeliveryStatus, GuardianRecord, LocalMessage, SavedPlaceRecord, SecurityLog,
+    SosSessionRecord, UserTripRecord,
+};
