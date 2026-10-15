@@ -48,8 +48,7 @@
     if (onNewChat) {
       onNewChat();
     } else {
-      // Default: switch to contacts or open prompt
-      mekaarStore.setTab('contacts');
+      mekaarStore.showNewChatModal = true;
     }
   }
 </script>

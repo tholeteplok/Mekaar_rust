@@ -29,7 +29,7 @@
       originName: originInput.trim(),
       destinationName: destinationInput.trim(),
       etaMinutes: etaInput,
-      activeGuardians: activeGuardians.length > 0 ? activeGuardians : ['Ayu Lestari (Guardian Utama)']
+      activeGuardians: activeGuardians
     });
 
     originInput = '';
@@ -210,11 +210,11 @@
     </p>
     <div>
       <label for="guardian-name-input" style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 4px;">Nama Lengkap</label>
-      <input id="guardian-name-input" type="text" class="sketch-input" placeholder="Contoh: Dimas Wijaya" bind:value={newGuardianName} />
+      <input id="guardian-name-input" type="text" class="sketch-input" placeholder="Nama lengkap..." bind:value={newGuardianName} />
     </div>
     <div>
       <label for="guardian-username-input" style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 4px;">Username Mekaar</label>
-      <input id="guardian-username-input" type="text" class="sketch-input" placeholder="Contoh: @dimasw" bind:value={newGuardianUsername} />
+      <input id="guardian-username-input" type="text" class="sketch-input" placeholder="@username..." bind:value={newGuardianUsername} />
     </div>
     <div>
       <label for="guardian-relation-select" style="font-size: 0.8rem; font-weight: 700; display: block; margin-bottom: 4px;">Hubungan / Peran</label>

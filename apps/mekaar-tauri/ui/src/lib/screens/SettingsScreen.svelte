@@ -69,9 +69,9 @@
 
   function handleClearCache() {
     mekaarStore.clearTempCache();
-    cacheToast = '✓ 18.4 MB berkas cache sementara berhasil dibersihkan!';
+    cacheToast = '✓ Berkas cache sementara berhasil dibersihkan!';
     setTimeout(() => {
-      if (cacheToast.includes('18.4 MB')) cacheToast = '';
+      if (cacheToast.includes('berhasil dibersihkan')) cacheToast = '';
     }, 3000);
   }
 
@@ -104,7 +104,7 @@
         />
         <div class="account-info">
           <span class="account-name">{mekaarStore.currentUser.displayName}</span>
-          <span class="account-email">servisio.apk@gmail.com</span>
+          <span class="account-email">{mekaarStore.currentUser.username || '@pengguna'}</span>
         </div>
       </div>
       <div class="arrow-circle">
@@ -438,23 +438,23 @@
       <!-- Storage Breakdown Card -->
       <div class="storage-breakdown-card">
         <div class="storage-bar-wrap">
-          <div class="bar-segment bar-media" style="width: 52%;" title="Media & Brankas: 24.8 MB"></div>
-          <div class="bar-segment bar-cache" style="width: 32%;" title="Cache & Berkas Sementara: 18.4 MB"></div>
-          <div class="bar-segment bar-db" style="width: 16%;" title="Basis Data SQLCipher: 4.2 MB"></div>
+          <div class="bar-segment bar-media" style="width: {mekaarStore.vaultMediaItems.length > 0 ? '45%' : '10%'};" title="Media & Brankas"></div>
+          <div class="bar-segment bar-cache" style="width: 25%;" title="Cache Sementara"></div>
+          <div class="bar-segment bar-db" style="width: {mekaarStore.vaultMediaItems.length > 0 ? '30%' : '65%'};" title="Basis Data SQLCipher"></div>
         </div>
 
         <div class="storage-legend-grid">
           <div class="legend-item">
             <span class="legend-dot dot-media">●</span>
-            <span class="legend-label">Media: <strong>24.8 MB</strong></span>
+            <span class="legend-label">Media: <strong>{(mekaarStore.vaultMediaItems.length * 1.5).toFixed(1)} MB</strong></span>
           </div>
           <div class="legend-item">
             <span class="legend-dot dot-cache">●</span>
-            <span class="legend-label">Cache: <strong>18.4 MB</strong></span>
+            <span class="legend-label">Cache: <strong>0.0 MB</strong></span>
           </div>
           <div class="legend-item">
             <span class="legend-dot dot-db">●</span>
-            <span class="legend-label">Database: <strong>4.2 MB</strong></span>
+            <span class="legend-label">Database: <strong>{(0.4 + mekaarStore.conversations.length * 0.1).toFixed(1)} MB</strong></span>
           </div>
         </div>
       </div>

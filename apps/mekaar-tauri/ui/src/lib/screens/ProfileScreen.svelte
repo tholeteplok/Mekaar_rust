@@ -112,11 +112,11 @@
       <!-- Bio -->
       <div class="attr-row">
         <span class="attr-label">Bio</span>
-        <span class="attr-value bio-val">{mekaarStore.currentUser.bio || 'hii...have a nice day'}</span>
+        <span class="attr-value bio-val">{mekaarStore.currentUser.bio || 'Aktif di Mekaar Mesh Network'}</span>
         <button
           type="button"
           class="attr-edit-btn"
-          onclick={() => openEditField('bio', 'Bio', mekaarStore.currentUser.bio || 'hii...have a nice day')}
+          onclick={() => openEditField('bio', 'Bio', mekaarStore.currentUser.bio || 'Aktif di Mekaar Mesh Network')}
           aria-label="Edit Bio"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -125,12 +125,12 @@
         </button>
       </div>
 
-      <!-- Email -->
+      <!-- Email / Alamat Jaringan Privat -->
       <div class="attr-row">
-        <span class="attr-label">Email</span>
-        <span class="attr-value">servisio.apk@gmail.com</span>
-        <span class="attr-lock-icon" title="Email terverifikasi & terkunci">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <span class="attr-label">Alamat Node</span>
+        <span class="attr-value" style="font-family: var(--font-mono); font-size: 0.85rem;">{mekaarStore.currentUser.username.replace('@', '')}@mesh.internal</span>
+        <span class="attr-lock-icon" title="Identitas mesh terenkripsi E2EE">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
             <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
           </svg>

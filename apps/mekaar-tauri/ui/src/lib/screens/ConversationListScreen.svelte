@@ -4,6 +4,7 @@
   import Card from '../components/Card.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
   import Dialog from '../components/Dialog.svelte';
+  import EmptyState from '../components/EmptyState.svelte';
   import {
     Compass,
     UsersThree,
@@ -17,7 +18,6 @@
   let selectedSegment = $state<'semua' | 'guardian' | 'arsip'>('semua');
   let isSearchActive = $state(false);
   let searchQuery = $state('');
-  let showNewChatDialog = $state(false);
   let newContactTarget = $state('');
 
   const filteredConversations = $derived(
@@ -50,12 +50,17 @@
         isGroup: false,
         isOnline: true,
         isGuardian: false,
-        disappearingSeconds: 0
+        disappearingSeconds: 0,
+        chatTheme: 'classic',
+        participants: [
+          { userId: mekaarStore.currentUser.id, displayName: mekaarStore.currentUser.displayName, role: 'admin', muted: false },
+          { userId: `usr-${clean.toLowerCase().replace('@', '')}`, displayName: clean, role: 'member', muted: false }
+        ]
       },
       ...mekaarStore.conversations
     ];
     newContactTarget = '';
-    showNewChatDialog = false;
+    mekaarStore.showNewChatModal = false;
     mekaarStore.openConversation(newId);
   }
 </script>
@@ -199,38 +204,57 @@
         </div>
       </Card>
     {:else}
-      <div class="empty-feed">
-        <div style="margin-bottom: 8px; display: flex; justify-content: center;">
-          <ChatCircleDots size={48} weight="duotone" color="var(--brand-blue, #0284C7)" />
-        </div>
-        <p style="font-weight: 600; color: var(--text-primary);">Belum Ada Obrolan</p>
-        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-top: 4px;">
-          Gunakan tombol '+' di kanan bawah untuk memulai obrolan baru terenkripsi.
-        </p>
-      </div>
+      {#if searchQuery.trim()}
+        <EmptyState
+          pose="confused"
+          title="Chat tidak ditemukan"
+          message="Tidak ada chat yang cocok dengan '{searchQuery.trim()}'."
+        />
+      {:else if selectedSegment === 'guardian'}
+        <EmptyState
+          pose="shield"
+          title="Belum ada chat Guardian"
+          message="Chat dengan kontak Guardian Anda akan muncul di filter ini."
+        />
+      {:else if selectedSegment === 'arsip'}
+        <EmptyState
+          pose="huft"
+          title="Tidak ada chat diarsipkan"
+          message="Chat yang diarsipkan akan muncul di sini."
+        />
+      {:else}
+        <EmptyState
+          pose="huft"
+          title="Belum ada obrolan"
+          message="Mulai percakapan pertamamu dengan teman atau kontak terpercaya."
+          actionLabel="Mulai obrolan"
+          actionIcon={ChatCircleDots}
+          onaction={() => (mekaarStore.showNewChatModal = true)}
+        />
+      {/if}
     {/each}
   </div>
 </div>
 
 <!-- Modal Mulai Chat Baru -->
 <Dialog
-  open={showNewChatDialog}
+  open={mekaarStore.showNewChatModal}
   title="Mulai Chat Baru"
-  onclose={() => (showNewChatDialog = false)}
+  onclose={() => (mekaarStore.showNewChatModal = false)}
 >
   <div style="display: flex; flex-direction: column; gap: 14px;">
     <p style="font-size: 0.88rem; color: var(--text-secondary);">
-      Masukkan username atau email teman Anda untuk obrolan 1-on-1.
+      Masukkan username teman Anda (@username) untuk memulai obrolan terenkripsi.
     </p>
     <input
       type="text"
       class="sketch-input"
-      placeholder="Username (@teplok) atau Email..."
+      placeholder="Username (@teman)..."
       bind:value={newContactTarget}
       onkeydown={(e) => e.key === 'Enter' && handleStartNewChat()}
     />
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
-      <button type="button" class="btn-secondary" onclick={() => (showNewChatDialog = false)}>
+      <button type="button" class="btn-secondary" onclick={() => (mekaarStore.showNewChatModal = false)}>
         Batal
       </button>
       <button type="button" class="btn-primary" onclick={handleStartNewChat}>
@@ -394,10 +418,5 @@
     font-weight: 700;
     padding: 2px 7px;
     border-radius: 999px;
-  }
-
-  .empty-feed {
-    padding: 48px 24px;
-    text-align: center;
   }
 </style>

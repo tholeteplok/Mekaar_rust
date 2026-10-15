@@ -59,6 +59,7 @@ class MekaarStore {
   activeRegister = $state<RegisterType>('core');
   selectedConversationId = $state<string | null>(null);
   forensicDialogOpen = $state(false);
+  showNewChatModal = $state(false);
   windowFocused = $state(true);
 
   // Preferensi UI/UX & Keamanan (Paritas Mekaar_chat settings)
@@ -100,322 +101,29 @@ class MekaarStore {
 
   // Profil Pengguna Saat Ini
   currentUser = $state<UserProfile>({
-    id: 'usr-teplok-01',
-    username: '@tholeteplok',
-    displayName: 'Teplok (Node Utama)',
-    avatarColor: '#FDE68A',
-    bio: 'Mekaar Rust Native • E2EE • Mekaar Mesh Network',
-    publicKeyFingerprint: 'ED25519: 9A74-E122-9A9B-718E-4F10',
+    id: 'usr-local-node',
+    username: '@pengguna',
+    displayName: 'Pengguna Mekaar',
+    avatarColor: '#BFDBFE',
+    bio: 'Mekaar Native • Terenkripsi E2EE',
+    publicKeyFingerprint: 'ED25519: Belum Dibuat',
     isOnline: true,
     lastSeen: 'Online',
-    twoFactorEnabled: true,
+    twoFactorEnabled: false,
     accountSuspended: false
   });
 
   // Daftar Percakapan (Chat & Grup)
-  conversations = $state<Conversation[]>([
-    {
-      id: 'conv-1',
-      title: 'Ayu Lestari',
-      subtitle: 'Sambungan Mekaar Mesh Network stabil!',
-      avatarColor: '#BFDBFE',
-      isGroup: false,
-      unreadCount: 2,
-      lastTimestamp: '11:42',
-      isOnline: true,
-      isTyping: false,
-      isPinned: true,
-      isMuted: false,
-      disappearingSeconds: 0,
-      chatTheme: 'classic',
-      participants: [
-        { userId: 'usr-teplok-01', displayName: 'Teplok', role: 'admin', muted: false },
-        { userId: 'usr-ayu-02', displayName: 'Ayu Lestari', role: 'member', muted: false }
-      ],
-      isScreenProtected: false,
-      isForwardingProtected: false,
-      isBurnOnExit: false,
-      burnOnExitScope: 'local',
-      isViewOnceDefault: false,
-      scheduledWipeMode: 'off',
-      scheduledWipeTime: '23:59'
-    },
-    {
-      id: 'conv-2',
-      title: 'Tim Respon Guardian Solo',
-      subtitle: 'Bima: Rute perjalanan malam sudah dipantau.',
-      avatarColor: '#A7F3D0',
-      isGroup: true,
-      unreadCount: 0,
-      lastTimestamp: '10:18',
-      isOnline: true,
-      isTyping: true,
-      isPinned: true,
-      isMuted: false,
-      disappearingSeconds: 3600,
-      chatTheme: 'forest',
-      participants: [
-        { userId: 'usr-teplok-01', displayName: 'Teplok', role: 'admin', muted: false },
-        { userId: 'usr-bima-03', displayName: 'Bima Pratama', role: 'admin', muted: false },
-        { userId: 'usr-ayu-02', displayName: 'Ayu Lestari', role: 'member', muted: false },
-        { userId: 'usr-nadia-04', displayName: 'Nadia Putri', role: 'member', muted: false }
-      ],
-      isScreenProtected: false,
-      isForwardingProtected: false,
-      isBurnOnExit: false,
-      burnOnExitScope: 'local',
-      isViewOnceDefault: false,
-      scheduledWipeMode: 'off',
-      scheduledWipeTime: '23:59'
-    },
-    {
-      id: 'conv-3',
-      title: 'Bima Pratama (Brankas Rahasia)',
-      subtitle: 'Siap, berkas cadangan forensik sudah terenkripsi.',
-      avatarColor: '#FBCFE8',
-      isGroup: false,
-      unreadCount: 0,
-      lastTimestamp: 'Kemarin',
-      isOnline: false,
-      isTyping: false,
-      isPinned: false,
-      isMuted: false,
-      isVaultHidden: true,
-      disappearingSeconds: 86400,
-      chatTheme: 'sunset',
-      participants: [
-        { userId: 'usr-teplok-01', displayName: 'Teplok', role: 'admin', muted: false },
-        { userId: 'usr-bima-03', displayName: 'Bima Pratama', role: 'member', muted: false }
-      ],
-      isScreenProtected: true,
-      isForwardingProtected: true,
-      isBurnOnExit: true,
-      burnOnExitScope: 'mutual',
-      isViewOnceDefault: true,
-      scheduledWipeMode: 'daily',
-      scheduledWipeTime: '23:59'
-    }
-  ]);
+  conversations = $state<Conversation[]>([]);
 
   // Pesan Per Ruang Chat
-  messagesByConv = $state<Record<string, MessageModel[]>>({
-    'conv-1': [
-      {
-        id: 'msg-101',
-        conversationId: 'conv-1',
-        senderId: 'usr-ayu-02',
-        senderName: 'Ayu Lestari',
-        text: 'Halo! Apakah sambungan ke Mekaar Mesh Network sudah aktif?',
-        timestamp: '11:39',
-        isSelf: false,
-        status: 'read',
-        reactions: { '👍': ['usr-teplok-01'] }
-      },
-      {
-        id: 'msg-102',
-        conversationId: 'conv-1',
-        senderId: 'usr-teplok-01',
-        senderName: 'Teplok',
-        text: 'Sudah aktif dan stabil dengan enkripsi Aegis E2EE di seluruh jaringan!',
-        timestamp: '11:41',
-        isSelf: true,
-        status: 'read',
-        replyToId: 'msg-101',
-        replyPreviewText: 'Halo! Apakah sambungan ke Mekaar Mesh Network sudah aktif?',
-        replySenderName: 'Ayu Lestari',
-        reactions: { '🔥': ['usr-ayu-02'] }
-      },
-      {
-        id: 'msg-103',
-        conversationId: 'conv-1',
-        senderId: 'usr-ayu-02',
-        senderName: 'Ayu Lestari',
-        text: 'Koneksi privat Mekaar Mesh Network sudah terverifikasi aman!',
-        timestamp: '11:42',
-        isSelf: false,
-        status: 'read',
-        reactions: {}
-      },
-      {
-        id: 'msg-104',
-        conversationId: 'conv-1',
-        senderId: 'usr-ayu-02',
-        senderName: 'Ayu Lestari',
-        text: 'Ini tangkapan layar verifikasi jaringan. Jalur privat aman terenkripsi Stego Photo.',
-        timestamp: '11:43',
-        isSelf: false,
-        status: 'read',
-        reactions: { '❤️': ['usr-teplok-01'] },
-        attachment: {
-          id: 'att-sample-img',
-          kind: 'image',
-          name: 'Verifikasi_Server_Solo.png',
-          sizeLabel: '1.2 MB • Stego LSB',
-          urlOrPreview: 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="600" height="400" viewBox="0 0 600 400"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="%230F172A"/><stop offset="50%" stop-color="%230284C7"/><stop offset="100%" stop-color="%230D9488"/></linearGradient></defs><rect width="600" height="400" fill="url(%23g)"/><circle cx="300" cy="180" r="60" fill="%2338BDF8" opacity="0.4"/><text x="300" y="190" font-family="sans-serif" font-size="28" font-weight="bold" fill="%23FFFFFF" text-anchor="middle">MEKAAR E2EE SECURITY</text><text x="300" y="230" font-family="sans-serif" font-size="14" fill="%23CBD5E1" text-anchor="middle">LSB Stego Payload Verified • Solo Relay</text></svg>',
-          isStego: true
-        }
-      },
-      {
-        id: 'msg-105',
-        conversationId: 'conv-1',
-        senderId: 'usr-ayu-02',
-        senderName: 'Ayu Lestari',
-        text: '',
-        timestamp: '11:44',
-        isSelf: false,
-        status: 'read',
-        reactions: {},
-        attachment: {
-          id: 'att-sample-voice',
-          kind: 'voice',
-          name: 'Pesan Suara (00:08)',
-          sizeLabel: '0:08 • Opus E2EE',
-          urlOrPreview: 'voice'
-        }
-      },
-      {
-        id: 'msg-106',
-        conversationId: 'conv-1',
-        senderId: 'usr-ayu-02',
-        senderName: 'Ayu Lestari',
-        text: 'Saya sedang dalam perjalanan menuju posko utama, ini rute langsung saya:',
-        timestamp: '11:45',
-        isSelf: false,
-        status: 'read',
-        reactions: { '🛡️': ['usr-teplok-01'] },
-        attachment: {
-          id: 'att-live-loc-1',
-          kind: 'location',
-          name: 'Lokasi Langsung: Stasiun Solo Balapan',
-          sizeLabel: 'Live GPS • 60 Menit',
-          urlOrPreview: 'geo:-7.5584,110.8217',
-          latitude: -7.5584,
-          longitude: 110.8217,
-          isLiveLocation: true,
-          liveDurationMinutes: 60,
-          liveExpiresAt: '45m lagi',
-          batteryLevel: 84,
-          isLiveActive: true
-        }
-      },
-      {
-        id: 'msg-107',
-        conversationId: 'conv-1',
-        senderId: 'usr-teplok-01',
-        senderName: 'Teplok',
-        text: 'Posisi saya saat ini juga standby memantau:',
-        timestamp: '11:46',
-        isSelf: true,
-        status: 'read',
-        reactions: {},
-        attachment: {
-          id: 'att-live-loc-2',
-          kind: 'location',
-          name: 'Lokasi Langsung: Jebres Posko',
-          sizeLabel: 'Live GPS • 15 Menit',
-          urlOrPreview: 'geo:-7.5583,110.8566',
-          latitude: -7.5583,
-          longitude: 110.8566,
-          isLiveLocation: true,
-          liveDurationMinutes: 15,
-          liveExpiresAt: '12m lagi',
-          batteryLevel: 92,
-          isLiveActive: true
-        }
-      }
-    ],
-    'conv-2': [
-      {
-        id: 'msg-201',
-        conversationId: 'conv-2',
-        senderId: 'usr-bima-03',
-        senderName: 'Bima Pratama',
-        text: 'Rute perjalanan malam sudah dipantau di Guardian Map.',
-        timestamp: '10:18',
-        isSelf: false,
-        status: 'read',
-        disappearingSeconds: 3600,
-        expiresAt: '54m lagi',
-        reactions: { '🛡️': ['usr-teplok-01', 'usr-ayu-02'] }
-      }
-    ],
-    'conv-3': [
-      {
-        id: 'msg-301',
-        conversationId: 'conv-3',
-        senderId: 'usr-bima-03',
-        senderName: 'Bima Pratama',
-        text: 'Siap, berkas cadangan forensik sudah terenkripsi.',
-        timestamp: 'Kemarin',
-        isSelf: false,
-        status: 'read',
-        reactions: {}
-      }
-    ]
-  });
+  messagesByConv = $state<Record<string, MessageModel[]>>({});
 
   // Permintaan Pesan (chat_requests_screen.dart parity)
-  chatRequests = $state<ChatRequestModel[]>([
-    {
-      id: 'req-01',
-      fromUserId: 'usr-reza-09',
-      fromUsername: '@rezakurnia',
-      fromDisplayName: 'Reza Kurniawan',
-      avatarColor: '#DDD6FE',
-      introMessage: 'Halo mas, saya anggota tim relawan posko Solo. Izin bergabung ke jaringan Mekaar.',
-      timestamp: '15 menit lalu',
-      fingerprint: 'ED25519: 77C1-09B4-31E2',
-      status: 'pending'
-    },
-    {
-      id: 'req-02',
-      fromUserId: 'usr-sinta-10',
-      fromUsername: '@sintadewi',
-      fromDisplayName: 'Sinta Dewi',
-      avatarColor: '#FED7AA',
-      introMessage: 'Hai! Saya memindai kode QR kontakmu saat pertemuan komunitas.',
-      timestamp: '2 jam lalu',
-      fingerprint: 'ED25519: 55A2-88F0-12D9',
-      status: 'pending'
-    }
-  ]);
+  chatRequests = $state<ChatRequestModel[]>([]);
 
   // Daftar Kontak (contact_list_screen.dart parity)
-  contacts = $state<ContactModel[]>([
-    {
-      id: 'usr-ayu-02',
-      username: '@ayulestari',
-      displayName: 'Ayu Lestari',
-      avatarColor: '#BFDBFE',
-      fingerprint: 'ED25519: 44B1-82C9-11A0',
-      isOnline: true,
-      isGuardian: true,
-      isBlocked: false,
-      notes: 'Koordinator Lapangan & Guardian Utama'
-    },
-    {
-      id: 'usr-bima-03',
-      username: '@bimapratama',
-      displayName: 'Bima Pratama',
-      avatarColor: '#FBCFE8',
-      fingerprint: 'ED25519: 39D0-14E8-90F1',
-      isOnline: true,
-      isGuardian: true,
-      isBlocked: false,
-      notes: 'Rekan Teknis Server & Jaringan'
-    },
-    {
-      id: 'usr-nadia-04',
-      username: '@nadiaputri',
-      displayName: 'Nadia Putri',
-      avatarColor: '#A7F3D0',
-      fingerprint: 'ED25519: 61F3-72A4-08C2',
-      isOnline: false,
-      isGuardian: false,
-      isBlocked: false,
-      notes: 'Anggota Grup Guardian Solo'
-    }
-  ]);
+  contacts = $state<ContactModel[]>([]);
 
   // Toko Emoji (emoji_store_screen.dart parity)
   emojiPacks = $state<EmojiPackModel[]>([
@@ -451,213 +159,26 @@ class MekaarStore {
   callDurationTimer: ReturnType<typeof setInterval> | null = null;
 
   // Brankas Media Terenkripsi (Secure Media Vault)
-  vaultMediaItems = $state<VaultMediaItemModel[]>([
-    {
-      id: 'vlt-01',
-      conversationId: 'conv-1',
-      conversationTitle: 'Ayu Lestari',
-      name: 'Foto_Posko_Evakuasi.png',
-      kind: 'image',
-      sizeLabel: '1.2 MB • AES-256',
-      urlOrPreview: 'image',
-      timestamp: '11:40',
-      isStego: false,
-      checksum: 'SHA256: 9A81-CC22-11D4-098F'
-    },
-    {
-      id: 'vlt-02',
-      conversationId: 'conv-2',
-      conversationTitle: 'Tim Respon Guardian Solo',
-      name: 'Peta_Jalur_Kawal_Malam.png',
-      kind: 'stego',
-      sizeLabel: '2.4 MB • Stego LSB',
-      urlOrPreview: 'stego',
-      timestamp: '10:15',
-      isStego: true,
-      checksum: 'SHA256: E830-77B1-44C9-9A01'
-    },
-    {
-      id: 'vlt-03',
-      conversationId: 'conv-1',
-      conversationTitle: 'Ayu Lestari',
-      name: 'Prosedur_Siaga_Darurat.pdf',
-      kind: 'document',
-      sizeLabel: '640 KB • ChaCha20',
-      urlOrPreview: 'doc',
-      timestamp: 'Kemarin',
-      isStego: false,
-      checksum: 'SHA256: 33C1-99F0-12A7-88D4'
-    },
-    {
-      id: 'vlt-04',
-      conversationId: 'conv-3',
-      conversationTitle: 'Bima Pratama',
-      name: 'Rekaman_Briefing_Tim.opus',
-      kind: 'voice',
-      sizeLabel: '0:35 • Opus E2EE',
-      urlOrPreview: 'voice',
-      timestamp: 'Kemarin',
-      isStego: false,
-      checksum: 'SHA256: 66E2-88B9-0021-FA12'
-    }
-  ]);
+  vaultMediaItems = $state<VaultMediaItemModel[]>([]);
 
   // Guardian & Riwayat Perjalanan (guardian_dashboard_screen.dart & trip_history_screen.dart parity)
-  guardians = $state<GuardianModel[]>([
-    {
-      id: 'grd-01',
-      name: 'Ayu Lestari',
-      username: '@ayulestari',
-      avatarColor: '#BFDBFE',
-      relation: 'Guardian Utama',
-      status: 'active',
-      canViewLiveLocation: true,
-      canReceiveSosAlert: true,
-      batteryPercent: 86,
-      lastUpdated: 'Baru saja'
-    },
-    {
-      id: 'grd-02',
-      name: 'Bima Pratama',
-      username: '@bimapratama',
-      avatarColor: '#FBCFE8',
-      relation: 'Rekan Siaga',
-      status: 'standby',
-      canViewLiveLocation: true,
-      canReceiveSosAlert: true,
-      batteryPercent: 74,
-      lastUpdated: '4 menit lalu'
-    },
-    {
-      id: 'grd-03',
-      name: 'Dimas Wijaya',
-      username: '@dimasw',
-      avatarColor: '#FDE68A',
-      relation: 'Keluarga',
-      status: 'pending_request',
-      canViewLiveLocation: false,
-      canReceiveSosAlert: true,
-      batteryPercent: 91,
-      lastUpdated: 'Menunggu persetujuan'
-    }
-  ]);
+  guardians = $state<GuardianModel[]>([]);
 
-  trips = $state<TripModel[]>([
-    {
-      id: 'trip-active-01',
-      originName: 'Stasiun Solo Balapan',
-      destinationName: 'Rumah (Jebres, Surakarta)',
-      startedAt: '11:20 WIB',
-      etaMinutes: 12,
-      status: 'ongoing',
-      activeGuardians: ['Ayu Lestari', 'Bima Pratama'],
-      progressPercent: 68
-    },
-    {
-      id: 'trip-hist-02',
-      originName: 'Kantor Pusat',
-      destinationName: 'Stasiun Solo Balapan',
-      startedAt: 'Kemarin, 19:10 WIB',
-      endedAt: 'Kemarin, 19:35 WIB',
-      etaMinutes: 25,
-      status: 'completed',
-      activeGuardians: ['Ayu Lestari'],
-      progressPercent: 100
-    },
-    {
-      id: 'trip-hist-03',
-      originName: 'Simpang Lima',
-      destinationName: 'Posko Relawan',
-      startedAt: '12 Okt 2026, 21:00 WIB',
-      endedAt: '12 Okt 2026, 21:40 WIB',
-      etaMinutes: 40,
-      status: 'completed',
-      activeGuardians: ['Bima Pratama'],
-      progressPercent: 100
-    }
-  ]);
+  trips = $state<TripModel[]>([]);
 
   // Peta, Teman Sekitar & Lokasi Tersimpan (map_screen.dart, nearby_friends_screen.dart, saved_places_screen.dart parity)
-  nearbyFriends = $state<NearbyFriendModel[]>([
-    {
-      id: 'nb-01',
-      displayName: 'Ayu Lestari',
-      username: '@ayulestari',
-      avatarColor: '#BFDBFE',
-      distanceMeters: 320,
-      bearingLabel: 'Timur Laut',
-      statusMessage: 'Sedang menuju posko utama',
-      latitude: -7.5561,
-      longitude: 110.8318,
-      lastUpdated: '1 menit lalu'
-    },
-    {
-      id: 'nb-02',
-      displayName: 'Bima Pratama',
-      username: '@bimapratama',
-      avatarColor: '#FBCFE8',
-      distanceMeters: 850,
-      bearingLabel: 'Barat Daya',
-      statusMessage: 'Standby memantau server teplok-pc',
-      latitude: -7.5624,
-      longitude: 110.8215,
-      lastUpdated: '3 menit lalu'
-    },
-    {
-      id: 'nb-03',
-      displayName: 'Nadia Putri',
-      username: '@nadiaputri',
-      avatarColor: '#A7F3D0',
-      distanceMeters: 1420,
-      bearingLabel: 'Selatan',
-      statusMessage: 'Di area kampus UNS',
-      latitude: -7.5589,
-      longitude: 110.8562,
-      lastUpdated: '8 menit lalu'
-    }
-  ]);
+  nearbyFriends = $state<NearbyFriendModel[]>([]);
 
-  savedPlaces = $state<SavedPlaceModel[]>([
-    {
-      id: 'plc-01',
-      name: 'Rumah Utama (Zona Aman)',
-      category: 'home',
-      address: 'Jl. Ki Hajar Dewantara, Jebres, Surakarta',
-      latitude: -7.5568,
-      longitude: 110.8521,
-      radiusMeters: 150,
-      autoNotifyGuardian: true
-    },
-    {
-      id: 'plc-02',
-      name: 'Server Lab (teplok-pc)',
-      category: 'office',
-      address: 'Laweyan, Surakarta',
-      latitude: -7.5682,
-      longitude: 110.7984,
-      radiusMeters: 100,
-      autoNotifyGuardian: true
-    },
-    {
-      id: 'plc-03',
-      name: 'RSUD Dr. Moewardi (Pos Medis)',
-      category: 'safe_zone',
-      address: 'Jl. Kolonel Sutarto No.132, Surakarta',
-      latitude: -7.5592,
-      longitude: 110.8415,
-      radiusMeters: 250,
-      autoNotifyGuardian: false
-    }
-  ]);
+  savedPlaces = $state<SavedPlaceModel[]>([]);
 
   // Telemetri Langsung & Geofencing Guardian
   telemetry = $state<TelemetryModel>({
-    latitude: -7.5568,
-    longitude: 110.8521,
-    batteryLevel: 84,
+    latitude: 0,
+    longitude: 0,
+    batteryLevel: 100,
     isInSafeZone: true,
     isInDangerZone: false,
-    activeZoneName: 'Rumah Utama (Zona Aman)',
+    activeZoneName: '',
     updatedAt: Date.now()
   });
 
@@ -666,87 +187,29 @@ class MekaarStore {
     active: false,
     countdownActive: false,
     countdownRemaining: 5,
-    latitude: -7.5568,
-    longitude: 110.8318,
+    latitude: 0,
+    longitude: 0,
     sirenEnabled: true,
     shakeToTrigger: true,
     autoBroadcastLocation: true,
     emergencyMessage: 'DARURAT! Saya membutuhkan bantuan segera. Lokasi langsung saya sedang dibagikan.',
-    notifiedGuardians: ['Ayu Lestari', 'Bima Pratama']
+    notifiedGuardians: []
   });
 
   // Log Keamanan, Pengguna Diblokir & Mode Perangkat Hilang (security_settings_screen.dart & device_lost_screen.dart parity)
-  securityLogs = $state<SecurityLogModel[]>([
-    {
-      id: 'log-01',
-      eventTitle: 'Koneksi Relay Tailscale Terverifikasi (100.101.96.120:8085)',
-      eventCategory: 'network',
-      deviceInfo: 'mekaar-tauri Linux x86_64',
-      timestamp: 'Hari ini, 11:42 WIB',
-      severity: 'info'
-    },
-    {
-      id: 'log-02',
-      eventTitle: 'Brankas SQLite WAL Terenkripsi Dibuka (Argon2id + ChaCha20Poly1305)',
-      eventCategory: 'vault',
-      deviceInfo: 'mekaar-tauri Linux x86_64',
-      timestamp: 'Hari ini, 11:20 WIB',
-      severity: 'info'
-    },
-    {
-      id: 'log-03',
-      eventTitle: 'Proteksi Tangkapan Layar (Screen Shield) Diaktifkan',
-      eventCategory: 'screen_shield',
-      deviceInfo: 'Window Manager Shield',
-      timestamp: 'Hari ini, 11:20 WIB',
-      severity: 'info'
-    }
-  ]);
+  securityLogs = $state<SecurityLogModel[]>([]);
 
-  blockedUsers = $state<BlockedUserModel[]>([
-    {
-      id: 'blk-01',
-      username: '@spammer_unknown',
-      displayName: 'Akun Tidak Dikenal',
-      blockedAt: '10 Okt 2026',
-      reason: 'Permintaan pesan mencurigakan berulang'
-    }
-  ]);
+  blockedUsers = $state<BlockedUserModel[]>([]);
 
   deviceLost = $state<DeviceLostModel>({
-    armed: true,
-    recoveryEmailOrPeer: '@ayulestari (Guardian Utama)',
+    armed: false,
+    recoveryEmailOrPeer: '',
     autoWipeAfterFailedPinAttempts: 5,
-    remoteWipeTokenHash: 'BLAKE3:8f94e2c1...77a1',
-    lastHeartbeat: 'Terhubung ke teplok-pc (100.101.96.120:8085)'
+    remoteWipeTokenHash: '',
+    lastHeartbeat: 'Belum terhubung'
   });
 
-  connectedDevices = $state<ConnectedDeviceModel[]>([
-    {
-      id: 'dev-tauri-host',
-      deviceName: 'teplok-pc (Tauri Desktop Host)',
-      platform: 'desktop',
-      ipAddress: '100.101.96.120 (Tailscale Mesh)',
-      lastActive: 'Saat ini aktif',
-      isCurrent: true
-    },
-    {
-      id: 'dev-android-sm918',
-      deviceName: 'Mekaar Android (SM-S918B)',
-      platform: 'android',
-      ipAddress: '100.101.96.121 (Surakarta Node)',
-      lastActive: '15 menit lalu',
-      isCurrent: false
-    },
-    {
-      id: 'dev-web-enclave',
-      deviceName: 'Web Enclave Client (Chrome 131)',
-      platform: 'web',
-      ipAddress: '127.0.0.1:5174',
-      lastActive: '1 jam lalu',
-      isCurrent: false
-    }
-  ]);
+  connectedDevices = $state<ConnectedDeviceModel[]>([]);
 
   scheduledWipe = $state<ScheduledWipeConfig>({
     mode: 'off',

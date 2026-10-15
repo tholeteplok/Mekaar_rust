@@ -279,3 +279,128 @@ button, input, textarea, select {
   transform: scale(0.98);
 }
 
+/* Chat Room App Bar (Signal & Telegram Modern Parity) */
+.chat-appbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px 16px;
+  background-color: var(--bg-primary);
+  border-bottom: 1px solid var(--border-subtle);
+  gap: 10px;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  box-sizing: border-box;
+}
+
+.chat-contact-profile-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-card);
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.chat-contact-profile-btn:hover {
+  background-color: rgba(2, 132, 199, 0.05);
+}
+
+.chat-contact-profile-btn:active {
+  transform: scale(0.99);
+}
+
+.chat-profile-text-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.chat-contact-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chat-contact-title {
+  font-family: var(--font-active);
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.3;
+}
+
+.chat-contact-status {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 1px;
+}
+
+.header-indicator-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.header-indicator-pill.shield {
+  background-color: rgba(13, 148, 136, 0.12);
+  border: 1px solid rgba(13, 148, 136, 0.3);
+  color: var(--brand-teal);
+}
+
+.header-indicator-pill.timer {
+  background-color: #FFF1F2;
+  border: 1px solid #FDA4AF;
+  color: #E11D48;
+}
+
+.chat-appbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chat-appbar-action-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+}
+
+.chat-appbar-action-btn:hover {
+  background-color: rgba(2, 132, 199, 0.08);
+  border-color: var(--border-light);
+}
+
+.chat-appbar-action-btn:active {
+  transform: scale(0.92);
+}
+

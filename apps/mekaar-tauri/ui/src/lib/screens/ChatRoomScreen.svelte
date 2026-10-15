@@ -134,17 +134,46 @@
     jumpToMessage(matchedMessageIds[currentMatchIndex]);
   }
 
-  // Group messages with date separators
+  function formatDateLabel(rawTimestamp: string): string {
+    if (!rawTimestamp) return 'Hari Ini';
+    const d = new Date(rawTimestamp);
+    if (!isNaN(d.getTime())) {
+      const now = new Date();
+      const isToday = d.toDateString() === now.toDateString();
+      if (isToday) return 'Hari Ini';
+      const yesterday = new Date();
+      yesterday.setDate(now.getDate() - 1);
+      if (d.toDateString() === yesterday.toDateString()) return 'Kemarin';
+
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${d.getDate()} ${months[d.getMonth()]}`;
+    }
+    return rawTimestamp.includes(':') ? 'Hari Ini' : rawTimestamp;
+  }
+
+  // Group messages with date separators dynamically
   const dateGroups = $derived.by(() => {
     if (messages.length === 0) return [];
-    if (messages.length <= 3) {
-      return [{ date: 'Hari Ini', msgs: messages }];
+    const groups: { date: string; msgs: MessageModel[] }[] = [];
+    let currentLabel = '';
+    let currentMsgs: MessageModel[] = [];
+
+    for (const msg of messages) {
+      const label = formatDateLabel(msg.timestamp);
+      if (label !== currentLabel) {
+        if (currentMsgs.length > 0) {
+          groups.push({ date: currentLabel, msgs: currentMsgs });
+        }
+        currentLabel = label;
+        currentMsgs = [msg];
+      } else {
+        currentMsgs.push(msg);
+      }
     }
-    return [
-      { date: '27 Agu', msgs: messages.slice(0, 3) },
-      { date: '28 Agu', msgs: messages.slice(3, 4) },
-      { date: 'Hari Ini', msgs: messages.slice(4) }
-    ];
+    if (currentMsgs.length > 0) {
+      groups.push({ date: currentLabel, msgs: currentMsgs });
+    }
+    return groups;
   });
 
   const disappearingDurations = [
@@ -158,7 +187,7 @@
 
   const peerContact = $derived.by(() => {
     if (!activeConv || activeConv.isGroup) return null;
-    const peerParticipant = activeConv.participants.find((p) => p.userId !== mekaarStore.currentUser.id);
+    const peerParticipant = activeConv.participants?.find((p) => p.userId !== mekaarStore.currentUser.id);
     if (peerParticipant) {
       const byId = mekaarStore.getContactByUserId(peerParticipant.userId);
       if (byId) return byId;
@@ -181,23 +210,23 @@
 
 {#if activeConv}
   <div class="chat-room-scaffold">
-    <!-- Floating Header Pill Bar -->
-    <header class="floating-room-header">
-      <!-- 1. Circular Back Button -->
+    <!-- Chat App Bar (Signal & Telegram Modern Parity) -->
+    <header class="chat-appbar-container">
+      <!-- 1. Tombol Kembali -->
       <button
         type="button"
-        class="circle-nav-btn"
+        class="chat-appbar-action-btn"
         onclick={handleLeaveRoom}
         aria-label="Kembali ke Daftar Chat"
+        title="Kembali"
       >
-        <CaretLeft size={20} weight="bold" />
+        <CaretLeft size={22} weight="bold" />
       </button>
 
-      <!-- 2. Center Contact Pill (Klik membuka ContactDetailSheet untuk 1-on-1 chat) -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div
-        class="center-contact-pill"
+      <!-- 2. Profil Kontak Terpusat & Ramping (flex: 1) -->
+      <button
+        type="button"
+        class="chat-contact-profile-btn"
         onclick={() => {
           if (!activeConv.isGroup && peerContact) {
             showContactDetail = true;
@@ -205,105 +234,62 @@
             showRoomOptions = true;
           }
         }}
+        aria-label="Detail Kontak {activeConv.title}"
       >
         <SketchAvatar
           name={activeConv.title}
-          size={36}
+          size={38}
           online={activeConv.isOnline}
           isGroup={activeConv.isGroup}
         />
-        <div class="pill-text-col">
-          <span class="pill-contact-name">{activeConv.title}</span>
-          <span class="pill-status-desc">
-            {#if activeConv.isTyping}
-              <span class="typing-indicator-row">
-                <span class="typing-dot-pulse">●</span> sedang mengetik...
+        <div class="chat-profile-text-col">
+          <div class="chat-contact-name-row">
+            <span class="chat-contact-title">{activeConv.title}</span>
+            {#if activeConv.isScreenProtected}
+              <span class="header-indicator-pill shield" title="Proteksi Layar & Konten Aktif">
+                <ShieldCheck size={12} weight="bold" />
+                <span>Aegis</span>
               </span>
+            {/if}
+            {#if activeConv.disappearingSeconds > 0}
+              <span class="header-indicator-pill timer" title="Pesan Lenyap Aktif">
+                <Timer size={12} weight="fill" />
+                <span>{activeConv.disappearingSeconds >= 60 ? `${Math.round(activeConv.disappearingSeconds / 60)}m` : `${activeConv.disappearingSeconds}d`}</span>
+              </span>
+            {/if}
+          </div>
+          <span class="chat-contact-status">
+            {#if activeConv.isTyping}
+              <span style="color: var(--brand-blue); font-weight: 600;">sedang mengetik...</span>
             {:else if activeConv.isOnline}
-              <span class="status-online-dot">●</span> Online
+              <span style="color: var(--brand-teal); font-weight: 600;">Online</span>
             {:else}
-              <span class="status-offline-dot">●</span> Terakhir dilihat 27 Agu pukul 16:45
+              <span>Offline</span>
             {/if}
           </span>
         </div>
-      </div>
+      </button>
 
-      <!-- 3. Actions Header: Search, Disappearing Timer, Calls & Options -->
-      <div class="header-actions-row">
-        <!-- In-Chat Search Trigger Button -->
+      <!-- 3. Aksi Cepat Kanan (Maksimal 2 tombol: Panggilan & Opsi) -->
+      <div class="chat-appbar-actions">
         <button
           type="button"
-          class="circle-nav-btn {isSearchOpen ? 'active-tool' : ''}"
-          onclick={() => {
-            isSearchOpen = !isSearchOpen;
-            if (!isSearchOpen) {
-              searchQuery = '';
-              targetJumpId = '';
-            }
-          }}
-          aria-label="Cari dalam Obrolan"
-          title="Cari dalam Obrolan"
-        >
-          <MagnifyingGlass size={18} weight="bold" color="var(--brand-blue)" />
-        </button>
-
-        <!-- Disappearing Timer Selector Button -->
-        <button
-          type="button"
-          class="circle-nav-btn {activeConv.disappearingSeconds > 0 ? 'active-timer' : ''}"
-          onclick={() => (showDisappearingModal = true)}
-          aria-label="Pesan Lenyap Otomatis"
-          title={activeConv.disappearingSeconds > 0 ? `Pesan Lenyap: ${Math.round(activeConv.disappearingSeconds / 60)}m` : 'Pesan Lenyap: Nonaktif'}
-        >
-          <Timer size={18} weight={activeConv.disappearingSeconds > 0 ? "fill" : "bold"} color={activeConv.disappearingSeconds > 0 ? '#E11D48' : 'var(--brand-blue)'} />
-        </button>
-
-        <!-- Voice Call Button -->
-        <button
-          type="button"
-          class="circle-nav-btn"
+          class="chat-appbar-action-btn"
           onclick={() => mekaarStore.startCall(activeConv, false)}
           aria-label="Panggilan Suara"
           title="Panggilan Suara E2EE"
         >
-          <Phone size={18} weight="bold" color="var(--brand-blue)" />
+          <Phone size={21} weight="bold" color="var(--brand-blue)" />
         </button>
 
-        <!-- Video Call Button -->
         <button
           type="button"
-          class="circle-nav-btn"
-          onclick={() => mekaarStore.startCall(activeConv, true)}
-          aria-label="Panggilan Video"
-          title="Panggilan Video E2EE"
-        >
-          <VideoCamera size={18} weight="bold" color="var(--brand-blue)" />
-        </button>
-
-        <!-- Mutual Privacy Shield Button -->
-        <button
-          type="button"
-          class="circle-nav-btn {activeConv.isScreenProtected ? 'active-shield' : ''}"
-          onclick={() => (showPrivacySheet = true)}
-          aria-label="Proteksi Privasi Obrolan Ekstrem"
-          title={activeConv.isScreenProtected ? 'Proteksi Layar & Konten Aktif (2 Arah)' : 'Pengaturan Privasi Obrolan'}
-        >
-          {#if activeConv.isScreenProtected}
-            <ShieldCheck size={18} weight="fill" color="var(--brand-blue)" />
-          {:else}
-            <LockKey size={18} weight="bold" color="var(--brand-blue)" />
-          {/if}
-        </button>
-
-        <!-- Options Button -->
-        <button
-          type="button"
-          class="circle-nav-btn"
+          class="chat-appbar-action-btn"
           onclick={() => (showRoomOptions = true)}
           aria-label="Opsi Obrolan"
           title="Opsi Obrolan"
         >
-          <DotsThreeVertical size={20} weight="bold" color="var(--brand-blue)" />
+          <DotsThreeVertical size={21} weight="bold" color="var(--text-primary)" />
         </button>
       </div>
     </header>
@@ -559,6 +545,20 @@
       </div>
 
       <div class="options-actions-list">
+        <button
+          type="button"
+          class="sheet-action-row"
+          onclick={() => {
+            showRoomOptions = false;
+            isSearchOpen = true;
+          }}
+        >
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <MagnifyingGlass size={18} weight="bold" color="var(--brand-blue)" />
+            Cari dalam Obrolan
+          </span>
+        </button>
+
         {#if !activeConv.isGroup && peerContact}
           <button
             type="button"
@@ -822,131 +822,6 @@
     position: relative;
     box-sizing: border-box;
     overflow: hidden;
-  }
-
-  /* Floating Header Bar */
-  .floating-room-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: calc(12px + env(safe-area-inset-top, 0px)) 16px 8px 16px;
-    gap: 10px;
-    z-index: 30;
-    background-color: var(--bg-primary);
-  }
-
-  .circle-nav-btn {
-    width: 44px;
-    height: 44px;
-    border-radius: 50%;
-    background-color: #FFFFFF;
-    border: 1px solid var(--border-light);
-    color: var(--text-primary);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
-    flex-shrink: 0;
-    transition: transform 0.12s ease, background-color 0.15s ease;
-  }
-
-  .circle-nav-btn:active {
-    transform: scale(0.92);
-  }
-
-  .circle-nav-btn.active-tool {
-    background-color: rgba(2, 132, 199, 0.12);
-    border-color: var(--brand-blue, #0284C7);
-  }
-
-  .circle-nav-btn.active-timer {
-    background-color: #FFF1F2;
-    border-color: #FDA4AF;
-  }
-
-  .circle-nav-btn.active-shield {
-    background-color: rgba(13, 148, 136, 0.15);
-    border-color: var(--brand-teal, #0D9488);
-    box-shadow: 0 0 6px rgba(13, 148, 136, 0.35);
-  }
-
-  .header-actions-row {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  /* Center Floating Contact Pill */
-  .center-contact-pill {
-    flex: 1;
-    height: 48px;
-    border-radius: var(--radius-pill);
-    background-color: #FFFFFF;
-    border: 1px solid var(--border-subtle);
-    display: flex;
-    align-items: center;
-    padding: 0 14px 0 6px;
-    gap: 10px;
-    box-shadow: 0 2px 10px rgba(21, 38, 65, 0.05);
-    cursor: pointer;
-    min-width: 0;
-  }
-
-  .center-contact-pill:active {
-    background-color: #F8FAFC;
-  }
-
-  .pill-text-col {
-    display: flex;
-    flex-direction: column;
-    min-width: 0;
-    flex: 1;
-  }
-
-  .pill-contact-name {
-    font-size: 0.98rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .pill-status-desc {
-    font-size: 0.76rem;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .status-online-dot {
-    color: #10B981;
-    font-size: 0.65rem;
-  }
-
-  .status-offline-dot {
-    color: #9FB0C9;
-    font-size: 0.65rem;
-  }
-
-  .typing-indicator-row {
-    color: var(--brand-blue, #0284C7);
-    font-weight: 600;
-  }
-
-  .typing-dot-pulse {
-    animation: pulseDot 1s infinite alternate;
-  }
-
-  @keyframes pulseDot {
-    from {
-      opacity: 0.3;
-    }
-    to {
-      opacity: 1;
-    }
   }
 
   /* In-Chat Search Bar */

@@ -8,6 +8,7 @@
   import ContactQrScanDialog from '../components/ContactQrScanDialog.svelte';
   import ChatRequestsDialog from '../components/ChatRequestsDialog.svelte';
   import ContactDetailSheet from '../components/ContactDetailSheet.svelte';
+  import EmptyState from '../components/EmptyState.svelte';
   import {
     Bell,
     QrCode,
@@ -24,7 +25,8 @@
     SquaresFour,
     Plus,
     ChatCircleDots,
-    Info
+    Info,
+    UserPlus
   } from 'phosphor-svelte';
 
   let radarFilter = $state<'semua' | 'kontak'>('semua');
@@ -224,7 +226,7 @@
       <input
         type="text"
         class="search-input"
-        placeholder="Cari nama, @username, atau ketik kode sandi brankas..."
+        placeholder="Cari kontak atau username..."
         value={searchQuery}
         oninput={(e) => handleSearchInput((e.target as HTMLInputElement).value)}
       />
@@ -438,8 +440,23 @@
               </div>
             </div>
           {:else}
-            <div style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--text-secondary); font-size: 0.9rem;">
-              {searchQuery ? 'Kontak tidak ditemukan.' : 'Belum ada kontak terdaftar.'}
+            <div style="grid-column: 1 / -1; width: 100%;">
+              {#if searchQuery}
+                <EmptyState
+                  pose="confused"
+                  title="Kontak Tidak Ditemukan"
+                  message="Tidak ada kontak yang cocok dengan '{searchQuery}'."
+                />
+              {:else}
+                <EmptyState
+                  pose="hi"
+                  title="Belum Ada Kontak"
+                  message="Mulai tambahkan teman terpercaya atau pindai kode QR untuk memulai komunikasi terenkripsi."
+                  actionLabel="Tambah Kontak"
+                  actionIcon={UserPlus}
+                  onaction={() => (showAddContactDialog = true)}
+                />
+              {/if}
             </div>
           {/each}
         </div>
@@ -489,8 +506,23 @@
               </button>
             </div>
           {:else}
-            <div style="padding: 24px; text-align: center; color: var(--text-secondary, #64748B); font-size: 0.9rem;">
-              {searchQuery ? 'Kontak tidak ditemukan.' : 'Belum ada kontak terdaftar.'}
+            <div style="width: 100%;">
+              {#if searchQuery}
+                <EmptyState
+                  pose="confused"
+                  title="Kontak Tidak Ditemukan"
+                  message="Tidak ada kontak yang cocok dengan '{searchQuery}'."
+                />
+              {:else}
+                <EmptyState
+                  pose="hi"
+                  title="Belum Ada Kontak"
+                  message="Mulai tambahkan teman terpercaya atau pindai kode QR untuk memulai komunikasi terenkripsi."
+                  actionLabel="Tambah Kontak"
+                  actionIcon={UserPlus}
+                  onaction={() => (showAddContactDialog = true)}
+                />
+              {/if}
             </div>
           {/each}
         </div>
