@@ -10,8 +10,20 @@
   let editFieldValue = $state('');
   let editFieldKey = $state<'name' | 'username' | 'bio' | 'email'>('name');
 
+  // Modal Ubah PIN State (3 Tahap Verifikasi Aman)
   let showChangePinModal = $state(false);
+  let oldPinInput = $state('');
   let newPinInput = $state('');
+  let confirmPinInput = $state('');
+  let pinError = $state('');
+  let pinSuccess = $state('');
+  let isSavingPin = $state(false);
+
+  // Modal Konfirmasi Keluar State
+  let showLogoutDialog = $state(false);
+
+  // Modal Info Avatar State
+  let showAvatarNotice = $state(false);
 
   function openEditField(key: 'name' | 'username' | 'bio' | 'email', title: string, currentVal: string) {
     editFieldKey = key;
@@ -32,22 +44,59 @@
     showEditFieldModal = false;
   }
 
-  function handleChangePin() {
-    if (newPinInput.length === 6) {
-      mekaarStore.pinCode = newPinInput;
-      alert('Kode PIN berhasil diperbarui!');
-      showChangePinModal = false;
-      newPinInput = '';
-    } else {
-      alert('PIN harus tepat 6 digit angka.');
+  function openPinModal() {
+    oldPinInput = '';
+    newPinInput = '';
+    confirmPinInput = '';
+    pinError = '';
+    pinSuccess = '';
+    isSavingPin = false;
+    showChangePinModal = true;
+  }
+
+  async function handleChangePin() {
+    pinError = '';
+    pinSuccess = '';
+
+    if (oldPinInput !== mekaarStore.pinCode) {
+      pinError = 'PIN lama tidak sesuai. Masukkan PIN master aktif Anda.';
+      return;
+    }
+    if (!/^\d{6}$/.test(newPinInput)) {
+      pinError = 'PIN baru harus terdiri dari tepat 6 digit angka numerik.';
+      return;
+    }
+    if (newPinInput === oldPinInput) {
+      pinError = 'PIN baru tidak boleh sama dengan PIN saat ini.';
+      return;
+    }
+    if (newPinInput !== confirmPinInput) {
+      pinError = 'Konfirmasi PIN baru tidak sesuai.';
+      return;
+    }
+
+    isSavingPin = true;
+    try {
+      await mekaarStore.setupPins(newPinInput, mekaarStore.duressPinCode);
+      pinSuccess = 'PIN berhasil diperbarui dan disinkronkan ke brankas!';
+      setTimeout(() => {
+        showChangePinModal = false;
+        oldPinInput = '';
+        newPinInput = '';
+        confirmPinInput = '';
+        pinSuccess = '';
+        isSavingPin = false;
+      }, 1200);
+    } catch {
+      pinError = 'Gagal menyimpan PIN ke penyimpanan aman. Silakan coba lagi.';
+      isSavingPin = false;
     }
   }
 
-  function handleLogout() {
-    if (confirm('Apakah Anda yakin ingin mengunci akun dan keluar?')) {
-      mekaarStore.pinVerified = false;
-      mekaarStore.vaultUnlocked = false;
-    }
+  function executeLogout() {
+    showLogoutDialog = false;
+    mekaarStore.pinVerified = false;
+    mekaarStore.vaultUnlocked = false;
   }
 </script>
 
@@ -64,7 +113,7 @@
     <button
       type="button"
       class="change-photo-btn"
-      onclick={() => alert('Fitur ubah foto: avatar sketsa krayon MEKAAR aktif.')}
+      onclick={() => (showAvatarNotice = true)}
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
@@ -151,7 +200,7 @@
         <button
           type="button"
           class="change-pin-btn"
-          onclick={() => (showChangePinModal = true)}
+          onclick={openPinModal}
         >
           Ubah PIN
         </button>
@@ -164,7 +213,7 @@
     <button
       type="button"
       class="logout-btn"
-      onclick={handleLogout}
+      onclick={() => (showLogoutDialog = true)}
     >
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -200,30 +249,139 @@
   </div>
 </Dialog>
 
-<!-- Modal Ubah PIN -->
+<!-- Modal Ubah PIN (3 Tahap Verifikasi Aman) -->
 <Dialog
   open={showChangePinModal}
   title="Ubah PIN Kunci 6 Digit"
   onclose={() => (showChangePinModal = false)}
 >
   <div style="display: flex; flex-direction: column; gap: 14px;">
-    <p style="font-size: 0.88rem; color: var(--text-secondary);">
-      Masukkan 6 digit angka PIN baru Anda:
-    </p>
-    <input
-      type="password"
-      maxlength="6"
-      class="sketch-input"
-      style="text-align: center; letter-spacing: 0.3em; font-size: 1.3rem; font-weight: 800;"
-      placeholder="••••••"
-      bind:value={newPinInput}
-    />
-    <div style="display: flex; justify-content: flex-end; gap: 8px;">
-      <button type="button" class="btn-secondary" onclick={() => (showChangePinModal = false)}>
+    <div>
+      <label for="old-pin-input" style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+        PIN Lama (Saat Ini)
+      </label>
+      <input
+        id="old-pin-input"
+        type="password"
+        maxlength="6"
+        class="sketch-input"
+        style="text-align: center; letter-spacing: 0.25em; font-size: 1.15rem; font-weight: 700;"
+        placeholder="••••••"
+        bind:value={oldPinInput}
+      />
+    </div>
+
+    <div>
+      <label for="new-pin-input" style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+        PIN Baru (6 Digit Angka)
+      </label>
+      <input
+        id="new-pin-input"
+        type="password"
+        maxlength="6"
+        class="sketch-input"
+        style="text-align: center; letter-spacing: 0.25em; font-size: 1.15rem; font-weight: 700;"
+        placeholder="••••••"
+        bind:value={newPinInput}
+      />
+    </div>
+
+    <div>
+      <label for="confirm-pin-input" style="font-size: 0.82rem; font-weight: 700; color: var(--text-secondary); display: block; margin-bottom: 4px;">
+        Ulangi PIN Baru
+      </label>
+      <input
+        id="confirm-pin-input"
+        type="password"
+        maxlength="6"
+        class="sketch-input"
+        style="text-align: center; letter-spacing: 0.25em; font-size: 1.15rem; font-weight: 700;"
+        placeholder="••••••"
+        bind:value={confirmPinInput}
+        onkeydown={(e) => e.key === 'Enter' && handleChangePin()}
+      />
+    </div>
+
+    {#if pinError}
+      <div style="background: #FEE2E2; border: 1px solid #F87171; border-radius: 6px; padding: 8px 12px; color: #991B1B; font-size: 0.84rem; font-weight: 600;">
+        ⚠️ {pinError}
+      </div>
+    {/if}
+
+    {#if pinSuccess}
+      <div style="background: #DCFCE7; border: 1px solid #4ADE80; border-radius: 6px; padding: 8px 12px; color: #166534; font-size: 0.84rem; font-weight: 600;">
+        ✓ {pinSuccess}
+      </div>
+    {/if}
+
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick={() => (showChangePinModal = false)}
+        disabled={isSavingPin}
+      >
         Batal
       </button>
-      <button type="button" class="btn-primary" onclick={handleChangePin}>
-        Perbarui PIN
+      <button
+        type="button"
+        class="btn-primary"
+        onclick={handleChangePin}
+        disabled={isSavingPin}
+      >
+        {isSavingPin ? 'Menyimpan...' : 'Perbarui PIN'}
+      </button>
+    </div>
+  </div>
+</Dialog>
+
+<!-- Modal Konfirmasi Logout -->
+<Dialog
+  open={showLogoutDialog}
+  title="Kunci & Keluar Akun"
+  onclose={() => (showLogoutDialog = false)}
+>
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45; margin: 0;">
+      Apakah Anda yakin ingin mengunci akun? Brankas data lokal akan terkunci dan Anda perlu memasukkan kode PIN untuk masuk kembali.
+    </p>
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+      <button
+        type="button"
+        class="btn-secondary"
+        onclick={() => (showLogoutDialog = false)}
+      >
+        Batal
+      </button>
+      <button
+        type="button"
+        class="sketch-button sketch-button--danger"
+        style="padding: 8px 16px; font-weight: 700;"
+        onclick={executeLogout}
+      >
+        Kunci & Keluar
+      </button>
+    </div>
+  </div>
+</Dialog>
+
+<!-- Modal Info Avatar -->
+<Dialog
+  open={showAvatarNotice}
+  title="Foto Profil Krayon"
+  onclose={() => (showAvatarNotice = false)}
+>
+  <div style="display: flex; flex-direction: column; gap: 14px;">
+    <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45; margin: 0;">
+      MEKAAR menggunakan identitas visual berbasis sketsa krayon terenkripsi untuk melindungi privasi biometrik pengguna di jaringan mesh publik.
+    </p>
+    <div style="display: flex; justify-content: flex-end;">
+      <button
+        type="button"
+        class="btn-primary"
+        onclick={() => (showAvatarNotice = false)}
+      >
+        Mengerti
       </button>
     </div>
   </div>

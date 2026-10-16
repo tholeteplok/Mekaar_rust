@@ -47,6 +47,7 @@
   // Revoke Dialog State
   let revokeTarget = $state<MessageModel | null>(null);
   let showRevokeDialog = $state(false);
+  let showDeleteChatDialog = $state(false);
 
   function handleLeaveRoom() {
     if (!activeConv) return;
@@ -656,9 +657,8 @@
           type="button"
           class="sheet-action-row danger-action"
           onclick={() => {
-            if (confirm('Hapus obrolan ini dari daftar?')) {
-              mekaarStore.closeConversation();
-            }
+            showRoomOptions = false;
+            showDeleteChatDialog = true;
           }}
         >
           <span style="display: flex; align-items: center; gap: 8px;">
@@ -775,6 +775,47 @@
         </button>
       </div>
     {/if}
+  </Dialog>
+
+  <!-- Hapus Riwayat Obrolan Confirmation Dialog -->
+  <Dialog
+    open={showDeleteChatDialog}
+    title="Hapus Riwayat Obrolan"
+    onclose={() => (showDeleteChatDialog = false)}
+  >
+    <div style="display: flex; flex-direction: column; gap: 14px;">
+      <p style="font-size: 0.88rem; color: var(--text-secondary); line-height: 1.45; margin: 0;">
+        Apakah Anda yakin ingin menghapus seluruh riwayat percakapan dengan <strong style="color: var(--text-primary);">{activeConv?.title || 'pengguna ini'}</strong>?
+        Seluruh rekaman pesan lokal akan dimusnahkan secara permanen dari brankas terenkripsi perangkat Anda.
+      </p>
+
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 4px;">
+        <button
+          type="button"
+          class="sheet-action-row danger-action"
+          onclick={() => {
+            if (activeConv) {
+              mekaarStore.deleteConversation(activeConv.id);
+            }
+            showDeleteChatDialog = false;
+          }}
+        >
+          <span style="display: flex; align-items: center; gap: 8px;">
+            <Trash size={18} weight="bold" color="#E11D48" />
+            Hapus Riwayat Permanen
+          </span>
+        </button>
+
+        <button
+          type="button"
+          class="sheet-action-row"
+          style="background: #F1F5F9; color: var(--text-secondary); text-align: center; justify-content: center;"
+          onclick={() => (showDeleteChatDialog = false)}
+        >
+          Batal
+        </button>
+      </div>
+    </div>
   </Dialog>
 
   <!-- Media Lightbox Modal Fullscreen -->

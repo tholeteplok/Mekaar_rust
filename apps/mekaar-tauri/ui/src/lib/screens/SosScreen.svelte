@@ -28,10 +28,11 @@
     mekaarStore.sosSession.countdownActive = false;
   }
 
-  function handleDeactivateSos() {
+  async function handleDeactivateSos() {
     pinError = '';
-    if (!mekaarStore.deactivateSos(cancelPin)) {
-      pinError = 'PIN pembatalan salah (Default: 123456).';
+    const success = await mekaarStore.deactivateSos(cancelPin);
+    if (!success) {
+      pinError = 'PIN pembatalan salah. Masukkan PIN keamanan Anda.';
       return;
     }
     cancelPin = '';
@@ -51,12 +52,27 @@
       <p style="font-size: 0.9rem; margin: 8px 0 12px;">
         {mekaarStore.sosSession.emergencyMessage}
       </p>
+
+      {#if mekaarStore.sosSession.notifiedGuardians.length === 0}
+        <div class="sketch-card no-guardian-alert">
+          <div style="font-weight: 700; color: #991B1B; margin-bottom: 4px;">
+            ⚠️ Tidak Ada Kontak Darurat (Guardian) Terdaftar
+          </div>
+          <p style="font-size: 0.82rem; color: #7F1D1D; margin: 0 0 10px 0;">
+            Sinyal darurat disiarkan secara lokal di jaringan mesh. Hubungi layanan darurat terpadu untuk bantuan fisik langsung.
+          </p>
+          <a href="tel:112" class="sketch-button sketch-button--danger call-112-btn">
+            📞 Hubungi Layanan Darurat Nasional (112)
+          </a>
+        </div>
+      {/if}
+
       <div class="sketch-card" style="padding: 10px 14px; background: #FFFFFF; margin-bottom: 14px; text-align: left;">
         <div style="font-size: 0.84rem;">
           📍 <strong>Koordinat Disiarkan:</strong> {mekaarStore.sosSession.latitude}, {mekaarStore.sosSession.longitude}
         </div>
         <div style="font-size: 0.84rem;">
-          🛡️ <strong>Guardian Diberitahu:</strong> {mekaarStore.sosSession.notifiedGuardians.join(', ')}
+          🛡️ <strong>Guardian Diberitahu:</strong> {mekaarStore.sosSession.notifiedGuardians.length > 0 ? mekaarStore.sosSession.notifiedGuardians.join(', ') : 'Belum ada guardian terdaftar'}
         </div>
         <div style="font-size: 0.84rem;">
           🔊 <strong>Sirene Darurat:</strong> {mekaarStore.sosSession.sirenEnabled ? 'Berbunyi Keras' : 'Senyap (Stealth)'}
@@ -68,7 +84,7 @@
           type="password"
           class="sketch-input"
           style="max-width: 200px; text-align: center;"
-          placeholder="PIN Batal (123456)"
+          placeholder="PIN Keamanan"
           bind:value={cancelPin}
         />
         <Button variant="secondary" onclick={handleDeactivateSos}>Matikan Sinyal SOS</Button>
@@ -85,7 +101,7 @@
         Mengirim Sinyal Darurat ke Guardian...
       </h3>
       <p style="font-size: 0.86rem; color: var(--text-secondary); margin-bottom: 16px;">
-        Lokasi GPS dan peringatan darurat akan dikirim melalui <code>{mekaarStore.serverStatus.wsEndpoint}</code>.
+        Lokasi GPS dan peringatan darurat akan disiarkan melalui <strong>Mekaar Mesh Network Relay (E2EE)</strong>.
       </p>
       <Button variant="secondary" size="lg" onclick={abortCountdown}>✕ Batalkan Hitung Mundur</Button>
     </div>
@@ -174,5 +190,22 @@
     color: #E11D48;
     line-height: 1;
     margin-bottom: 10px;
+  }
+  .no-guardian-alert {
+    background: #FEF2F2;
+    border: 1.5px dashed #DC2626;
+    padding: 12px 14px;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .call-112-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-decoration: none;
+    font-size: 0.88rem;
+    font-weight: 700;
+    padding: 8px 14px;
   }
 </style>

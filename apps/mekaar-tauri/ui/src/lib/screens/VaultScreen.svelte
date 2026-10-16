@@ -116,7 +116,9 @@
       firstPin = '';
       isConfirming = false;
     } else {
-      alert(`Petunjuk: PIN Anda tersimpan di brankas lokal perangkat.`);
+      errorMessage = 'Petunjuk: PIN tersimpan di brankas lokal perangkat Anda.';
+      hasError = true;
+      triggerShake();
     }
   }
 

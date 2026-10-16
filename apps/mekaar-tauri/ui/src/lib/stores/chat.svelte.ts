@@ -389,6 +389,38 @@ class MekaarStore {
     this.activeRegister = 'core';
   }
 
+  deleteConversation(convId: string) {
+    const conv = this.conversations.find((c) => c.id === convId);
+    const title = conv?.title || 'Obrolan';
+
+    // 1. Hapus riwayat pesan lokal
+    delete this.messagesByConv[convId];
+
+    // 2. Hapus percakapan dari daftar aktif
+    this.conversations = this.conversations.filter((c) => c.id !== convId);
+
+    // 3. Sinkronkan ke backend database terenkripsi jika tersedia
+    safeInvoke('delete_conversation', { conversationId: convId }).catch(() => {});
+
+    // 4. Tutup layar obrolan kembali ke daftar utama
+    if (this.selectedConversationId === convId) {
+      this.closeConversation();
+    }
+
+    // 5. Catat log audit keamanan
+    this.securityLogs = [
+      {
+        id: `log-${Date.now()}`,
+        eventTitle: `Riwayat Percakapan Dihapus Permanen (${title})`,
+        eventCategory: 'wipe',
+        deviceInfo: 'MEKAAR Local Storage Sanitizer',
+        timestamp: 'Baru saja',
+        severity: 'warning'
+      },
+      ...this.securityLogs
+    ];
+  }
+
   // Pemeriksaan Health Endpoint & WebSocket ke teplok-pc (100.101.96.120:8085 / 127.0.0.1:8085)
   async checkServerHealth(mode?: 'tailscale' | 'local') {
     const selectedMode = mode ?? this.serverStatus.mode;
@@ -1354,7 +1386,7 @@ class MekaarStore {
       };
     }
 
-    if (pin === this.pinCode || pin === '123456') {
+    if (pin === this.pinCode) {
       this.isDuressActive = false;
       this.vaultUnlocked = true;
       this.pinVerified = true;
@@ -1886,6 +1918,32 @@ class MekaarStore {
     this.activeRegister = 'sos';
     this.activeTab = 'sos';
 
+    // 1. Ambil daftar guardian aktif yang menerima peringatan darurat
+    const activeGuardians = this.guardians.filter((g) => g.canReceiveSosAlert && g.status === 'active');
+    this.sosSession.notifiedGuardians = activeGuardians.map((g) => g.name);
+
+    // 2. Dapatkan koordinat riil GPS perangkat (fallback netral 0, 0 tanpa mock Solo jika ditolak)
+    if (typeof navigator !== 'undefined' && 'geolocation' in navigator) {
+      try {
+        const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: true,
+            timeout: 5000,
+            maximumAge: 10000
+          });
+        });
+        this.sosSession.latitude = Number(pos.coords.latitude.toFixed(6));
+        this.sosSession.longitude = Number(pos.coords.longitude.toFixed(6));
+      } catch (e) {
+        console.warn('[SOS] Izin lokasi ditolak / timeout, fallback netral 0, 0:', e);
+        this.sosSession.latitude = 0;
+        this.sosSession.longitude = 0;
+      }
+    } else {
+      this.sosSession.latitude = 0;
+      this.sosSession.longitude = 0;
+    }
+
     safeInvoke('trigger_sos', {
       latitude: this.sosSession.latitude,
       longitude: this.sosSession.longitude,
@@ -1898,7 +1956,7 @@ class MekaarStore {
         id: `log-${Date.now()}`,
         eventTitle: isSilent
           ? 'Peringatan Darurat Senyap (Silent SOS) Diaktifkan'
-          : 'Peringatan Darurat SOS Diaktifkan & Lokasi Disiarkan ke Guardian',
+          : `Peringatan Darurat SOS Diaktifkan (GPS: ${this.sosSession.latitude}, ${this.sosSession.longitude}) & Disiarkan`,
         eventCategory: 'sos',
         deviceInfo: 'mekaar-tauri SOS Engine',
         timestamp: 'Baru saja',
@@ -1913,7 +1971,7 @@ class MekaarStore {
       // DILARANG: PIN paksaan tidak boleh membatalkan SOS!
       return false;
     }
-    if (pin !== this.pinCode && pin !== '123456') {
+    if (pin !== this.pinCode) {
       return false;
     }
 
