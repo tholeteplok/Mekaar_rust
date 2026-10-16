@@ -44,7 +44,7 @@
 <div class="sos-container">
   {#if mekaarStore.sosSession.active}
     <!-- Layar SOS Aktif (sos_active_screen.dart parity) -->
-    <div class="sketch-card sos-active-banner">
+    <div class="clean-card sos-active-banner">
       <div style="font-size: 2.5rem; margin-bottom: 6px;">🚨</div>
       <h2 style="font-family: var(--font-crayon); font-size: 1.45rem; color: #881337;">
         SINYAL SOS DARURAT AKTIF!
@@ -54,7 +54,7 @@
       </p>
 
       {#if mekaarStore.sosSession.notifiedGuardians.length === 0}
-        <div class="sketch-card no-guardian-alert">
+        <div class="clean-card no-guardian-alert">
           <div style="font-weight: 700; color: #991B1B; margin-bottom: 4px;">
             ⚠️ Tidak Ada Kontak Darurat (Guardian) Terdaftar
           </div>
@@ -67,7 +67,7 @@
         </div>
       {/if}
 
-      <div class="sketch-card" style="padding: 10px 14px; background: #FFFFFF; margin-bottom: 14px; text-align: left;">
+      <div class="clean-card" style="padding: 10px 14px; background: #FFFFFF; margin-bottom: 14px; text-align: left;">
         <div style="font-size: 0.84rem;">
           📍 <strong>Koordinat Disiarkan:</strong> {mekaarStore.sosSession.latitude}, {mekaarStore.sosSession.longitude}
         </div>
@@ -95,7 +95,7 @@
     </div>
   {:else if mekaarStore.sosSession.countdownActive}
     <!-- Layar Hitung Mundur SOS (sos_countdown_screen.dart parity) -->
-    <div class="sketch-card sos-countdown-box">
+    <div class="clean-card sos-countdown-box">
       <div class="countdown-number">{mekaarStore.sosSession.countdownRemaining}</div>
       <h3 style="font-family: var(--font-crayon); font-size: 1.25rem; margin-bottom: 6px;">
         Mengirim Sinyal Darurat ke Guardian...
@@ -167,10 +167,13 @@
 
 <style>
   .sos-container {
-    padding: 16px 18px;
-    max-width: 880px;
     width: 100%;
+    max-width: 900px;
     margin: 0 auto;
+    padding: 0 16px 24px 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
   }
   .sos-active-banner {
     padding: 24px;

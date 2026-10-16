@@ -1,6 +1,7 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
   import type { SecurityLogModel } from '../types';
+  import BottomSheet from './BottomSheet.svelte';
 
   let {
     open = false,
@@ -40,212 +41,103 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={onclose}>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-      class="modal-sheet"
-      role="dialog"
-      tabindex="-1"
-      aria-modal="true"
-      aria-label="Audit Log Keamanan"
-      onclick={(e) => e.stopPropagation()}
-    >
-      <div class="sheet-drag-handle"></div>
-
-      <div class="sheet-header">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div class="header-icon-circle">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#8B5CF6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <polyline points="14 2 14 8 20 8"></polyline>
-              <line x1="16" y1="13" x2="8" y2="13"></line>
-              <line x1="16" y1="17" x2="8" y2="17"></line>
-            </svg>
-          </div>
-          <div>
-            <h3 class="sheet-title">Log Audit Keamanan SQLCipher</h3>
-            <p class="sheet-sub">Rekaman anti-tamper aktivitas kriptografi dan status pertahanan</p>
-          </div>
-        </div>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">✕</button>
-      </div>
-
-      <div class="sheet-toolbar">
-        <input
-          type="text"
-          class="search-input"
-          placeholder="Cari kejadian log atau perangkat..."
-          bind:value={searchQuery}
-        />
-        <div class="tabs-row">
-          <button
-            type="button"
-            class="tab-btn {filterCategory === 'all' ? 'active' : ''}"
-            onclick={() => (filterCategory = 'all')}
-          >
-            Semua ({mekaarStore.securityLogs.length})
-          </button>
-          <button
-            type="button"
-            class="tab-btn {filterCategory === 'sos' ? 'active' : ''}"
-            onclick={() => (filterCategory = 'sos')}
-          >
-            🚨 Darurat SOS
-          </button>
-          <button
-            type="button"
-            class="tab-btn {filterCategory === 'crypto' ? 'active' : ''}"
-            onclick={() => (filterCategory = 'crypto')}
-          >
-            🔐 Kriptografi & Brankas
-          </button>
-          <button
-            type="button"
-            class="tab-btn {filterCategory === 'auth' ? 'active' : ''}"
-            onclick={() => (filterCategory = 'auth')}
-          >
-            👤 Autentikasi
-          </button>
-        </div>
-      </div>
-
-      <div class="logs-feed">
-        {#each filteredLogs as log (log.id)}
-          {@const sev = getSeverityBadge(log.severity)}
-          <div class="log-card">
-            <div class="log-card-top">
-              <span class="severity-badge" style="background: {sev.bg}; color: {sev.color};">
-                {sev.label}
-              </span>
-              <span class="log-timestamp">{log.timestamp}</span>
-            </div>
-            <div class="log-title">{log.eventTitle}</div>
-            <div class="log-meta-row">
-              <span class="device-pill">💻 {log.deviceInfo}</span>
-              <span class="checksum-code">
-                {log.checksum ?? 'INTEGRITAS-OK • SHA256-VERIFIED'}
-              </span>
-            </div>
-          </div>
-        {:else}
-          <div class="empty-state">
-            <div style="font-size: 2rem; margin-bottom: 6px;">📜</div>
-            <div style="font-weight: 700; color: var(--text-primary);">Tidak ada catatan log ditemukan</div>
-            <div style="font-size: 0.78rem; color: var(--text-secondary);">Seluruh aktivitas keamanan tersimpan aman.</div>
-          </div>
-        {/each}
-      </div>
-
-      <div class="sheet-footer">
-        <div style="font-size: 0.76rem; color: var(--text-secondary);">
-          🔒 Dilindungi rantai hash anti-tamper berstandar Aegis.
-        </div>
+<BottomSheet
+  {open}
+  title="Log Audit Keamanan SQLCipher"
+  subtitle="Rekaman anti-tamper aktivitas kriptografi dan status pertahanan"
+  {onclose}
+  maxWidth="600px"
+>
+  <div class="sheet-container">
+    <div class="sheet-toolbar">
+      <input
+        type="text"
+        class="search-input"
+        placeholder="Cari kejadian log atau perangkat..."
+        bind:value={searchQuery}
+      />
+      <div class="tabs-row">
         <button
           type="button"
-          class="btn-export"
-          onclick={() => {
-            onclose();
-            mekaarStore.forensicDialogOpen = true;
-          }}
+          class="tab-btn {filterCategory === 'all' ? 'active' : ''}"
+          onclick={() => (filterCategory = 'all')}
         >
-          🔐 Ekspor Bundel Forensik (.mkrvault)
+          Semua ({mekaarStore.securityLogs.length})
+        </button>
+        <button
+          type="button"
+          class="tab-btn {filterCategory === 'sos' ? 'active' : ''}"
+          onclick={() => (filterCategory = 'sos')}
+        >
+          🚨 Darurat SOS
+        </button>
+        <button
+          type="button"
+          class="tab-btn {filterCategory === 'crypto' ? 'active' : ''}"
+          onclick={() => (filterCategory = 'crypto')}
+        >
+          🔐 Kriptografi & Brankas
+        </button>
+        <button
+          type="button"
+          class="tab-btn {filterCategory === 'auth' ? 'active' : ''}"
+          onclick={() => (filterCategory = 'auth')}
+        >
+          👤 Autentikasi
         </button>
       </div>
     </div>
+
+    <div class="logs-feed">
+      {#each filteredLogs as log (log.id)}
+        {@const sev = getSeverityBadge(log.severity)}
+        <div class="log-card">
+          <div class="log-card-top">
+            <span class="severity-badge" style="background: {sev.bg}; color: {sev.color};">
+              {sev.label}
+            </span>
+            <span class="log-timestamp">{log.timestamp}</span>
+          </div>
+          <div class="log-title">{log.eventTitle}</div>
+          <div class="log-meta-row">
+            <span class="device-pill">💻 {log.deviceInfo}</span>
+            <span class="checksum-code">
+              {log.checksum ?? 'INTEGRITAS-OK • SHA256-VERIFIED'}
+            </span>
+          </div>
+        </div>
+      {:else}
+        <div class="empty-state">
+          <div style="font-size: 2rem; margin-bottom: 6px;">📜</div>
+          <div style="font-weight: 700; color: var(--text-primary); font-family: var(--font-active);">Tidak ada catatan log ditemukan</div>
+          <div style="font-size: 0.78rem; color: var(--text-secondary);">Seluruh aktivitas keamanan tersimpan aman.</div>
+        </div>
+      {/each}
+    </div>
+
+    <div class="sheet-footer">
+      <div style="font-size: 0.76rem; color: var(--text-secondary);">
+        🔒 Dilindungi rantai hash anti-tamper berstandar Aegis.
+      </div>
+      <button
+        type="button"
+        class="btn-export"
+        onclick={() => {
+          onclose();
+          mekaarStore.forensicDialogOpen = true;
+        }}
+      >
+        🔐 Ekspor Bundel Forensik (.mkrvault)
+      </button>
+    </div>
   </div>
-{/if}
+</BottomSheet>
 
 <style>
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(4px);
-    z-index: 999;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-
-  .modal-sheet {
-    background-color: var(--bg-card);
-    width: 100%;
-    max-width: 580px;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.16);
+  .sheet-container {
     display: flex;
     flex-direction: column;
-    max-height: 85vh;
-    overflow: hidden;
-    animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @keyframes slideUp {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  .sheet-drag-handle {
-    width: 36px;
-    height: 4px;
-    background-color: var(--border-light);
-    border-radius: var(--radius-pill);
-    margin: 10px auto 4px auto;
-  }
-
-  .sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px 14px 20px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .header-icon-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #F3E8FF;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .sheet-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .sheet-sub {
-    font-size: 0.78rem;
-    color: var(--text-secondary);
-    margin: 2px 0 0 0;
-  }
-
-  .close-x-btn {
-    background: none;
-    border: none;
-    font-size: 1.15rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 50%;
-  }
-
-  .close-x-btn:hover {
-    background-color: var(--bg-input);
-    color: var(--text-primary);
+    margin: -16px -20px -20px -20px;
   }
 
   .sheet-toolbar {
@@ -259,11 +151,13 @@
 
   .search-input {
     width: 100%;
+    min-height: var(--touch-target-min, 40px);
     padding: 8px 14px;
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-light);
-    background: #FFFFFF;
+    background: var(--bg-card);
     font-size: 0.85rem;
+    font-family: var(--font-active);
     color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
@@ -277,13 +171,18 @@
   }
 
   .tab-btn {
-    padding: 6px 12px;
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 14px;
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-light);
-    background: #FFFFFF;
+    background: var(--bg-card);
     color: var(--text-secondary);
     font-size: 0.78rem;
     font-weight: 600;
+    font-family: var(--font-active);
     cursor: pointer;
     white-space: nowrap;
     transition: all 0.15s ease;
@@ -302,16 +201,16 @@
   .logs-feed {
     padding: 16px 20px;
     overflow-y: auto;
+    max-height: 48vh;
     display: flex;
     flex-direction: column;
     gap: 10px;
-    flex: 1;
   }
 
   .log-card {
     padding: 12px 14px;
     border-radius: var(--radius-lg);
-    background-color: #FFFFFF;
+    background-color: var(--bg-card);
     border: 1px solid var(--border-light);
     display: flex;
     flex-direction: column;
@@ -343,6 +242,7 @@
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1.4;
+    font-family: var(--font-active);
   }
 
   .log-meta-row {
@@ -382,9 +282,15 @@
     align-items: center;
     justify-content: space-between;
     background-color: var(--bg-primary);
+    flex-wrap: wrap;
+    gap: 10px;
   }
 
   .btn-export {
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 8px 16px;
     border-radius: var(--radius-pill);
     background-color: #8B5CF6;
@@ -392,6 +298,7 @@
     border: none;
     font-size: 0.82rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: pointer;
     box-shadow: 0 2px 6px rgba(139, 92, 246, 0.25);
   }

@@ -71,7 +71,7 @@
           if (onComplete) {
             onComplete();
           } else {
-            mekaarStore.advanceFtue('username_setup');
+            mekaarStore.advanceFtue('authenticated');
           }
         } else {
           hasError = true;

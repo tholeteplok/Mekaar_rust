@@ -43,7 +43,7 @@
           title="Perbesar Layar Panggilan"
           aria-label="Perbesar"
         >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="15 3 21 3 21 9"></polyline>
             <polyline points="9 21 3 21 3 15"></polyline>
             <line x1="21" y1="3" x2="14" y2="10"></line>
@@ -154,7 +154,7 @@
     position: fixed;
     bottom: 84px;
     right: 20px;
-    width: 250px;
+    width: min(280px, calc(100vw - 32px));
     background: linear-gradient(145deg, #0F172A, #1E293B);
     border: 1.5px solid rgba(56, 189, 248, 0.4);
     border-radius: var(--radius-xl, 20px);
@@ -223,22 +223,28 @@
   }
 
   .pip-maximize-icon-btn {
-    width: 24px;
-    height: 24px;
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.12);
     border: none;
     color: #CBD5E1;
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background 0.15s ease, color 0.15s ease;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
   }
 
   .pip-maximize-icon-btn:hover {
     background: var(--brand-blue, #0284C7);
     color: #FFFFFF;
+  }
+
+  .pip-maximize-icon-btn:active {
+    transform: scale(0.92);
   }
 
   /* Media Stage */
@@ -353,14 +359,16 @@
   }
 
   .pip-ctl-btn {
-    width: 36px;
-    height: 36px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
     border-radius: 50%;
     border: none;
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 1.05rem;
+    font-size: 1.12rem;
     cursor: pointer;
     transition: transform 0.15s ease, background-color 0.15s ease;
   }

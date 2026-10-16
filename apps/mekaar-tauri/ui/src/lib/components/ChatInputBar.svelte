@@ -108,9 +108,9 @@
         class="close-reply-btn"
         onclick={oncancelreply}
         aria-label="Batalkan Balasan"
-        style="display: flex; align-items: center; justify-content: center;"
+        title="Batalkan Balasan"
       >
-        <X size={14} weight="bold" />
+        <X size={16} weight="bold" />
       </button>
     </div>
   {/if}
@@ -119,7 +119,7 @@
   {#if editingMessage}
     <div class="edit-floating-bar">
       <div class="edit-meta" style="display: flex; align-items: center; gap: 6px;">
-        <PencilSimple size={14} weight="bold" color="var(--brand-blue, #0284C7)" />
+        <PencilSimple size={16} weight="bold" color="var(--brand-blue, #0284C7)" />
         <span class="edit-label">Mengedit Pesan:</span>
         <span class="edit-text-preview">{editingMessage.text}</span>
       </div>
@@ -131,9 +131,9 @@
           oncanceledit?.();
         }}
         aria-label="Batalkan Edit"
-        style="display: flex; align-items: center; justify-content: center;"
+        title="Batalkan Edit"
       >
-        <X size={14} weight="bold" />
+        <X size={16} weight="bold" />
       </button>
     </div>
   {/if}
@@ -245,10 +245,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
-    background: #FFFFFF;
+    padding: 6px 10px 6px 14px;
+    background: var(--surface-card, #FFFFFF);
     border-radius: var(--radius-pill);
-    border: 1px solid var(--border-light);
+    border: 1px solid var(--border-subtle);
     box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
     animation: slideUp 0.15s ease;
   }
@@ -257,10 +257,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 8px 14px;
-    background: #EFF6FF;
+    padding: 6px 10px 6px 14px;
+    background: var(--brand-blue-subtle, #EFF6FF);
     border-radius: var(--radius-pill);
-    border: 1px solid #BFDBFE;
+    border: 1px solid var(--brand-blue);
     box-shadow: 0 2px 8px rgba(2, 132, 199, 0.08);
     animation: slideUp 0.15s ease;
   }
@@ -308,9 +308,21 @@
     border: none;
     color: var(--text-secondary);
     cursor: pointer;
-    font-size: 0.9rem;
-    padding: 4px;
-    margin-left: 8px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 6px;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .close-reply-btn:hover, .close-edit-btn:hover {
+    background-color: var(--bg-surface, #F1F5F9);
+    color: var(--text-primary);
   }
 
   .dock-row {
@@ -324,16 +336,18 @@
   .circle-action-btn {
     width: 48px;
     height: 48px;
+    min-width: 48px;
+    min-height: 48px;
     border-radius: 50%;
-    background-color: #FFFFFF;
-    border: 1px solid var(--border-light);
+    background-color: var(--surface-card, #FFFFFF);
+    border: 1px solid var(--border-subtle, var(--border-light));
     display: flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(21, 38, 65, 0.06);
     flex-shrink: 0;
-    transition: transform 0.12s ease;
+    transition: transform 0.12s ease, background-color 0.15s ease;
   }
 
   .circle-action-btn:active {
@@ -350,7 +364,8 @@
     flex: 1;
     height: 48px;
     border-radius: var(--radius-pill);
-    background-color: #F1F5F9;
+    background-color: var(--bg-input, #F1F5F9);
+    border: 1px solid var(--border-subtle, transparent);
     display: flex;
     align-items: center;
     padding: 0 12px 0 14px;
@@ -363,18 +378,25 @@
     border: none;
     cursor: pointer;
     padding: 0;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.15s ease;
+    transition: transform 0.15s ease, background-color 0.15s ease;
   }
 
   .emoji-trigger-btn:hover {
-    transform: scale(1.15);
+    transform: scale(1.1);
+    background-color: rgba(19, 108, 252, 0.08);
   }
 
   .emoji-trigger-btn.active-emoji {
-    transform: scale(1.2);
+    transform: scale(1.15);
+    background-color: var(--brand-blue-subtle);
   }
 
   .text-field {
@@ -382,7 +404,7 @@
     background: transparent;
     border: none;
     outline: none;
-    font-family: var(--font-sans);
+    font-family: var(--font-active);
     font-size: 0.98rem;
     color: var(--text-primary);
   }
@@ -392,8 +414,10 @@
   }
 
   .send-arrow-btn {
-    width: 32px;
-    height: 32px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
     border-radius: 50%;
     background-color: var(--brand-blue);
     color: #FFFFFF;
@@ -407,7 +431,7 @@
   }
 
   .send-arrow-btn:active {
-    transform: scale(0.9);
+    transform: scale(0.92);
   }
 
   .edit-mode-btn {

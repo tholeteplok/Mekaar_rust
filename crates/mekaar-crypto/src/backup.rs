@@ -3,17 +3,17 @@
 //! Mengenkripsi kunci privat identitas pengguna dengan master PIN 6 digit via Argon2id
 //! sehingga dapat disimpan sebagai backup di server tanpa membocorkan kunci (Zero-Knowledge).
 
-use crate::cipher::{decrypt_concatenated, encrypt_concatenated};
+use crate::cipher::{decrypt_concatenated, encrypt_concatenated, NONCE_LEN, MAC_TAG_LEN};
 use crate::error::CryptoError;
 use crate::kdf::derive_pin_key;
 use crate::types::IdentityPrivateKey;
 use rand::rngs::OsRng;
 use rand::RngCore;
 use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
+use zeroize::Zeroizing;
 
 /// Struktur data backup kunci privat yang terenkripsi aman.
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq)]
 pub struct KeyBackup {
     /// Versi format backup (v2 = Argon2id).
     pub version: u8,
@@ -26,14 +26,28 @@ pub struct KeyBackup {
     pub encrypted_private_key: Vec<u8>,
 }
 
+// Debug manual yang meredaksi ciphertext agar tidak bocor ke log.
+impl std::fmt::Debug for KeyBackup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("KeyBackup")
+            .field("version", &self.version)
+            .field("kdf", &self.kdf)
+            .field("encrypted_len", &self.encrypted_private_key.len())
+            .finish_non_exhaustive()
+    }
+}
+
+/// Panjang backup yang valid: 24 nonce + 32 kunci + 16 tag.
+pub const BACKUP_BLOB_LEN: usize = NONCE_LEN + 32 + MAC_TAG_LEN;
+
 /// Membungkus (wrap) kunci privat identitas menggunakan master PIN.
 pub fn wrap_private_key(priv_key: &IdentityPrivateKey, pin: &str) -> Result<KeyBackup, CryptoError> {
     let mut salt = [0u8; 16];
     OsRng.fill_bytes(&mut salt);
 
-    let mut wrap_key = derive_pin_key(pin, &salt)?;
+    // Zeroizing: auto-zeroize saat scope berakhir, aman dari early-return.
+    let wrap_key = Zeroizing::new(derive_pin_key(pin, &salt)?);
     let encrypted = encrypt_concatenated(&wrap_key, priv_key.as_bytes())?;
-    wrap_key.zeroize();
 
     Ok(KeyBackup {
         version: 2,
@@ -47,17 +61,24 @@ pub fn wrap_private_key(priv_key: &IdentityPrivateKey, pin: &str) -> Result<KeyB
 ///
 /// Jika PIN salah atau data rusak, mengembalikan `CryptoError::InvalidPinOrCorruptedBackup`.
 pub fn unwrap_private_key(backup: &KeyBackup, pin: &str) -> Result<IdentityPrivateKey, CryptoError> {
+    if backup.version != 2 {
+        return Err(CryptoError::InvalidFormat(
+            "Versi backup tidak didukung (hanya v2)".to_string(),
+        ));
+    }
     if backup.kdf != "argon2id" {
         return Err(CryptoError::InvalidFormat(format!(
             "KDF '{}' tidak didukung (hanya 'argon2id')",
             backup.kdf
         )));
     }
+    if backup.encrypted_private_key.len() != BACKUP_BLOB_LEN {
+        return Err(CryptoError::InvalidPinOrCorruptedBackup);
+    }
 
-    let mut wrap_key = derive_pin_key(pin, &backup.salt)?;
+    let wrap_key = Zeroizing::new(derive_pin_key(pin, &backup.salt)?);
     let decrypted = decrypt_concatenated(&wrap_key, &backup.encrypted_private_key)
         .map_err(|_| CryptoError::InvalidPinOrCorruptedBackup)?;
-    wrap_key.zeroize();
 
     if decrypted.len() != 32 {
         return Err(CryptoError::InvalidFormat(

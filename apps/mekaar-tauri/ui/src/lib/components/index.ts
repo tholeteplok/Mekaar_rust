@@ -30,3 +30,4 @@ export { default as ChatRoomPrivacySheet } from './ChatRoomPrivacySheet.svelte';
 export { default as SecurityGlossaryDialog } from './SecurityGlossaryDialog.svelte';
 export { default as AppearanceSettingsDialog } from './AppearanceSettingsDialog.svelte';
 export { default as EmptyState } from './EmptyState.svelte';
+export { default as ForgotPasswordDialog } from './ForgotPasswordDialog.svelte';

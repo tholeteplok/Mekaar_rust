@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { AttachmentModel } from '../types';
   import { encodeStegoMessage, createSyntheticCarrierImage } from '../services/steganography';
+  import Dialog from './Dialog.svelte';
 
   let {
     open = false,
@@ -157,341 +158,267 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="attach-dialog-backdrop" onclick={onclose}>
-    <div class="attach-dialog-modal" onclick={(e) => e.stopPropagation()}>
-      <!-- Header -->
-      <div class="dialog-header-row">
-        <div class="header-title-wrap">
-          <span class="attach-icon">📎</span>
-          <h3 class="dialog-title">Kirim Lampiran Aman</h3>
-        </div>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">
-          ✕
-        </button>
-      </div>
-
-      <!-- Segment Tabs -->
-      <div class="attach-tabs-bar">
-        <button
-          type="button"
-          class="attach-tab-btn {activeTab === 'stego' ? 'active' : ''}"
-          onclick={() => (activeTab = 'stego')}
-        >
-          🕵️ Steganografi
-        </button>
-        <button
-          type="button"
-          class="attach-tab-btn {activeTab === 'image' ? 'active' : ''}"
-          onclick={() => (activeTab = 'image')}
-        >
-          🖼️ Gambar
-        </button>
-        <button
-          type="button"
-          class="attach-tab-btn {activeTab === 'document' ? 'active' : ''}"
-          onclick={() => (activeTab = 'document')}
-        >
-          📄 Dokumen
-        </button>
-        <button
-          type="button"
-          class="attach-tab-btn {activeTab === 'voice' ? 'active' : ''}"
-          onclick={() => (activeTab = 'voice')}
-        >
-          🎙️ Suara
-        </button>
-        <button
-          type="button"
-          class="attach-tab-btn {activeTab === 'location' ? 'active' : ''}"
-          onclick={() => (activeTab = 'location')}
-        >
-          📍 Lokasi
-        </button>
-      </div>
-
-      <!-- Tab 1: Steganography (LSB Covert Text) -->
-      {#if activeTab === 'stego'}
-        <div class="tab-content-wrap">
-          <p class="tab-desc">
-            Sisipkan pesan rahasia ke dalam bit warna citra. Gambar terlihat wajar bagi penyadap, namun membawa payload tersembunyi.
-          </p>
-
-          <div class="carrier-box">
-            {#if stegoCarrierPreview}
-              <img src={stegoCarrierPreview} alt="Carrier" class="preview-carrier-img" />
-            {/if}
-            <label class="btn-change-carrier">
-              Ganti Gambar Pembawa
-              <input type="file" accept="image/*" onchange={handleImageFileSelect} style="display: none;" />
-            </label>
-          </div>
-
-          <div class="field-block">
-            <label for="secret-message-text" class="field-label">Pesan Rahasia yang Disembunyikan:</label>
-            <textarea
-              id="secret-message-text"
-              class="secret-textarea"
-              placeholder="Tuliskan pesan rahasia tingkat tinggi (misal: Rencana evakuasi darurat jam 22:00)..."
-              bind:value={stegoSecretText}
-              rows="3"
-            ></textarea>
-          </div>
-
-          <div class="field-block">
-            <label for="stego-passkey" class="field-label">Kunci Sandi Ekstraksi (Opsional):</label>
-            <input
-              id="stego-passkey"
-              type="password"
-              class="passkey-input"
-              placeholder="Kosongkan jika tanpa kata sandi..."
-              bind:value={stegoPasskey}
-            />
-          </div>
-
-          {#if stegoErrorMessage}
-            <div class="error-banner">⚠️ {stegoErrorMessage}</div>
-          {/if}
-
-          <button
-            type="button"
-            class="btn-primary-send"
-            disabled={isEncodingStego || !stegoSecretText.trim()}
-            onclick={sendSteganographyImage}
-          >
-            {isEncodingStego ? 'Menyisipkan Bit LSB...' : '🚀 Enkripsi & Kirim Gambar Steganografi'}
-          </button>
-        </div>
-      {/if}
-
-      <!-- Tab 2: Standard Image -->
-      {#if activeTab === 'image'}
-        <div class="tab-content-wrap">
-          <p class="tab-desc">Kirim foto dokumen atau dokumentasi visual dengan enkripsi AES-256 E2EE.</p>
-          <div class="carrier-box">
-            {#if stegoCarrierPreview}
-              <img src={stegoCarrierPreview} alt="Carrier" class="preview-carrier-img" />
-            {/if}
-            <label class="btn-change-carrier">
-              Pilih Foto Galeri
-              <input type="file" accept="image/*" onchange={handleImageFileSelect} style="display: none;" />
-            </label>
-          </div>
-          <button type="button" class="btn-primary-send" onclick={sendStandardImage}>
-            Kirim Gambar Terenkripsi
-          </button>
-        </div>
-      {/if}
-
-      <!-- Tab 3: Document -->
-      {#if activeTab === 'document'}
-        <div class="tab-content-wrap">
-          <p class="tab-desc">Kirim berkas PDF, dokumen teks, atau arsip ZIP dengan verifikasi integritas checksum SHA-256.</p>
-          <div class="doc-preset-card">
-            <span class="doc-icon">📑</span>
-            <div class="doc-meta">
-              <input type="text" class="doc-name-input" bind:value={docFileName} />
-              <span class="doc-sub">{docFileSize} • ChaCha20-Poly1305</span>
-            </div>
-          </div>
-          <div class="preset-docs-row">
-            <button
-              type="button"
-              class="preset-chip"
-              onclick={() => { docFileName = 'Laporan_Evakuasi.pdf'; docFileSize = '1.2 MB'; }}
-            >
-              + Laporan_Evakuasi.pdf
-            </button>
-            <button
-              type="button"
-              class="preset-chip"
-              onclick={() => { docFileName = 'Kunci_Cadangan_Grup.enc'; docFileSize = '128 KB'; }}
-            >
-              + Kunci_Cadangan.enc
-            </button>
-          </div>
-          <button type="button" class="btn-primary-send" onclick={sendDocument}>
-            Kirim Dokumen Terenkripsi
-          </button>
-        </div>
-      {/if}
-
-      <!-- Tab 4: Voice Note -->
-      {#if activeTab === 'voice'}
-        <div class="tab-content-wrap center-align">
-          <div class="mic-pulse-circle">🎙️</div>
-          <p class="voice-title">Pesan Suara Terenkripsi Opus</p>
-          <p class="tab-desc">Audio dikompresi dengan codec Opus latensi rendah dan dienkripsi ujung-ke-ujung.</p>
-          <button type="button" class="btn-primary-send" onclick={sendVoiceNote}>
-            Kirim Rekaman Suara (00:15)
-          </button>
-        </div>
-      {/if}
-
-      <!-- Tab 5: Location -->
-      {#if activeTab === 'location'}
-        <div class="tab-content-wrap">
-          <!-- Mode Selector Pill Bar -->
-          <div class="location-mode-toggle">
-            <button
-              type="button"
-              class="mode-pill-btn {locationMode === 'live' ? 'active-live' : ''}"
-              onclick={() => (locationMode = 'live')}
-            >
-              🟢 Lokasi Langsung (Live)
-            </button>
-            <button
-              type="button"
-              class="mode-pill-btn {locationMode === 'static' ? 'active-static' : ''}"
-              onclick={() => (locationMode = 'static')}
-            >
-              📍 Titik Lokasi Statis
-            </button>
-          </div>
-
-          {#if locationMode === 'live'}
-            <div class="live-config-card">
-              <span class="live-config-title">Pilih Durasi Siaran Langsung:</span>
-              <div class="duration-pills-row">
-                <button
-                  type="button"
-                  class="duration-pill {liveDurationMinutes === 15 ? 'selected' : ''}"
-                  onclick={() => (liveDurationMinutes = 15)}
-                >
-                  15 Menit
-                </button>
-                <button
-                  type="button"
-                  class="duration-pill {liveDurationMinutes === 60 ? 'selected' : ''}"
-                  onclick={() => (liveDurationMinutes = 60)}
-                >
-                  1 Jam
-                </button>
-                <button
-                  type="button"
-                  class="duration-pill {liveDurationMinutes === 480 ? 'selected' : ''}"
-                  onclick={() => (liveDurationMinutes = 480)}
-                >
-                  8 Jam
-                </button>
-              </div>
-
-              <div class="telemetry-info-box">
-                <div class="telemetry-item">
-                  <span class="telemetry-icon">🔋</span>
-                  <span>Baterai: <strong>86%</strong></span>
-                </div>
-                <div class="telemetry-item">
-                  <span class="telemetry-icon">🛰️</span>
-                  <span>Akurasi: <strong>±4m (E2EE)</strong></span>
-                </div>
-              </div>
-
-              <p class="live-notice-text">
-                Penerima dapat memantau pergerakan rute Anda secara langsung di Peta Radar selama sesi aktif. Anda dapat membatalkan kapan saja.
-              </p>
-            </div>
-          {:else}
-            <div class="static-config-card">
-              <div class="static-pin-preview">📍</div>
-              <p class="static-name-label">Posko Jebres, Surakarta</p>
-              <p class="static-coord-label">-7.5583, 110.8566</p>
-              <p class="tab-desc">Membagikan titik statis lokasi saat ini tanpa pelacakan posisi secara kontinyu.</p>
-            </div>
-          {/if}
-
-          <button
-            type="button"
-            class="btn-primary-send"
-            onclick={sendLocation}
-          >
-            {locationMode === 'live' ? `Bagikan Lokasi Langsung (${liveDurationMinutes >= 60 ? `${liveDurationMinutes / 60} Jam` : `${liveDurationMinutes} Menit`})` : 'Bagikan Titik Lokasi Aman'}
-          </button>
-        </div>
-      {/if}
+<Dialog
+  {open}
+  title="Kirim Lampiran Aman"
+  {onclose}
+  maxWidth="480px"
+>
+  <div class="attach-dialog-content">
+    <!-- Segment Tabs -->
+    <div class="attach-tabs-bar">
+      <button
+        type="button"
+        class="attach-tab-btn {activeTab === 'stego' ? 'active' : ''}"
+        onclick={() => (activeTab = 'stego')}
+      >
+        🕵️ Steganografi
+      </button>
+      <button
+        type="button"
+        class="attach-tab-btn {activeTab === 'image' ? 'active' : ''}"
+        onclick={() => (activeTab = 'image')}
+      >
+        🖼️ Gambar
+      </button>
+      <button
+        type="button"
+        class="attach-tab-btn {activeTab === 'document' ? 'active' : ''}"
+        onclick={() => (activeTab = 'document')}
+      >
+        📄 Dokumen
+      </button>
+      <button
+        type="button"
+        class="attach-tab-btn {activeTab === 'voice' ? 'active' : ''}"
+        onclick={() => (activeTab = 'voice')}
+      >
+        🎙️ Suara
+      </button>
+      <button
+        type="button"
+        class="attach-tab-btn {activeTab === 'location' ? 'active' : ''}"
+        onclick={() => (activeTab = 'location')}
+      >
+        📍 Lokasi
+      </button>
     </div>
+
+    <!-- Tab 1: Steganography (LSB Covert Text) -->
+    {#if activeTab === 'stego'}
+      <div class="tab-content-wrap">
+        <p class="tab-desc">
+          Sisipkan pesan rahasia ke dalam bit warna citra. Gambar terlihat wajar bagi penyadap, namun membawa payload tersembunyi.
+        </p>
+
+        <div class="carrier-box">
+          {#if stegoCarrierPreview}
+            <img src={stegoCarrierPreview} alt="Carrier" class="preview-carrier-img" />
+          {/if}
+          <label class="btn-change-carrier">
+            Ganti Gambar Pembawa
+            <input type="file" accept="image/*" onchange={handleImageFileSelect} style="display: none;" />
+          </label>
+        </div>
+
+        <div class="field-block">
+          <label for="secret-message-text" class="field-label">Pesan Rahasia yang Disembunyikan:</label>
+          <textarea
+            id="secret-message-text"
+            class="secret-textarea"
+            placeholder="Tuliskan pesan rahasia tingkat tinggi (misal: Rencana evakuasi darurat jam 22:00)..."
+            bind:value={stegoSecretText}
+            rows="3"
+          ></textarea>
+        </div>
+
+        <div class="field-block">
+          <label for="stego-passkey" class="field-label">Kunci Sandi Ekstraksi (Opsional):</label>
+          <input
+            id="stego-passkey"
+            type="password"
+            class="passkey-input"
+            placeholder="Kosongkan jika tanpa kata sandi..."
+            bind:value={stegoPasskey}
+          />
+        </div>
+
+        {#if stegoErrorMessage}
+          <div class="error-banner">⚠️ {stegoErrorMessage}</div>
+        {/if}
+
+        <button
+          type="button"
+          class="btn-primary-send"
+          disabled={isEncodingStego || !stegoSecretText.trim()}
+          onclick={sendSteganographyImage}
+        >
+          {isEncodingStego ? 'Menyisipkan Bit LSB...' : '🚀 Enkripsi & Kirim Gambar Steganografi'}
+        </button>
+      </div>
+    {/if}
+
+    <!-- Tab 2: Standard Image -->
+    {#if activeTab === 'image'}
+      <div class="tab-content-wrap">
+        <p class="tab-desc">Kirim foto dokumen atau dokumentasi visual dengan enkripsi AES-256 E2EE.</p>
+        <div class="carrier-box">
+          {#if stegoCarrierPreview}
+            <img src={stegoCarrierPreview} alt="Carrier" class="preview-carrier-img" />
+          {/if}
+          <label class="btn-change-carrier">
+            Pilih Foto Galeri
+            <input type="file" accept="image/*" onchange={handleImageFileSelect} style="display: none;" />
+          </label>
+        </div>
+        <button type="button" class="btn-primary-send" onclick={sendStandardImage}>
+          Kirim Gambar Terenkripsi
+        </button>
+      </div>
+    {/if}
+
+    <!-- Tab 3: Document -->
+    {#if activeTab === 'document'}
+      <div class="tab-content-wrap">
+        <p class="tab-desc">Kirim berkas PDF, dokumen teks, atau arsip ZIP dengan verifikasi integritas checksum SHA-256.</p>
+        <div class="doc-preset-card">
+          <span class="doc-icon">📑</span>
+          <div class="doc-meta">
+            <input type="text" class="doc-name-input" bind:value={docFileName} />
+            <span class="doc-sub">{docFileSize} • ChaCha20-Poly1305</span>
+          </div>
+        </div>
+        <div class="preset-docs-row">
+          <button
+            type="button"
+            class="preset-chip"
+            onclick={() => { docFileName = 'Laporan_Evakuasi.pdf'; docFileSize = '1.2 MB'; }}
+          >
+            + Laporan_Evakuasi.pdf
+          </button>
+          <button
+            type="button"
+            class="preset-chip"
+            onclick={() => { docFileName = 'Kunci_Cadangan_Grup.enc'; docFileSize = '128 KB'; }}
+          >
+            + Kunci_Cadangan.enc
+          </button>
+        </div>
+        <button type="button" class="btn-primary-send" onclick={sendDocument}>
+          Kirim Dokumen Terenkripsi
+        </button>
+      </div>
+    {/if}
+
+    <!-- Tab 4: Voice Note -->
+    {#if activeTab === 'voice'}
+      <div class="tab-content-wrap center-align">
+        <div class="mic-pulse-circle">🎙️</div>
+        <p class="voice-title">Pesan Suara Terenkripsi Opus</p>
+        <p class="tab-desc">Audio dikompresi dengan codec Opus latensi rendah dan dienkripsi ujung-ke-ujung.</p>
+        <button type="button" class="btn-primary-send" onclick={sendVoiceNote}>
+          Kirim Rekaman Suara (00:15)
+        </button>
+      </div>
+    {/if}
+
+    <!-- Tab 5: Location -->
+    {#if activeTab === 'location'}
+      <div class="tab-content-wrap">
+        <!-- Mode Selector Pill Bar -->
+        <div class="location-mode-toggle">
+          <button
+            type="button"
+            class="mode-pill-btn {locationMode === 'live' ? 'active-live' : ''}"
+            onclick={() => (locationMode = 'live')}
+          >
+            🟢 Lokasi Langsung (Live)
+          </button>
+          <button
+            type="button"
+            class="mode-pill-btn {locationMode === 'static' ? 'active-static' : ''}"
+            onclick={() => (locationMode = 'static')}
+          >
+            📍 Titik Lokasi Statis
+          </button>
+        </div>
+
+        {#if locationMode === 'live'}
+          <div class="live-config-card">
+            <span class="live-config-title">Pilih Durasi Siaran Langsung:</span>
+            <div class="duration-pills-row">
+              <button
+                type="button"
+                class="duration-pill {liveDurationMinutes === 15 ? 'selected' : ''}"
+                onclick={() => (liveDurationMinutes = 15)}
+              >
+                15 Menit
+              </button>
+              <button
+                type="button"
+                class="duration-pill {liveDurationMinutes === 60 ? 'selected' : ''}"
+                onclick={() => (liveDurationMinutes = 60)}
+              >
+                1 Jam
+              </button>
+              <button
+                type="button"
+                class="duration-pill {liveDurationMinutes === 480 ? 'selected' : ''}"
+                onclick={() => (liveDurationMinutes = 480)}
+              >
+                8 Jam
+              </button>
+            </div>
+
+            <div class="telemetry-info-box">
+              <div class="telemetry-item">
+                <span class="telemetry-icon">🔋</span>
+                <span>Baterai: <strong>86%</strong></span>
+              </div>
+              <div class="telemetry-item">
+                <span class="telemetry-icon">🛰️</span>
+                <span>Akurasi: <strong>±4m (E2EE)</strong></span>
+              </div>
+            </div>
+
+            <p class="live-notice-text">
+              Penerima dapat memantau pergerakan rute Anda secara langsung di Peta Radar selama sesi aktif. Anda dapat membatalkan kapan saja.
+            </p>
+          </div>
+        {:else}
+          <div class="static-config-card">
+            <div class="static-pin-preview">📍</div>
+            <p class="static-name-label">Posko Jebres, Surakarta</p>
+            <p class="static-coord-label">-7.5583, 110.8566</p>
+            <p class="tab-desc">Membagikan titik statis lokasi saat ini tanpa pelacakan posisi secara kontinyu.</p>
+          </div>
+        {/if}
+
+        <button
+          type="button"
+          class="btn-primary-send"
+          onclick={sendLocation}
+        >
+          {locationMode === 'live' ? `Bagikan Lokasi Langsung (${liveDurationMinutes >= 60 ? `${liveDurationMinutes / 60} Jam` : `${liveDurationMinutes} Menit`})` : 'Bagikan Titik Lokasi Aman'}
+        </button>
+      </div>
+    {/if}
   </div>
-{/if}
+</Dialog>
 
 <style>
-  .attach-dialog-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(15, 23, 42, 0.7);
-    backdrop-filter: blur(4px);
-    z-index: 1060;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    animation: fadeIn 0.2s ease-out;
-  }
-
-  .attach-dialog-modal {
-    width: 100%;
-    max-width: 440px;
-    background-color: var(--bg-card, #FFFFFF);
-    border-radius: var(--radius-xl, 24px);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
-    padding: 20px;
+  .attach-dialog-content {
     display: flex;
     flex-direction: column;
-    max-height: 92vh;
-    overflow-y: auto;
-  }
-
-  .dialog-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-  }
-
-  .header-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .attach-icon {
-    font-size: 1.3rem;
-  }
-
-  .dialog-title {
-    font-size: 1.1rem;
-    font-weight: 800;
-    color: var(--text-primary, #0F172A);
-    margin: 0;
-  }
-
-  .close-x-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary, #64748B);
-    font-size: 1.1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .close-x-btn:hover {
-    background-color: var(--border-light, #F1F5F9);
-    color: var(--text-primary, #0F172A);
+    max-height: 75vh;
   }
 
   .attach-tabs-bar {
     display: flex;
-    background-color: var(--bg-surface, #F1F5F9);
-    padding: 3px;
-    border-radius: var(--radius-pill, 999px);
-    gap: 2px;
+    background-color: var(--bg-primary);
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    gap: 4px;
     margin-bottom: 14px;
     overflow-x: auto;
   }
@@ -499,20 +426,25 @@
   .attach-tab-btn {
     flex: 1;
     white-space: nowrap;
-    padding: 6px 10px;
-    border-radius: var(--radius-pill, 999px);
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: var(--radius-pill);
     border: none;
     background: transparent;
     font-size: 0.74rem;
     font-weight: 700;
-    color: var(--text-secondary, #64748B);
+    font-family: var(--font-active);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .attach-tab-btn.active {
-    background-color: #FFFFFF;
-    color: var(--brand-blue, #0284C7);
+    background-color: var(--bg-card);
+    color: var(--brand-blue);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   }
 
@@ -530,7 +462,7 @@
 
   .tab-desc {
     font-size: 0.8rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     line-height: 1.4;
     margin: 0;
   }
@@ -540,7 +472,7 @@
     width: 100%;
     height: 140px;
     background-color: #0F172A;
-    border-radius: 12px;
+    border-radius: var(--radius-md);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -557,12 +489,17 @@
     position: absolute;
     bottom: 8px;
     right: 8px;
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background-color: rgba(15, 23, 42, 0.8);
     color: #FFFFFF;
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 6px;
+    font-family: var(--font-active);
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
     cursor: pointer;
     backdrop-filter: blur(4px);
   }
@@ -576,46 +513,49 @@
   .field-label {
     font-size: 0.74rem;
     font-weight: 700;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
   }
 
   .secret-textarea {
     width: 100%;
     padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border-subtle, #CBD5E1);
-    background-color: var(--bg-surface, #F8FAFC);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    background-color: var(--bg-card);
     font-size: 0.84rem;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
     resize: none;
   }
 
   .secret-textarea:focus {
-    border-color: var(--brand-blue, #0284C7);
+    border-color: var(--brand-blue);
   }
 
   .passkey-input {
     width: 100%;
+    min-height: var(--touch-target-min, 40px);
     padding: 8px 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border-subtle, #CBD5E1);
-    background-color: var(--bg-surface, #F8FAFC);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-light);
+    background-color: var(--bg-card);
     font-size: 0.84rem;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
   }
 
   .passkey-input:focus {
-    border-color: var(--brand-blue, #0284C7);
+    border-color: var(--brand-blue);
   }
 
   .error-banner {
     background-color: rgba(239, 68, 68, 0.12);
     border: 1px solid rgba(239, 68, 68, 0.25);
-    border-radius: 8px;
+    border-radius: var(--radius-sm);
     padding: 6px 10px;
     font-size: 0.76rem;
     color: #DC2626;
@@ -623,12 +563,14 @@
 
   .btn-primary-send {
     width: 100%;
+    min-height: var(--touch-target-min, 40px);
     height: 44px;
-    border-radius: var(--radius-pill, 999px);
-    background-color: var(--brand-blue, #0284C7);
+    border-radius: var(--radius-pill);
+    background-color: var(--brand-blue);
     color: #FFFFFF;
     font-size: 0.88rem;
     font-weight: 700;
+    font-family: var(--font-active);
     border: none;
     cursor: pointer;
     margin-top: 4px;
@@ -645,9 +587,9 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    background-color: var(--bg-surface, #F8FAFC);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    border-radius: 12px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
     padding: 12px;
   }
 
@@ -666,19 +608,20 @@
     width: 100%;
     font-size: 0.88rem;
     font-weight: 700;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     border: 1px solid transparent;
     background: transparent;
     outline: none;
   }
 
   .doc-name-input:focus {
-    border-bottom: 1px solid var(--brand-blue, #0284C7);
+    border-bottom: 1px solid var(--brand-blue);
   }
 
   .doc-sub {
     font-size: 0.76rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
   }
 
   .preset-docs-row {
@@ -688,13 +631,18 @@
   }
 
   .preset-chip {
-    padding: 4px 10px;
-    border-radius: var(--radius-pill, 999px);
-    background-color: var(--border-light, #F1F5F9);
-    border: 1px solid var(--border-subtle, #CBD5E1);
-    color: var(--brand-blue, #0284C7);
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    color: var(--brand-blue);
     font-size: 0.74rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: pointer;
   }
 
@@ -703,8 +651,8 @@
     width: 60px;
     height: 60px;
     border-radius: 50%;
-    background-color: #EFF6FF;
-    color: var(--brand-blue, #0284C7);
+    background-color: var(--brand-blue-subtle);
+    color: var(--brand-blue);
     font-size: 1.8rem;
     display: flex;
     align-items: center;
@@ -715,48 +663,54 @@
   .voice-title {
     font-size: 1rem;
     font-weight: 800;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     margin: 0;
   }
 
   .location-mode-toggle {
     display: flex;
-    background-color: var(--bg-surface, #F8FAFC);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    border-radius: 12px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-pill);
     padding: 4px;
     gap: 6px;
   }
 
   .mode-pill-btn {
     flex: 1;
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 8px 10px;
-    border-radius: 8px;
+    border-radius: var(--radius-pill);
     font-size: 0.78rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: pointer;
     border: none;
     background: transparent;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     transition: all 0.15s ease;
   }
 
   .mode-pill-btn.active-live {
-    background-color: #ECFDF5;
-    color: #059669;
+    background-color: var(--brand-teal-light, #ECFDF5);
+    color: var(--brand-teal, #059669);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
   .mode-pill-btn.active-static {
-    background-color: var(--bg-card, #FFFFFF);
-    color: var(--brand-blue, #0284C7);
+    background-color: var(--bg-card);
+    color: var(--brand-blue);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   }
 
   .live-config-card, .static-config-card {
-    background-color: var(--bg-surface, #F8FAFC);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    border-radius: 14px;
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
     padding: 14px;
     display: flex;
     flex-direction: column;
@@ -766,7 +720,7 @@
   .live-config-title {
     font-size: 0.8rem;
     font-weight: 700;
-    color: var(--text-primary, #0F172A);
+    color: var(--text-primary);
   }
 
   .duration-pills-row {
@@ -776,13 +730,18 @@
 
   .duration-pill {
     flex: 1;
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 8px 0;
-    border-radius: 10px;
-    border: 1.5px solid var(--border-subtle, #CBD5E1);
-    background-color: var(--bg-card, #FFFFFF);
-    color: var(--text-primary, #0F172A);
+    border-radius: var(--radius-pill);
+    border: 1.5px solid var(--border-light);
+    background-color: var(--bg-card);
+    color: var(--text-primary);
     font-size: 0.8rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: pointer;
     transition: all 0.15s ease;
   }
@@ -796,12 +755,12 @@
   .telemetry-info-box {
     display: flex;
     justify-content: space-between;
-    background-color: rgba(2, 132, 199, 0.06);
+    background-color: var(--brand-blue-subtle);
     border: 1px solid rgba(2, 132, 199, 0.15);
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     padding: 8px 12px;
     font-size: 0.76rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
   }
 
   .telemetry-item {
@@ -811,12 +770,12 @@
   }
 
   .telemetry-item strong {
-    color: var(--text-primary, #0F172A);
+    color: var(--text-primary);
   }
 
   .live-notice-text {
     font-size: 0.72rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     line-height: 1.4;
     margin: 0;
   }
@@ -830,21 +789,17 @@
   .static-name-label {
     font-size: 0.92rem;
     font-weight: 800;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     text-align: center;
     margin: 0;
   }
 
   .static-coord-label {
     font-size: 0.76rem;
-    color: var(--brand-blue, #0284C7);
-    font-family: monospace;
+    color: var(--brand-blue);
+    font-family: var(--font-mono);
     text-align: center;
     margin: 0;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
   }
 </style>

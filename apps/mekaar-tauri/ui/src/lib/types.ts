@@ -27,6 +27,7 @@ export interface UserProfile {
   lastSeen: string;
   twoFactorEnabled: boolean;
   accountSuspended: boolean;
+  recoveryEmail?: string;
 }
 
 export interface AttachmentModel {
@@ -261,7 +262,7 @@ export interface SosSessionModel {
 export interface SecurityLogModel {
   id: string;
   eventTitle: string;
-  eventCategory: 'vault' | 'auth' | 'network' | 'sos' | 'screen_shield' | 'crypto';
+  eventCategory: 'vault' | 'auth' | 'network' | 'sos' | 'screen_shield' | 'crypto' | 'wipe';
   deviceInfo: string;
   timestamp: string;
   severity: 'info' | 'warning' | 'critical';
@@ -298,5 +299,27 @@ export interface ScheduledWipeConfig {
   mode: 'off' | 'one_shot' | 'daily';
   time: string; // HH:mm
   targetAtUtc?: string;
+}
+
+export interface Guardian {
+  id: string;
+  name: string;
+  publicKey: string;
+  isOnline: boolean;
+  role: string;
+}
+
+export interface SosAlert {
+  alertId: string;
+  status: string;
+  timestamp: number;
+  dispatchedTo: string[];
+}
+
+export interface VaultSession {
+  unlocked: boolean;
+  isDuress: boolean;
+  identityFingerprint: string;
+  sessionToken: string;
 }
 

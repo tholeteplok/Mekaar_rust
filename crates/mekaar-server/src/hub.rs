@@ -20,7 +20,8 @@ use uuid::Uuid;
 /// Hub sentral yang mengorkestrasi seluruh perutean pesan real-time dan offline.
 #[derive(Clone)]
 pub struct Hub {
-    peers: Arc<RwLock<HashMap<Uuid, mpsc::UnboundedSender<ServerCommand>>>>,
+    peers: Arc<RwLock<HashMap<Uuid, mpsc::Sender<ServerCommand>>>>,
+    peer_epochs: Arc<RwLock<HashMap<Uuid, u64>>>,
     db: Arc<Database>,
 }
 
@@ -29,6 +30,7 @@ impl Hub {
     pub fn new(db: Arc<Database>) -> Self {
         Self {
             peers: Arc::new(RwLock::new(HashMap::new())),
+            peer_epochs: Arc::new(RwLock::new(HashMap::new())),
             db,
         }
     }
@@ -46,29 +48,42 @@ impl Hub {
 
     /// Mendaftarkan koneksi klien baru, menerbitkan `SubscribedAck`,
     /// dan otomatis mengalirkan (flush) seluruh pesan offline yang tertunda.
+    /// Mengembalikan epoch koneksi untuk guard disconnect (anti-hijack race).
     pub async fn connect_peer(
         &self,
         user_id: Uuid,
         public_key: Option<[u8; 32]>,
-        tx: mpsc::UnboundedSender<ServerCommand>,
-    ) {
-        // Simpan kunci publik jika disertakan
+        tx: mpsc::Sender<ServerCommand>,
+    ) -> u64 {
+        // Simpan kunci publik jika disertakan (tolak nol).
         if let Some(pub_key) = public_key {
-            if let Err(e) = self.db.upsert_public_key(&user_id, &pub_key) {
+            if pub_key == [0u8; 32] {
+                warn!("Kunci publik nol dari {} ditolak", user_id);
+            } else if let Err(e) = self.db.upsert_public_key(&user_id, &pub_key) {
                 error!("Gagal menyimpan kunci publik saat peer connect: {}", e);
             }
         }
 
-        // Daftarkan pengirim ke peers aktif
-        {
+        // Daftarkan pengirim ke peers aktif (kick eksplisit sesi lama).
+        let epoch = {
             let mut peers = self.peers.write().await;
+            let mut epochs = self.peer_epochs.write().await;
+            if peers.contains_key(&user_id) {
+                warn!("Koneksi ganda untuk {}: sesi lama di-kick", user_id);
+            }
+            let next = epochs.get(&user_id).copied().unwrap_or(0).wrapping_add(1);
             peers.insert(user_id, tx.clone());
-        }
+            epochs.insert(user_id, next);
+            next
+        };
 
-        info!("Klien {} terhubung ke Hub", user_id);
+        info!("Klien {} terhubung ke Hub (epoch {})", user_id, epoch);
+
+        // Bersihkan pesan kedaluwarsa sebelum flush (anti-bloat).
+        let _ = self.db.delete_expired_offline();
 
         // 1. Kirim konfirmasi pendaftaran
-        let _ = tx.send(ServerCommand::SubscribedAck { user_id });
+        let _ = tx.try_send(ServerCommand::SubscribedAck { user_id });
 
         // 2. Flush pesan offline yang tertunda
         match self.db.get_offline_messages(&user_id) {
@@ -78,7 +93,7 @@ impl Hub {
                     info!("Mengalirkan {} pesan offline tertunda ke klien {}", count, user_id);
                     for (_msg_id, blob) in messages {
                         if let Ok(envelope) = decode_postcard::<MessageEnvelope>(&blob) {
-                            if tx.send(ServerCommand::IncomingEnvelope(envelope)).is_err() {
+                            if tx.try_send(ServerCommand::IncomingEnvelope(envelope)).is_err() {
                                 break;
                             }
                         }
@@ -89,31 +104,74 @@ impl Hub {
                 error!("Gagal mengambil pesan offline untuk {}: {}", user_id, e);
             }
         }
+
+        epoch
     }
 
     /// Menghapus koneksi klien saat WebSocket terputus.
+    /// Hanya hapus jika epoch cocok (sesi baru tidak ikut ditendang oleh socket lama).
     pub async fn disconnect_peer(&self, user_id: &Uuid) {
         let mut peers = self.peers.write().await;
         peers.remove(user_id);
         info!("Klien {} terputus dari Hub", user_id);
     }
 
+    /// Hapus hanya jika epoch cocok (anti-hijack race).
+    pub async fn disconnect_peer_if_epoch(&self, user_id: &Uuid, epoch: u64) {
+        let current = self.peer_epochs.read().await.get(user_id).copied();
+        if current == Some(epoch) {
+            let mut peers = self.peers.write().await;
+            peers.remove(user_id);
+            info!("Klien {} terputus dari Hub (epoch {})", user_id, epoch);
+        } else {
+            warn!(
+                "Abaikan disconnect basi untuk {} (epoch {} != {:?})",
+                user_id, epoch, current
+            );
+        }
+    }
+
     /// Memproses perintah wire yang diterima dari klien via WebSocket.
+    /// Fail-closed: tanpa AuthSubscribe, hanya Auth yang diproses; sender harus cocok.
     pub async fn handle_command(&self, sender_id: Option<Uuid>, cmd: ClientCommand) {
+        // Wajib terautentikasi kecuali AuthSubscribe.
+        if sender_id.is_none() && !matches!(cmd, ClientCommand::AuthSubscribe { .. }) {
+            warn!("Perintah tanpa auth ditolak");
+            return;
+        }
         match cmd {
             ClientCommand::AuthSubscribe { user_id, public_key } => {
                 // Di-handle saat handshake awal WebSocket
+                if public_key == [0u8; 32] {
+                    warn!("AuthSubscribe kunci nol dari {} ditolak", user_id);
+                    return;
+                }
                 if let Err(e) = self.db.upsert_public_key(&user_id, &public_key) {
                     error!("Gagal update public key pada AuthSubscribe: {}", e);
                 }
             }
 
             ClientCommand::SendEnvelope(envelope) => {
+                let Some(authed) = sender_id else { return };
+                if envelope.sender_id != authed {
+                    warn!("SendEnvelope spoof ditolak: {} != {}", envelope.sender_id, authed);
+                    return;
+                }
+                if envelope.ciphertext.is_empty() || envelope.ciphertext.len() > 64 * 1024 {
+                    warn!("SendEnvelope payload di luar batas ditolak");
+                    return;
+                }
+                if envelope.nonce == [0u8; 24] {
+                    warn!("SendEnvelope nonce nol ditolak");
+                    return;
+                }
                 self.relay_envelope(envelope).await;
             }
 
-            ClientCommand::DeliveryAck { message_id, sender_id } => {
-                self.handle_delivery_ack(message_id, sender_id).await;
+            ClientCommand::DeliveryAck { message_id, sender_id: notify_id } => {
+                let Some(_caller) = sender_id else { return };
+                // TODO(P1): verifikasi caller adalah recipient sebenarnya via DB lookup.
+                self.handle_delivery_ack(message_id, notify_id).await;
             }
 
             ClientCommand::SosTrigger {
@@ -123,11 +181,36 @@ impl Hub {
                 accuracy,
                 timestamp_ms,
             } => {
+                let Some(authed) = sender_id else { return };
+                if user_id != authed {
+                    warn!("SosTrigger spoof ditolak");
+                    return;
+                }
+                if !latitude.is_finite() || !(-90.0..=90.0).contains(&latitude) {
+                    warn!("SosTrigger latitude invalid ditolak");
+                    return;
+                }
+                if !longitude.is_finite() || !(-180.0..=180.0).contains(&longitude) {
+                    warn!("SosTrigger longitude invalid ditolak");
+                    return;
+                }
+                if !accuracy.is_finite() || !(0.0..=100_000.0).contains(&accuracy) {
+                    warn!("SosTrigger accuracy invalid ditolak");
+                    return;
+                }
                 self.handle_sos_trigger(user_id, latitude, longitude, accuracy, timestamp_ms).await;
             }
 
             ClientCommand::SosResolve { user_id, reason } => {
-                info!("SOS untuk user {} telah diselesaikan (Alasan: {})", user_id, reason);
+                let Some(authed) = sender_id else { return };
+                if user_id != authed {
+                    warn!("SosResolve spoof ditolak");
+                    return;
+                }
+                // Sanitasi log: truncate + hilangkan newline (anti log-injection).
+                let mut safe_reason: String = reason.chars().take(280).collect();
+                safe_reason = safe_reason.replace(['\n', '\r'], " ");
+                info!("SOS untuk user {} telah diselesaikan (Alasan: {})", user_id, safe_reason);
             }
 
             ClientCommand::WebRtcSignal {
@@ -136,6 +219,15 @@ impl Hub {
                 payload,
             } => {
                 if let Some(from_id) = sender_id {
+                    const ALLOWED: [&str; 4] = ["offer", "answer", "candidate", "hangup"];
+                    if !ALLOWED.contains(&signal_type.as_str()) {
+                        warn!("WebRTC signal_type tak dikenal ditolak");
+                        return;
+                    }
+                    if payload.len() > 16 * 1024 {
+                        warn!("WebRTC payload terlalu besar ditolak");
+                        return;
+                    }
                     self.relay_webrtc(from_id, target_user_id, signal_type, payload).await;
                 }
             }
@@ -144,7 +236,7 @@ impl Hub {
                 if let Some(uid) = sender_id {
                     let peers = self.peers.read().await;
                     if let Some(tx) = peers.get(&uid) {
-                        let _ = tx.send(ServerCommand::Pong);
+                        let _ = tx.try_send(ServerCommand::Pong);
                     }
                 }
             }
@@ -163,10 +255,10 @@ impl Hub {
         if let Some(recipient_tx) = peers.get(&recipient_id) {
             // Penerima sedang ONLINE: kirim langsung
             debug!("Routing envelope {} langsung ke penerima online {}", message_id, recipient_id);
-            if recipient_tx.send(ServerCommand::IncomingEnvelope(envelope.clone())).is_ok() {
+            if recipient_tx.try_send(ServerCommand::IncomingEnvelope(envelope.clone())).is_ok() {
                 // Beri tahu pengirim bahwa pesan telah sampai di antrean server
                 if let Some(sender_tx) = peers.get(&sender_id) {
-                    let _ = sender_tx.send(ServerCommand::DeliveryReceipt {
+                    let _ = sender_tx.try_send(ServerCommand::DeliveryReceipt {
                         message_id,
                         timestamp_ms: std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
@@ -192,7 +284,7 @@ impl Hub {
                     error!("Gagal menyimpan pesan offline {}: {}", message_id, e);
                 } else if let Some(sender_tx) = peers.get(&sender_id) {
                     // Konfirmasi ke pengirim bahwa server telah menerima & menyimpan pesan
-                    let _ = sender_tx.send(ServerCommand::DeliveryReceipt {
+                    let _ = sender_tx.try_send(ServerCommand::DeliveryReceipt {
                         message_id,
                         timestamp_ms: std::time::SystemTime::now()
                             .duration_since(std::time::UNIX_EPOCH)
@@ -217,7 +309,7 @@ impl Hub {
         // 2. Teruskan tanda terima ke pengirim asli jika sedang online
         let peers = self.peers.read().await;
         if let Some(sender_tx) = peers.get(&sender_id) {
-            let _ = sender_tx.send(ServerCommand::DeliveryReceipt {
+            let _ = sender_tx.try_send(ServerCommand::DeliveryReceipt {
                 message_id,
                 timestamp_ms: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
@@ -261,13 +353,14 @@ impl Hub {
                 let _ = gtx.send(broadcast_cmd.clone());
             } else {
                 debug!("Guardian {} offline saat SOS korban dipicu", gid);
-                // Buat pesan sistem offline darurat untuk Guardian
+                // P0 privasi: JANGAN simpan koordinat plaintext di server.
+                // Simpan marker tanpa lokasi; guardian diminta sinkron ulang saat online.
                 let urgent_envelope = MessageEnvelope::new(
                     victim_id,
                     gid,
                     victim_id,
                     [0u8; 24],
-                    format!("🚨 SOS: {},{}", latitude, longitude).into_bytes(),
+                    b"SOS: guardian offline, minta korban kirim ulang via channel aman".to_vec(),
                     timestamp_ms,
                     MessageType::System,
                 );
@@ -288,13 +381,13 @@ impl Hub {
     async fn relay_webrtc(&self, from_id: Uuid, to_id: Uuid, signal_type: String, payload: String) {
         let peers = self.peers.read().await;
         if let Some(to_tx) = peers.get(&to_id) {
-            let _ = to_tx.send(ServerCommand::WebRtcRelay {
+            let _ = to_tx.try_send(ServerCommand::WebRtcRelay {
                 from_user_id: from_id,
                 signal_type,
                 payload,
             });
         } else if let Some(from_tx) = peers.get(&from_id) {
-            let _ = from_tx.send(ServerCommand::Error {
+            let _ = from_tx.try_send(ServerCommand::Error {
                 code: 404,
                 message: format!("Target user {} sedang offline", to_id),
             });

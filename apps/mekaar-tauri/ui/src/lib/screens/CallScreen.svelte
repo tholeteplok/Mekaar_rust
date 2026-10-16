@@ -20,7 +20,7 @@
   {:else}
     <!-- Full Call Overlay Screen -->
     <div class="call-overlay">
-      <div class="call-card sketch-card">
+      <div class="call-card clean-card">
         <!-- Header Bar: Minimize Button & Call Type -->
         <div class="call-card-top-bar">
           <button
@@ -31,7 +31,7 @@
           >
             ▼ Perkecil (PiP)
           </button>
-          <span class="sketch-badge status-badge {call.state}">
+          <span class="status-badge {call.state}">
             {call.state === 'dialing'
               ? 'Memanggil...'
               : call.state === 'ringing'
@@ -75,7 +75,7 @@
         </p>
 
         <!-- SAS (Short Authentication String) Verification Box Anti-MITM -->
-        <div class="sas-verify-box sketch-card">
+        <div class="sas-verify-box">
           <div class="sas-header-row">
             <span class="sas-title-label">
               KODE ANTI-SADAP (SAS)
@@ -92,7 +92,7 @@
 
         <!-- Video Stage HD (Jika Mode Video Aktif) -->
         {#if call.isVideo && call.state === 'connected'}
-          <div class="video-stage sketch-card">
+          <div class="video-stage">
             {#if call.mutedVideo}
               <div class="video-placeholder-text">🎥 Kamera Ditutup</div>
             {:else}
@@ -103,7 +103,7 @@
                 </span>
               </div>
             {/if}
-            <div class="pip-self sketch-card">
+            <div class="pip-self">
               {call.mutedVideo ? 'Kamera Mati' : 'Kamera Anda'}
             </div>
           </div>
@@ -190,7 +190,8 @@
     overflow-y: auto;
     padding: 24px;
     text-align: center;
-    background: var(--bg-card, #FFFFFF);
+    background: var(--surface-card, #FFFFFF);
+    border: 1px solid var(--border-subtle, #E2E8F0);
     border-radius: var(--radius-xl, 24px);
     box-shadow: 0 20px 48px -10px rgba(0, 0, 0, 0.4);
     display: flex;
@@ -208,34 +209,45 @@
     background: var(--bg-surface, #F1F5F9);
     border: 1px solid var(--border-subtle, #CBD5E1);
     border-radius: var(--radius-pill, 999px);
-    font-size: 0.76rem;
+    font-size: 0.8rem;
     font-weight: 700;
-    padding: 6px 12px;
+    font-family: var(--font-active);
+    min-height: var(--touch-target-min, 40px);
+    padding: 0 16px;
     color: var(--text-secondary, #475569);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     transition: all 0.15s ease;
   }
 
   .minimize-header-btn:hover {
-    background: #E2E8F0;
+    background: var(--border-light, #E2E8F0);
     color: var(--text-primary, #0F172A);
   }
 
   .status-badge {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-weight: 700;
-    padding: 4px 10px;
+    padding: 6px 14px;
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     border-radius: var(--radius-pill, 999px);
   }
 
   .status-badge.connected {
-    background: #DCFCE7;
-    color: #15803D;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+    border: 1px solid rgba(16, 185, 129, 0.3);
   }
 
   .status-badge.dialing, .status-badge.ringing {
-    background: #FEF3C7;
-    color: #B45309;
+    background: rgba(245, 158, 11, 0.15);
+    color: #F59E0B;
+    border: 1px solid rgba(245, 158, 11, 0.3);
   }
 
   /* Telemetry Strip */
@@ -264,7 +276,7 @@
   }
 
   .srtp-tag {
-    color: #0284C7;
+    color: var(--brand-blue, #0284C7);
     font-weight: 700;
   }
 
@@ -275,6 +287,7 @@
   .call-peer-title {
     font-size: 1.35rem;
     font-weight: 800;
+    font-family: var(--font-active);
     color: var(--text-primary, #0F172A);
     margin: 0;
   }
@@ -287,8 +300,8 @@
 
   /* SAS Box */
   .sas-verify-box {
-    background: #EFF6FF;
-    border: 1.5px solid #93C5FD;
+    background: var(--brand-blue-subtle, #EFF6FF);
+    border: 1.5px solid var(--brand-blue, #93C5FD);
     border-radius: 14px;
     padding: 12px;
     text-align: center;
@@ -302,9 +315,9 @@
   }
 
   .sas-title-label {
-    font-size: 0.74rem;
+    font-size: 0.76rem;
     font-weight: 800;
-    color: #1E3A8A;
+    color: var(--brand-blue, #1E3A8A);
     letter-spacing: 0.5px;
   }
 
@@ -314,15 +327,15 @@
 
   .sas-code-display {
     font-family: monospace;
-    font-size: 1.25rem;
+    font-size: 1.35rem;
     font-weight: 800;
-    color: #1D4ED8;
+    color: var(--brand-blue, #1D4ED8);
     letter-spacing: 3px;
   }
 
   .sas-explanation-text {
-    font-size: 0.72rem;
-    color: #475569;
+    font-size: 0.74rem;
+    color: var(--text-secondary, #475569);
     margin-top: 4px;
     line-height: 1.3;
   }

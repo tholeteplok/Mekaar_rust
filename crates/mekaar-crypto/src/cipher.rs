@@ -8,7 +8,7 @@
 
 use crate::error::CryptoError;
 use crate::types::{MediaFileKey, RoomSessionKey};
-use chacha20poly1305::aead::{Aead, KeyInit};
+use chacha20poly1305::aead::{Aead, KeyInit, Payload};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 use rand::rngs::OsRng;
 use rand::RngCore;
@@ -17,6 +17,10 @@ use rand::RngCore;
 pub const NONCE_LEN: usize = 24;
 /// Panjang tag MAC Poly1305 (16 bytes).
 pub const MAC_TAG_LEN: usize = 16;
+/// Batas pesan chat agar tidak OOM (64 KiB).
+pub const MAX_MESSAGE_BYTES: usize = 64 * 1024;
+/// Batas media terenkripsi (25 MiB).
+pub const MAX_MEDIA_BYTES: usize = 25 * 1024 * 1024;
 
 /// Menghasilkan 24-byte nonce acak aman dari OS CSPRNG.
 pub fn generate_nonce() -> [u8; NONCE_LEN] {
@@ -35,17 +39,35 @@ pub fn generate_media_key() -> MediaFileKey {
 /// Mengenkrpsi pesan plaintext menggunakan kunci sesi room.
 ///
 /// Mengembalikan pasangan: `(nonce, ciphertext_dengan_tag)`.
+/// Fail-closed: menolak plaintext kosong / >64KiB. Tanpa AAD (kompat lama);
+/// untuk konteks baru gunakan `encrypt_message_with_aad`.
 pub fn encrypt_message(
     key: &RoomSessionKey,
     plaintext: &[u8],
 ) -> Result<([u8; NONCE_LEN], Vec<u8>), CryptoError> {
+    encrypt_message_with_aad(key, plaintext, &[])
+}
+
+/// Dekripsi dengan AAD yang mengikat konteks
+/// (`room||sender||recipient||message_id||timestamp||seq`).
+/// Mencegah pemindahan ciphertext antar-room dan replay konteks.
+pub fn encrypt_message_with_aad(
+    key: &RoomSessionKey,
+    plaintext: &[u8],
+    aad: &[u8],
+) -> Result<([u8; NONCE_LEN], Vec<u8>), CryptoError> {
+    if plaintext.is_empty() || plaintext.len() > MAX_MESSAGE_BYTES {
+        return Err(CryptoError::InvalidFormat(
+            "plaintext harus 1..64KiB".to_string(),
+        ));
+    }
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key.as_bytes()));
     let nonce = generate_nonce();
     let x_nonce = XNonce::from_slice(&nonce);
 
     let ciphertext = cipher
-        .encrypt(x_nonce, plaintext)
-        .map_err(|_| CryptoError::DecryptionFailed)?;
+        .encrypt(x_nonce, Payload { msg: plaintext, aad })
+        .map_err(|_| CryptoError::EncryptionFailed)?;
 
     Ok((nonce, ciphertext))
 }
@@ -58,11 +80,26 @@ pub fn decrypt_message(
     nonce: &[u8; NONCE_LEN],
     ciphertext_with_tag: &[u8],
 ) -> Result<Vec<u8>, CryptoError> {
+    decrypt_message_with_aad(key, nonce, ciphertext_with_tag, &[])
+}
+
+/// Mendekripsi dengan verifikasi AAD. AAD yang salah => `DecryptionFailed`.
+pub fn decrypt_message_with_aad(
+    key: &RoomSessionKey,
+    nonce: &[u8; NONCE_LEN],
+    ciphertext_with_tag: &[u8],
+    aad: &[u8],
+) -> Result<Vec<u8>, CryptoError> {
+    if ciphertext_with_tag.is_empty() || ciphertext_with_tag.len() > MAX_MESSAGE_BYTES + MAC_TAG_LEN + 64 {
+        return Err(CryptoError::InvalidFormat(
+            "ciphertext di luar batas wajar".to_string(),
+        ));
+    }
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key.as_bytes()));
     let x_nonce = XNonce::from_slice(nonce);
 
     cipher
-        .decrypt(x_nonce, ciphertext_with_tag)
+        .decrypt(x_nonce, Payload { msg: ciphertext_with_tag, aad })
         .map_err(|_| CryptoError::DecryptionFailed)
 }
 
@@ -71,13 +108,18 @@ pub fn decrypt_message(
 ///
 /// Format ini kompatibel langsung dengan fungsi `box.concatenation()` pada Flutter.
 pub fn encrypt_concatenated(key_bytes: &[u8; 32], plaintext: &[u8]) -> Result<Vec<u8>, CryptoError> {
+    if plaintext.is_empty() || plaintext.len() > MAX_MEDIA_BYTES {
+        return Err(CryptoError::InvalidFormat(
+            "plaintext media di luar batas".to_string(),
+        ));
+    }
     let cipher = XChaCha20Poly1305::new(Key::from_slice(key_bytes));
     let nonce = generate_nonce();
     let x_nonce = XNonce::from_slice(&nonce);
 
     let ciphertext = cipher
         .encrypt(x_nonce, plaintext)
-        .map_err(|_| CryptoError::DecryptionFailed)?;
+        .map_err(|_| CryptoError::EncryptionFailed)?;
 
     let mut result = Vec::with_capacity(NONCE_LEN + ciphertext.len());
     result.extend_from_slice(&nonce);

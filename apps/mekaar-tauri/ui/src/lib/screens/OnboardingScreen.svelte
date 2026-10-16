@@ -37,7 +37,7 @@
   }
 
   function finishOnboarding() {
-    mekaarStore.advanceFtue('pin_setup');
+    mekaarStore.advanceFtue('auth');
   }
 </script>
 

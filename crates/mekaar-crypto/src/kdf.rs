@@ -12,30 +12,64 @@ use sha2::Sha256;
 use x25519_dalek::{PublicKey, StaticSecret};
 
 /// Menghitung Diffie-Hellman shared secret dari private key lokal dan public key lawan bicara.
+///
+/// Fail-closed: menolak peer all-zero dan hasil shared all-zero (titik orde-rendah / kunci rusak).
 pub fn compute_shared_secret(
     my_priv: &IdentityPrivateKey,
     peer_pub: &IdentityPublicKey,
-) -> SharedSecret {
+) -> Result<SharedSecret, CryptoError> {
+    if peer_pub.as_bytes() == &[0u8; 32] {
+        return Err(CryptoError::InvalidPeerKey);
+    }
     let secret = StaticSecret::from(*my_priv.as_bytes());
     let peer = PublicKey::from(*peer_pub.as_bytes());
     let shared = secret.diffie_hellman(&peer);
 
-    SharedSecret::from_bytes(shared.to_bytes())
+    let bytes = shared.to_bytes();
+    if bytes == [0u8; 32] {
+        return Err(CryptoError::InvalidPeerKey);
+    }
+
+    Ok(SharedSecret::from_bytes(bytes))
 }
 
 /// Menurunkan kunci sesi room 32-byte menggunakan HKDF-SHA256.
 ///
-/// Menggunakan konteks `info = "mekaar-room:{room_id}"` persis sesuai
-/// dengan implementasi di Flutter prototype (`e2ee_service.dart`).
+/// Salt diikat ke kedua public key (domain separation) dan `info` memakai
+/// room_id yang dikanonikalisasi (trim + lowercase). Mencegah kunci lemah
+/// akibat salt kosong dan tabrakan `"Room-A"` vs `"room-a "`.
 pub fn derive_room_key(
     my_priv: &IdentityPrivateKey,
     peer_pub: &IdentityPublicKey,
     room_id: &str,
 ) -> Result<RoomSessionKey, CryptoError> {
-    let shared = compute_shared_secret(my_priv, peer_pub);
-    let info = format!("mekaar-room:{}", room_id);
+    let room_canon = room_id.trim().to_lowercase();
+    if room_canon.is_empty() || room_canon.len() > 128 {
+        return Err(CryptoError::InvalidFormat(
+            "room_id harus 1..128 karakter".to_string(),
+        ));
+    }
+    let shared = compute_shared_secret(my_priv, peer_pub)?;
 
-    let hk = Hkdf::<Sha256>::new(None, shared.as_bytes());
+    // Salt = SHA256("mekaar-aegis-v1" || min(pubA,pubB) || max(pubA,pubB))
+    // Mengikat identitas kedua pihak agar pasangan berbeda tidak berbagi salt.
+    use sha2::Digest;
+    let static_secret = StaticSecret::from(*my_priv.as_bytes());
+    let my_pub = PublicKey::from(&static_secret);
+    let (first, second) = if my_pub.as_bytes() <= peer_pub.as_bytes() {
+        (my_pub.as_bytes(), peer_pub.as_bytes())
+    } else {
+        (peer_pub.as_bytes(), my_pub.as_bytes())
+    };
+    let mut hasher = Sha256::new();
+    hasher.update(b"mekaar-aegis-v1");
+    hasher.update(first);
+    hasher.update(second);
+    let salt = hasher.finalize();
+
+    let info = format!("mekaar-room-v1:{}", room_canon);
+
+    let hk = Hkdf::<Sha256>::new(Some(&salt), shared.as_bytes());
     let mut okm = [0u8; 32];
     hk.expand(info.as_bytes(), &mut okm)
         .map_err(|_| CryptoError::KeyDerivationFailed)?;
@@ -45,24 +79,29 @@ pub fn derive_room_key(
 
 /// Menurunkan kunci simetris 32-byte dari PIN 6-digit menggunakan Argon2id.
 ///
-/// Parameter:
-/// - Memory: 12,000 KiB (~12 MB)
+/// Parameter (hardened):
+/// - Memory: 19,456 KiB (~19 MB, minimum OWASP)
 /// - Iterasi (time cost): 2
 /// - Paralelisme: 1
 /// - Panjang Output: 32 bytes
 /// - Salt: 16 bytes
 ///
-/// Konfigurasi ini identik dengan implementasi `_pinKeyArgon2id` pada Flutter.
+/// Fail-closed: menolak PIN kosong / non-6-digit.
 pub fn derive_pin_key(pin: &str, salt: &[u8; 16]) -> Result<[u8; 32], CryptoError> {
-    let params = Params::new(12000, 2, 1, Some(32))
-        .map_err(|e| CryptoError::PinDerivationFailed(e.to_string()))?;
+    if pin.len() < 6 || !pin.chars().all(|c| c.is_ascii_digit()) {
+        return Err(CryptoError::InvalidFormat(
+            "PIN harus minimal 6 digit numerik".to_string(),
+        ));
+    }
+    let params = Params::new(19456, 2, 1, Some(32))
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
 
     let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
 
     let mut out = [0u8; 32];
     argon2
         .hash_password_into(pin.as_bytes(), salt, &mut out)
-        .map_err(|e| CryptoError::PinDerivationFailed(e.to_string()))?;
+        .map_err(|_| CryptoError::KeyDerivationFailed)?;
 
     Ok(out)
 }
@@ -77,8 +116,8 @@ mod tests {
         let (alice_priv, alice_pub) = generate_identity();
         let (bob_priv, bob_pub) = generate_identity();
 
-        let alice_shared = compute_shared_secret(&alice_priv, &bob_pub);
-        let bob_shared = compute_shared_secret(&bob_priv, &alice_pub);
+        let alice_shared = compute_shared_secret(&alice_priv, &bob_pub).expect("alice dh");
+        let bob_shared = compute_shared_secret(&bob_priv, &alice_pub).expect("bob dh");
 
         assert_eq!(alice_shared.as_bytes(), bob_shared.as_bytes());
     }

@@ -80,7 +80,7 @@
   }
 
   .appbar-title {
-    font-family: var(--font-sans);
+    font-family: var(--font-active);
     font-size: 1.55rem;
     font-weight: 800;
     color: var(--text-primary);

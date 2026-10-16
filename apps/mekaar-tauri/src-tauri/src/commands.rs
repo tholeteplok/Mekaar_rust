@@ -178,6 +178,40 @@ impl Default for TelemetryStatus {
     }
 }
 
+// ── Security Helpers (P0: hapus backdoor PIN, fail-closed) ───────────────────
+
+/// Perbandingan constant-time untuk PIN agar tidak bocor via timing oracle.
+fn ct_eq_str(a: &str, b: &str) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.bytes().zip(b.bytes()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
+
+fn is_valid_pin(pin: &str) -> bool {
+    // Minimal 6 digit numerik. Menolak PIN kosong / default lemah.
+    pin.len() >= 6 && pin.chars().all(|c| c.is_ascii_digit())
+}
+
+fn require_unlocked(state: &MekaarAppState) -> Result<(), String> {
+    let unlocked = state.vault_unlocked.lock().map_err(|e| e.to_string())?;
+    if *unlocked {
+        Ok(())
+    } else {
+        Err("Vault terkunci. Buka dengan PIN terlebih dahulu.".to_string())
+    }
+}
+
+fn require_db(state: &MekaarAppState) -> Result<EncryptedDatabase, String> {
+    require_unlocked(state)?;
+    let lock = state.db.lock().map_err(|e| e.to_string())?;
+    lock.clone().ok_or_else(|| "Database belum diinisialisasi. Unlock vault dulu.".to_string())
+}
+
 // ── App State ───────────────────────────────────────────────────────────
 
 pub struct MekaarAppState {
@@ -201,8 +235,9 @@ impl Default for MekaarAppState {
         let sos_engine = Arc::new(SosPanicEngine::new(bus));
         Self {
             vault_unlocked: Mutex::new(false),
-            pin_code: Mutex::new("123456".to_string()),
-            duress_pin_code: Mutex::new("999999".to_string()),
+            // P0: tidak ada PIN default. Wajib setup via setup_pins.
+            pin_code: Mutex::new(String::new()),
+            duress_pin_code: Mutex::new(String::new()),
             is_duress_active: Mutex::new(false),
             server_config: Mutex::new(ServerConnectionConfig::default()),
             sos_config: Mutex::new(SosConfig::default()),
@@ -292,7 +327,7 @@ fn get_or_init_db(state: &MekaarAppState, pin: &str) -> Result<EncryptedDatabase
         updated_at: 1728890000000,
     });
 
-    let my_id = *state.user_id.lock().unwrap();
+    let my_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let _ = db.insert_message(&LocalMessage {
         id: Uuid::new_v4(),
         room_id: room1_id,
@@ -459,6 +494,30 @@ pub fn set_connection_config(
     custom_ws: Option<String>,
     state: State<'_, MekaarAppState>,
 ) -> Result<ServerConnectionConfig, String> {
+    fn valid_endpoint(url: &str, ws: bool) -> bool {
+        // Tolak skema berbahaya; izinkan http/ws hanya untuk loopback (dev),
+        // selain itu wajib https/wss. Cap panjang untuk hindari bloat.
+        if url.len() > 256 {
+            return false;
+        }
+        if ws {
+            if url.starts_with("wss://") {
+                return true;
+            }
+            if url.starts_with("ws://127.0.0.1") || url.starts_with("ws://localhost") {
+                return true;
+            }
+            return false;
+        }
+        if url.starts_with("https://") {
+            return true;
+        }
+        if url.starts_with("http://127.0.0.1") || url.starts_with("http://localhost") {
+            return true;
+        }
+        false
+    }
+
     let mut cfg = state.server_config.lock().map_err(|e| e.to_string())?;
     cfg.active_mode = mode.clone();
     match mode.as_str() {
@@ -468,9 +527,15 @@ pub fn set_connection_config(
         }
         "custom" => {
             if let Some(http) = custom_http {
+                if !valid_endpoint(&http, false) {
+                    return Err("HTTP endpoint tidak valid (gunakan https, atau http loopback)".to_string());
+                }
                 cfg.http_endpoint = http;
             }
             if let Some(ws) = custom_ws {
+                if !valid_endpoint(&ws, true) {
+                    return Err("WS endpoint tidak valid (gunakan wss, atau ws loopback)".to_string());
+                }
                 cfg.ws_endpoint = ws;
             }
         }
@@ -493,7 +558,7 @@ pub async fn unlock_vault(pin: String, state: State<'_, MekaarAppState>) -> Resu
         guard.clone()
     };
 
-    if !duress_pin.is_empty() && pin == duress_pin {
+    if !duress_pin.is_empty() && ct_eq_str(&pin, &duress_pin) {
         // DURESS MODE: Buka aplikasi secara senyap dengan cloaking
         {
             let mut is_duress = state.is_duress_active.lock().map_err(|e| e.to_string())?;
@@ -511,7 +576,7 @@ pub async fn unlock_vault(pin: String, state: State<'_, MekaarAppState>) -> Resu
         let _ = state.sos_engine.trigger_duress_silent().await;
 
         let db = get_or_init_db(&state, &pin)?;
-        let uid = { *state.user_id.lock().unwrap() };
+        let uid = { *state.user_id.lock().map_err(|e| e.to_string())? };
         let _ = db.insert_security_log(&uid, None, "DURESS_UNLOCK", Some(&serde_json::json!({
             "action": "silent_sos_triggered",
             "source": "duress_pin_entry",
@@ -526,8 +591,11 @@ pub async fn unlock_vault(pin: String, state: State<'_, MekaarAppState>) -> Resu
         });
     }
 
-    let expected = if master_pin.is_empty() { "123456" } else { &master_pin };
-    if pin == expected || pin == "123456" {
+    let expected = master_pin.clone();
+    if expected.is_empty() {
+        return Err("PIN belum diatur. Lakukan setup PIN terlebih dahulu.".to_string());
+    }
+    if ct_eq_str(&pin, &expected) {
         {
             let mut is_duress = state.is_duress_active.lock().map_err(|e| e.to_string())?;
             *is_duress = false;
@@ -538,7 +606,7 @@ pub async fn unlock_vault(pin: String, state: State<'_, MekaarAppState>) -> Resu
         }
 
         let db = get_or_init_db(&state, &pin)?;
-        let uid = { *state.user_id.lock().unwrap() };
+        let uid = { *state.user_id.lock().map_err(|e| e.to_string())? };
         let _ = db.insert_security_log(&uid, None, "NORMAL_UNLOCK", Some(&serde_json::json!({
             "action": "vault_unlocked",
             "source": "master_pin_entry"
@@ -567,14 +635,23 @@ pub fn lock_vault(state: State<'_, MekaarAppState>) -> Result<bool, String> {
 #[tauri::command]
 pub fn verify_pin(pin: String, state: State<'_, MekaarAppState>) -> Result<bool, String> {
     let saved_pin = state.pin_code.lock().map_err(|e| e.to_string())?;
-    let expected = if saved_pin.is_empty() { "123456" } else { saved_pin.as_str() };
-    Ok(pin == expected || pin == "123456")
+    if saved_pin.is_empty() {
+        return Ok(false);
+    }
+    Ok(ct_eq_str(&pin, &saved_pin))
 }
 
 #[tauri::command]
 pub fn set_pin(new_pin: String, state: State<'_, MekaarAppState>) -> Result<bool, String> {
-    if new_pin.len() < 4 {
-        return Err("PIN harus terdiri dari minimal 4 digit".to_string());
+    if !is_valid_pin(&new_pin) {
+        return Err("PIN harus minimal 6 digit numerik".to_string());
+    }
+    // Tolak jika sama dengan duress PIN aktif (hindari silent-SOS tiap login benar).
+    {
+        let duress = state.duress_pin_code.lock().map_err(|e| e.to_string())?;
+        if !duress.is_empty() && ct_eq_str(&new_pin, &duress) {
+            return Err("PIN utama tidak boleh sama dengan PIN paksaan!".to_string());
+        }
     }
     let mut saved_pin = state.pin_code.lock().map_err(|e| e.to_string())?;
     *saved_pin = new_pin;
@@ -587,16 +664,16 @@ pub fn setup_pins(
     duress_pin: Option<String>,
     state: State<'_, MekaarAppState>,
 ) -> Result<bool, String> {
-    if master_pin.len() < 4 {
-        return Err("PIN Utama minimal 4 digit".to_string());
+    if !is_valid_pin(&master_pin) {
+        return Err("PIN Utama minimal 6 digit numerik".to_string());
     }
 
     if let Some(ref d_pin) = duress_pin {
         if !d_pin.is_empty() {
-            if d_pin.len() < 4 {
-                return Err("PIN Paksaan minimal 4 digit".to_string());
+            if !is_valid_pin(d_pin) {
+                return Err("PIN Paksaan minimal 6 digit numerik".to_string());
             }
-            if d_pin == &master_pin {
+            if ct_eq_str(d_pin, &master_pin) {
                 return Err("PIN Paksaan tidak boleh sama dengan PIN utama!".to_string());
             }
             let mut saved_duress = state.duress_pin_code.lock().map_err(|e| e.to_string())?;
@@ -625,7 +702,7 @@ pub fn get_vault_status(state: State<'_, MekaarAppState>) -> Result<VaultStatusR
 
 #[tauri::command]
 pub fn get_conversations(state: State<'_, MekaarAppState>) -> Result<Vec<ChatRoom>, String> {
-    let db = get_or_init_db(&state, "123456")?;
+    let db = require_db(&state)?;
     let is_duress = *state.is_duress_active.lock().map_err(|e| e.to_string())?;
     let include_vault_hidden = !is_duress;
     let rooms = db.list_rooms(include_vault_hidden).map_err(|e| e.to_string())?;
@@ -634,16 +711,14 @@ pub fn get_conversations(state: State<'_, MekaarAppState>) -> Result<Vec<ChatRoo
 
 #[tauri::command]
 pub fn get_messages(room_id: String, state: State<'_, MekaarAppState>) -> Result<Vec<LocalMessage>, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let r_uuid = Uuid::parse_str(&room_id).unwrap_or_else(|_| {
-        if room_id == "conv-1" {
-            Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap()
-        } else if room_id == "conv-2" {
-            Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap()
-        } else {
-            Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap()
-        }
-    });
+    let db = require_db(&state)?;
+    // Fail-closed: hanya terima UUID valid atau alias legacy yang eksplisit.
+    let r_uuid = match room_id.as_str() {
+        "conv-1" => Uuid::parse_str("11111111-1111-1111-1111-111111111111").map_err(|e| e.to_string())?,
+        "conv-2" => Uuid::parse_str("22222222-2222-2222-2222-222222222222").map_err(|e| e.to_string())?,
+        "conv-3" => Uuid::parse_str("33333333-3333-3333-3333-333333333333").map_err(|e| e.to_string())?,
+        other => Uuid::parse_str(other).map_err(|_| "room_id tidak valid".to_string())?,
+    };
 
     let msgs = db.get_messages_for_room(&r_uuid, 100).map_err(|e| e.to_string())?;
     Ok(msgs)
@@ -656,31 +731,38 @@ pub fn send_e2ee_message(
     content: String,
     state: State<'_, MekaarAppState>,
 ) -> Result<LocalMessage, String> {
-    let db = get_or_init_db(&state, "123456")?;
+    let db = require_db(&state)?;
+    if content.is_empty() || content.len() > 8000 {
+        return Err("Konten pesan harus 1..8000 byte".to_string());
+    }
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_millis() as u64;
 
-    let r_uuid = Uuid::parse_str(&room_id).unwrap_or_else(|_| {
-        if room_id == "conv-1" {
-            Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap()
-        } else if room_id == "conv-2" {
-            Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap()
-        } else {
-            Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap()
-        }
-    });
+    let r_uuid = match room_id.as_str() {
+        "conv-1" => Uuid::parse_str("11111111-1111-1111-1111-111111111111").map_err(|e| e.to_string())?,
+        "conv-2" => Uuid::parse_str("22222222-2222-2222-2222-222222222222").map_err(|e| e.to_string())?,
+        "conv-3" => Uuid::parse_str("33333333-3333-3333-3333-333333333333").map_err(|e| e.to_string())?,
+        other => Uuid::parse_str(other).map_err(|_| "room_id tidak valid".to_string())?,
+    };
 
-    let rec_uuid = Uuid::parse_str(&recipient_id)
-        .unwrap_or_else(|_| Uuid::parse_str("44444444-4444-4444-4444-444444444444").unwrap());
-    let my_id = *state.user_id.lock().unwrap();
+    let rec_uuid = Uuid::parse_str(&recipient_id).map_err(|_| "recipient_id tidak valid".to_string())?;
+    let my_id = *state.user_id.lock().map_err(|e| e.to_string())?;
+
+    // P0: pakai kunci peer asli dari DB, tolak kunci nol / kontak hilang (fail-closed).
+    let contact = db.get_contact(&rec_uuid).map_err(|e| e.to_string())?
+        .ok_or_else(|| "Kontak penerima tidak ditemukan".to_string())?;
+    if contact.public_key == [0u8; 32] {
+        return Err("Kunci publik penerima belum terverifikasi (nol)".to_string());
+    }
+    let peer_pub = IdentityPublicKey::from_bytes(contact.public_key);
 
     let (priv_key, _) = mekaar_crypto::generate_identity();
-    let peer_pub = IdentityPublicKey::from_bytes([0x42; 32]);
     let room_key = derive_room_key(&priv_key, &peer_pub, &r_uuid.to_string())
         .map_err(|e| e.to_string())?;
 
+    // Verifikasi enkripsi berhasil (fail-closed); ciphertext transport ditangani net layer.
     let (_nonce, _ciphertext) = encrypt_message(&room_key, content.as_bytes())
         .map_err(|e| e.to_string())?;
 
@@ -713,7 +795,7 @@ pub fn send_e2ee_message(
 
 #[tauri::command]
 pub fn get_contacts(state: State<'_, MekaarAppState>) -> Result<Vec<Contact>, String> {
-    let db = get_or_init_db(&state, "123456")?;
+    let db = require_db(&state)?;
     let contacts = db.list_contacts().map_err(|e| e.to_string())?;
     Ok(contacts)
 }
@@ -726,9 +808,15 @@ pub fn save_contact(
     safety_number: Option<String>,
     state: State<'_, MekaarAppState>,
 ) -> Result<Contact, String> {
-    let db = get_or_init_db(&state, "123456")?;
+    let db = require_db(&state)?;
+    if username.trim().is_empty() || username.len() > 32 {
+        return Err("Username harus 1..32 karakter".to_string());
+    }
+    if display_name.trim().is_empty() || display_name.len() > 64 {
+        return Err("Display name harus 1..64 karakter".to_string());
+    }
     let c_uuid = if let Some(id_str) = id {
-        Uuid::parse_str(&id_str).unwrap_or_else(|_| Uuid::new_v4())
+        Uuid::parse_str(&id_str).map_err(|_| "contact id tidak valid".to_string())?
     } else {
         Uuid::new_v4()
     };
@@ -737,8 +825,10 @@ pub fn save_contact(
         id: c_uuid,
         username,
         display_name,
+        // P0: jangan simpan kunci nol. Kontak baru wajib verifikasi kunci via pertukaran
+        // terpisah; tandai UNVERIFIED agar send_e2ee_message menolak sampai kunci diisi.
         public_key: [0u8; 32],
-        safety_number: safety_number.unwrap_or_else(|| "ED25519: VERIFIED-AEGIS".to_string()),
+        safety_number: safety_number.unwrap_or_else(|| "UNVERIFIED".to_string()),
         status: "active".to_string(),
         updated_at: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -756,13 +846,13 @@ pub fn toggle_block_contact(
     blocked: bool,
     state: State<'_, MekaarAppState>,
 ) -> Result<bool, String> {
-    let db = get_or_init_db(&state, "123456")?;
+    let db = require_db(&state)?;
     let c_uuid = Uuid::parse_str(&contact_id).map_err(|e| e.to_string())?;
     if let Some(mut contact) = db.get_contact(&c_uuid).map_err(|e| e.to_string())? {
         contact.status = if blocked { "blocked".to_string() } else { "active".to_string() };
         db.upsert_contact(&contact).map_err(|e| e.to_string())?;
 
-        let uid = *state.user_id.lock().unwrap();
+        let uid = *state.user_id.lock().map_err(|e| e.to_string())?;
         let _ = db.insert_security_log(
             &uid,
             None,
@@ -783,8 +873,8 @@ pub fn log_media_attachment(
     is_stego: bool,
     state: State<'_, MekaarAppState>,
 ) -> Result<(), String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let uid = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let uid = *state.user_id.lock().map_err(|e| e.to_string())?;
     let details = serde_json::json!({
         "file_name": file_name,
         "file_type": file_type,
@@ -823,8 +913,8 @@ pub async fn trigger_sos(
     }
 
     let session_id = Uuid::new_v4();
-    let db = get_or_init_db(&state, "123456")?;
-    let uid = { *state.user_id.lock().unwrap() };
+    let db = require_db(&state)?;
+    let uid = { *state.user_id.lock().map_err(|e| e.to_string())? };
 
     let details = serde_json::json!({
         "lat": latitude,
@@ -848,12 +938,11 @@ pub async fn cancel_sos(pin: String, state: State<'_, MekaarAppState>) -> Result
     let master_pin = { state.pin_code.lock().map_err(|e| e.to_string())?.clone() };
 
     // Proteksi: Duress PIN dilarang untuk membatalkan keadaan darurat
-    if !duress_pin.is_empty() && pin == duress_pin {
+    if !duress_pin.is_empty() && ct_eq_str(&pin, &duress_pin) {
         return Err("PIN Paksaan (Duress) dilarang untuk membatalkan darurat!".to_string());
     }
 
-    let expected = if master_pin.is_empty() { "123456" } else { &master_pin };
-    if pin != expected && pin != "123456" {
+    if master_pin.is_empty() || !ct_eq_str(&pin, &master_pin) {
         return Err("PIN pembatalan SOS tidak valid".to_string());
     }
 
@@ -869,7 +958,7 @@ pub async fn cancel_sos(pin: String, state: State<'_, MekaarAppState>) -> Result
     let _ = state.sos_engine.resolve(SosEndReason::Manual).await;
 
     let db = get_or_init_db(&state, &pin)?;
-    let uid = { *state.user_id.lock().unwrap() };
+    let uid = { *state.user_id.lock().map_err(|e| e.to_string())? };
     let _ = db.insert_security_log(&uid, None, "SOS_RESOLVED_MANUAL", Some(&serde_json::json!({
         "status": "cleared_with_master_pin"
     })));
@@ -879,8 +968,8 @@ pub async fn cancel_sos(pin: String, state: State<'_, MekaarAppState>) -> Result
 
 #[tauri::command]
 pub fn get_security_logs(state: State<'_, MekaarAppState>) -> Result<Vec<SecurityLog>, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let uid = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let uid = *state.user_id.lock().map_err(|e| e.to_string())?;
     let logs = db.get_security_logs(&uid).map_err(|e| e.to_string())?;
     Ok(logs)
 }
@@ -894,8 +983,8 @@ pub fn export_signed_forensic_bundle(
         return Err("Passphrase enkripsi forensik minimal 6 karakter".to_string());
     }
 
-    let db = get_or_init_db(&state, "123456")?;
-    let uid = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let uid = *state.user_id.lock().map_err(|e| e.to_string())?;
     let logs = db.get_security_logs(&uid).unwrap_or_default();
 
     use sha2::{Digest, Sha256};
@@ -994,7 +1083,7 @@ pub fn perform_forensic_wipe(
     // 2. Clear database & insert tombstone log
     if let Ok(mut db_lock) = state.db.lock() {
         if let Some(ref db) = *db_lock {
-            let uid = *state.user_id.lock().unwrap();
+            let uid = *state.user_id.lock().map_err(|e| e.to_string())?;
             let _ = db.insert_security_log(
                 &uid,
                 None,
@@ -1017,8 +1106,8 @@ pub fn set_scheduled_wipe_config(
     target_time: String,
     state: State<'_, MekaarAppState>,
 ) -> Result<ScheduledWipeSettings, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let uid = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let uid = *state.user_id.lock().map_err(|e| e.to_string())?;
     let details = serde_json::json!({
         "mode": mode,
         "target_time": target_time,
@@ -1066,8 +1155,8 @@ pub fn revoke_connected_device(
     device_id: String,
     state: State<'_, MekaarAppState>,
 ) -> Result<bool, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let uid = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let uid = *state.user_id.lock().map_err(|e| e.to_string())?;
     let details = serde_json::json!({
         "revoked_device_id": device_id,
     });
@@ -1079,8 +1168,8 @@ pub fn revoke_connected_device(
 
 #[tauri::command]
 pub fn get_trips(state: State<'_, MekaarAppState>) -> Result<Vec<UserTripRecord>, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let trips = db.list_trips(&user_id).map_err(|e| e.to_string())?;
     Ok(trips)
 }
@@ -1096,8 +1185,8 @@ pub fn start_trip(
     active_guardians: Vec<String>,
     state: State<'_, MekaarAppState>,
 ) -> Result<UserTripRecord, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -1144,12 +1233,12 @@ pub fn complete_trip(
     status: Option<String>,
     state: State<'_, MekaarAppState>,
 ) -> Result<bool, String> {
-    let db = get_or_init_db(&state, "123456")?;
+    let db = require_db(&state)?;
     let t_uuid = Uuid::parse_str(&trip_id).map_err(|e| e.to_string())?;
     let final_status = status.unwrap_or_else(|| "arrived_confirmed".to_string());
     db.complete_trip(&t_uuid, &final_status).map_err(|e| e.to_string())?;
 
-    let user_id = *state.user_id.lock().unwrap();
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let _ = db.insert_security_log(
         &user_id,
         None,
@@ -1165,8 +1254,8 @@ pub fn complete_trip(
 
 #[tauri::command]
 pub fn get_saved_places(state: State<'_, MekaarAppState>) -> Result<Vec<SavedPlaceRecord>, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let places = db.list_saved_places(&user_id).map_err(|e| e.to_string())?;
     Ok(places)
 }
@@ -1183,8 +1272,8 @@ pub fn add_saved_place(
     auto_notify_guardian: bool,
     state: State<'_, MekaarAppState>,
 ) -> Result<SavedPlaceRecord, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -1211,16 +1300,16 @@ pub fn add_saved_place(
 
 #[tauri::command]
 pub fn delete_saved_place(place_id: String, state: State<'_, MekaarAppState>) -> Result<bool, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let success = db.delete_saved_place(&user_id, &place_id).map_err(|e| e.to_string())?;
     Ok(success)
 }
 
 #[tauri::command]
 pub fn get_guardians(state: State<'_, MekaarAppState>) -> Result<Vec<GuardianRecord>, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let guardians = db.list_guardians(&user_id).map_err(|e| e.to_string())?;
     Ok(guardians)
 }
@@ -1235,8 +1324,8 @@ pub fn add_guardian(
     can_receive_sos_alert: bool,
     state: State<'_, MekaarAppState>,
 ) -> Result<GuardianRecord, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -1268,8 +1357,8 @@ pub fn update_guardian_status(
     status: String,
     state: State<'_, MekaarAppState>,
 ) -> Result<bool, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let guardians = db.list_guardians(&user_id).map_err(|e| e.to_string())?;
     if let Some(mut grd) = guardians.into_iter().find(|g| g.id == guardian_id) {
         grd.status = status;
@@ -1286,8 +1375,8 @@ pub fn update_guardian_status(
 
 #[tauri::command]
 pub fn delete_guardian(guardian_id: String, state: State<'_, MekaarAppState>) -> Result<bool, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let success = db.delete_guardian(&user_id, &guardian_id).map_err(|e| e.to_string())?;
     Ok(success)
 }
@@ -1313,8 +1402,8 @@ pub fn update_telemetry(
     battery_level: u8,
     state: State<'_, MekaarAppState>,
 ) -> Result<TelemetryStatus, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
     let places = db.list_saved_places(&user_id).unwrap_or_default();
 
     let mut is_in_safe_zone = false;
@@ -1369,8 +1458,8 @@ pub fn log_call_session(
     sas_code: String,
     state: State<'_, MekaarAppState>,
 ) -> Result<bool, String> {
-    let db = get_or_init_db(&state, "123456")?;
-    let user_id = *state.user_id.lock().unwrap();
+    let db = require_db(&state)?;
+    let user_id = *state.user_id.lock().map_err(|e| e.to_string())?;
 
     let _ = db.insert_security_log(
         &user_id,

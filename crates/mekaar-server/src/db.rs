@@ -50,7 +50,7 @@ impl Database {
 
     /// Inisialisasi PRAGMA WAL dan pembuatan tabel-tabel utama.
     fn init(&self) -> Result<(), DbError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
 
         // Aktifkan mode WAL untuk performa baca/tulis konkurensi tinggi
         conn.execute_batch(
@@ -88,7 +88,19 @@ impl Database {
                 user_id TEXT PRIMARY KEY,
                 backup_json TEXT NOT NULL,
                 updated_at INTEGER NOT NULL
-            );",
+            );
+
+            CREATE TABLE IF NOT EXISTS user_accounts (
+                id TEXT PRIMARY KEY,
+                username TEXT UNIQUE NOT NULL,
+                display_name TEXT NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_users_username ON user_accounts(username);
+            CREATE INDEX IF NOT EXISTS idx_users_email ON user_accounts(email);",
         )?;
 
         Ok(())
@@ -97,8 +109,12 @@ impl Database {
     // ── Public Keys Directory ──────────────────────────────────────────
 
     /// Mendaftarkan atau memperbarui kunci publik X25519 pengguna.
+    /// Fail-closed: tolak kunci nol agar tidak jadi room key prediktabel.
     pub fn upsert_public_key(&self, user_id: &Uuid, public_key: &[u8; 32]) -> Result<(), DbError> {
-        let conn = self.conn.lock().unwrap();
+        if public_key == &[0u8; 32] {
+            return Err(DbError::InvalidData("public_key nol ditolak".to_string()));
+        }
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -118,7 +134,7 @@ impl Database {
 
     /// Mengambil kunci publik pengguna dari direktori.
     pub fn get_public_key(&self, user_id: &Uuid) -> Result<Option<[u8; 32]>, DbError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare("SELECT public_key FROM public_keys WHERE user_id = ?1")?;
 
         let mut rows = stmt.query(params![user_id.to_string()])?;
@@ -137,6 +153,7 @@ impl Database {
     // ── Offline Store & Forward Outbox ─────────────────────────────────
 
     /// Menyimpan paket ciphertext envelope saat penerima sedang offline.
+    /// Quota: maksimal 500 pesan per penerima + blob ≤64KiB (anti-DoS).
     pub fn store_offline_message(
         &self,
         message_id: &Uuid,
@@ -145,7 +162,19 @@ impl Database {
         envelope_blob: &[u8],
         expires_at: Option<u64>,
     ) -> Result<(), DbError> {
-        let conn = self.conn.lock().unwrap();
+        if envelope_blob.is_empty() || envelope_blob.len() > 64 * 1024 {
+            return Err(DbError::InvalidData("envelope_blob di luar batas".to_string()));
+        }
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
+        // Quota per-penerima agar satu attacker tidak membanjiri korban offline.
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM offline_messages WHERE recipient_id = ?1",
+            params![recipient_id.to_string()],
+            |row| row.get(0),
+        )?;
+        if count >= 500 {
+            return Err(DbError::InvalidData("quota offline penuh (500)".to_string()));
+        }
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -169,8 +198,9 @@ impl Database {
     }
 
     /// Mengambil seluruh pesan offline yang tertunda untuk seorang penerima.
+    /// Paginasi: maksimal 100 per flush agar reconnect tidak OOM.
     pub fn get_offline_messages(&self, recipient_id: &Uuid) -> Result<Vec<(Uuid, Vec<u8>)>, DbError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -179,12 +209,20 @@ impl Database {
         let mut stmt = conn.prepare(
             "SELECT id, envelope_blob FROM offline_messages
              WHERE recipient_id = ?1 AND (expires_at IS NULL OR expires_at > ?2)
-             ORDER BY created_at ASC",
+             ORDER BY created_at ASC LIMIT 100",
         )?;
 
         let rows = stmt.query_map(params![recipient_id.to_string(), now], |row| {
             let id_str: String = row.get(0)?;
             let blob: Vec<u8> = row.get(1)?;
+            // Tolak blob raksasa saat flush (data lama sebelum cap).
+            if blob.len() > 64 * 1024 {
+                return Err(rusqlite::Error::FromSqlConversionFailure(
+                    1,
+                    rusqlite::types::Type::Blob,
+                    "blob offline terlalu besar".into(),
+                ));
+            }
             Ok((id_str, blob))
         })?;
 
@@ -201,7 +239,7 @@ impl Database {
 
     /// Menghapus pesan offline setelah penerima mengirimkan DeliveryAck.
     pub fn delete_offline_message(&self, message_id: &Uuid) -> Result<bool, DbError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let rows = conn.execute(
             "DELETE FROM offline_messages WHERE id = ?1",
             params![message_id.to_string()],
@@ -209,11 +247,29 @@ impl Database {
         Ok(rows > 0)
     }
 
+    /// Cron: hapus pesan kedaluwarsa agar DB tidak bloat abadi.
+    pub fn delete_expired_offline(&self) -> Result<usize, DbError> {
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+        let rows = conn.execute(
+            "DELETE FROM offline_messages WHERE expires_at IS NOT NULL AND expires_at <= ?1",
+            params![now],
+        )?;
+        Ok(rows)
+    }
+
     // ── Guardians Management ───────────────────────────────────────────
 
     /// Menambahkan hubungan pengawasan Guardian.
+    /// Fail-closed: tolak self-link (victim == guardian).
     pub fn add_guardian(&self, victim_id: &Uuid, guardian_id: &Uuid) -> Result<(), DbError> {
-        let conn = self.conn.lock().unwrap();
+        if victim_id == guardian_id {
+            return Err(DbError::InvalidData("victim == guardian ditolak".to_string()));
+        }
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -231,7 +287,7 @@ impl Database {
 
     /// Menghapus hubungan pengawasan Guardian.
     pub fn remove_guardian(&self, victim_id: &Uuid, guardian_id: &Uuid) -> Result<(), DbError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         conn.execute(
             "DELETE FROM guardians WHERE victim_id = ?1 AND guardian_id = ?2",
             params![victim_id.to_string(), guardian_id.to_string()],
@@ -241,7 +297,7 @@ impl Database {
 
     /// Mengambil seluruh guardian terdaftar untuk seorang korban.
     pub fn get_guardians_for_victim(&self, victim_id: &Uuid) -> Result<Vec<Uuid>, DbError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare("SELECT guardian_id FROM guardians WHERE victim_id = ?1")?;
 
         let rows = stmt.query_map(params![victim_id.to_string()], |row| {
@@ -263,8 +319,14 @@ impl Database {
     // ── Zero-Knowledge Key Backups ─────────────────────────────────────
 
     /// Menyimpan blob backup kunci privat terenkripsi Argon2id milik pengguna.
+    /// Cap 32KiB + wajib JSON valid agar tidak jadi dump OOM.
     pub fn upsert_key_backup(&self, user_id: &Uuid, backup_json: &str) -> Result<(), DbError> {
-        let conn = self.conn.lock().unwrap();
+        if backup_json.is_empty() || backup_json.len() > 32 * 1024 {
+            return Err(DbError::InvalidData("backup_json di luar batas".to_string()));
+        }
+        serde_json::from_str::<serde_json::Value>(backup_json)
+            .map_err(|_| DbError::InvalidData("backup_json bukan JSON".to_string()))?;
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -284,7 +346,7 @@ impl Database {
 
     /// Mengambil blob backup kunci terenkripsi milik pengguna.
     pub fn get_key_backup(&self, user_id: &Uuid) -> Result<Option<String>, DbError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare("SELECT backup_json FROM key_backups WHERE user_id = ?1")?;
 
         let mut rows = stmt.query(params![user_id.to_string()])?;
@@ -295,6 +357,99 @@ impl Database {
 
         Ok(None)
     }
+
+    // ── User Accounts & Central Directory Auth ────────────────────────
+
+    /// Mendaftarkan akun pengguna baru ke direktori server.
+    pub fn create_user_account(
+        &self,
+        id: &Uuid,
+        username: &str,
+        display_name: &str,
+        email: &str,
+        password_hash: &str,
+    ) -> Result<(), DbError> {
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+
+        conn.execute(
+            "INSERT INTO user_accounts (id, username, display_name, email, password_hash, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+            params![
+                id.to_string(),
+                username.to_lowercase(),
+                display_name,
+                email.to_lowercase(),
+                password_hash,
+                now,
+                now
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    /// Mencari akun berdasarkan username atau email (case-insensitive).
+    pub fn find_user_by_identifier(&self, identifier: &str) -> Result<Option<UserAccountRecord>, DbError> {
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
+        let clean = identifier.trim().to_lowercase();
+        let username_query = if clean.starts_with('@') { clean.clone() } else { format!("@{}", clean) };
+
+        let mut stmt = conn.prepare(
+            "SELECT id, username, display_name, email, password_hash, created_at, updated_at
+             FROM user_accounts
+             WHERE username = ?1 OR username = ?2 OR email = ?1
+             LIMIT 1",
+        )?;
+
+        let mut rows = stmt.query(params![clean, username_query])?;
+        if let Some(row) = rows.next()? {
+            let id_str: String = row.get(0)?;
+            let id = Uuid::parse_str(&id_str).map_err(|e| DbError::InvalidData(e.to_string()))?;
+            return Ok(Some(UserAccountRecord {
+                id,
+                username: row.get(1)?,
+                display_name: row.get(2)?,
+                email: row.get(3)?,
+                password_hash: row.get(4)?,
+                created_at: row.get(5)?,
+                updated_at: row.get(6)?,
+            }));
+        }
+
+        Ok(None)
+    }
+
+    /// Memperbarui password akun pengguna berdasarkan email.
+    pub fn update_user_password(&self, email: &str, new_password_hash: &str) -> Result<bool, DbError> {
+        let conn = self.conn.lock().map_err(|_| DbError::InvalidData("mutex poisoned".to_string()))?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+
+        let rows = conn.execute(
+            "UPDATE user_accounts SET password_hash = ?1, updated_at = ?2 WHERE email = ?3",
+            params![new_password_hash, now, email.trim().to_lowercase()],
+        )?;
+
+        Ok(rows > 0)
+    }
+}
+
+/// Representasi data akun pengguna di server.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct UserAccountRecord {
+    pub id: Uuid,
+    pub username: String,
+    pub display_name: String,
+    pub email: String,
+    pub password_hash: String,
+    pub created_at: i64,
+    pub updated_at: i64,
 }
 
 #[cfg(test)]

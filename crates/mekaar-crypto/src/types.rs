@@ -69,7 +69,8 @@ pub struct RoomSessionKey(pub(crate) [u8; 32]);
 
 impl RoomSessionKey {
     /// Membuat kunci sesi dari byte array 32-byte.
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+    /// `pub(crate)` agar injeksi kunci arbitrer tidak bisa dari luar crate.
+    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 
@@ -87,7 +88,7 @@ pub struct MediaFileKey(pub(crate) [u8; 32]);
 
 impl MediaFileKey {
     /// Membuat kunci media dari byte array 32-byte.
-    pub fn from_bytes(bytes: [u8; 32]) -> Self {
+    pub(crate) fn from_bytes(bytes: [u8; 32]) -> Self {
         Self(bytes)
     }
 

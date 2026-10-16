@@ -1,6 +1,7 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
   import type { VaultMediaItemModel } from '../types';
+  import Dialog from './Dialog.svelte';
 
   let {
     open = false,
@@ -57,248 +58,173 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="vault-dialog-backdrop" onclick={onclose}>
-    <div class="vault-dialog-modal" onclick={(e) => e.stopPropagation()}>
-      <!-- Header -->
-      <div class="dialog-header-row">
-        <div class="header-title-wrap">
-          <span class="vault-header-icon">🗄️</span>
-          <div>
-            <h3 class="dialog-title">Brankas Media & Berkas Terenkripsi</h3>
-            <p class="dialog-sub">Penyimpanan lokal terlindungi enkripsi SQLCipher</p>
-          </div>
-        </div>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">
-          ✕
+<Dialog
+  {open}
+  title="Brankas Media & Berkas Terenkripsi"
+  {onclose}
+  maxWidth="560px"
+>
+  <div class="vault-dialog-content">
+    <p class="dialog-sub">Penyimpanan lokal terlindungi enkripsi SQLCipher</p>
+
+    <!-- Toast Feedback -->
+    {#if toastMsg}
+      <div class="vault-toast-pill">
+        ✓ {toastMsg}
+      </div>
+    {/if}
+
+    <!-- Search & Filter Bar -->
+    <div class="filter-controls-wrap">
+      <input
+        type="text"
+        class="vault-search-input"
+        placeholder="Cari nama berkas atau nama percakapan..."
+        bind:value={searchQuery}
+      />
+
+      <div class="category-tabs-bar">
+        <button
+          type="button"
+          class="cat-tab-btn {filterTab === 'all' ? 'active' : ''}"
+          onclick={() => (filterTab = 'all')}
+        >
+          Semua ({mekaarStore.vaultMediaItems.length})
+        </button>
+        <button
+          type="button"
+          class="cat-tab-btn {filterTab === 'image' ? 'active' : ''}"
+          onclick={() => (filterTab = 'image')}
+        >
+          🖼️ Foto
+        </button>
+        <button
+          type="button"
+          class="cat-tab-btn {filterTab === 'stego' ? 'active' : ''}"
+          onclick={() => (filterTab = 'stego')}
+        >
+          🕵️ Stego Photo
+        </button>
+        <button
+          type="button"
+          class="cat-tab-btn {filterTab === 'document' ? 'active' : ''}"
+          onclick={() => (filterTab = 'document')}
+        >
+          📄 Dokumen
+        </button>
+        <button
+          type="button"
+          class="cat-tab-btn {filterTab === 'voice' ? 'active' : ''}"
+          onclick={() => (filterTab = 'voice')}
+        >
+          🎙️ Suara
         </button>
       </div>
+    </div>
 
-      <!-- Toast Feedback -->
-      {#if toastMsg}
-        <div class="vault-toast-pill">
-          ✓ {toastMsg}
+    <!-- Scrollable Media Items List -->
+    <div class="vault-items-scroll">
+      {#if filteredItems.length === 0}
+        <div class="empty-vault-view">
+          <span class="empty-vault-icon">📂</span>
+          <h4>Tidak Ada Berkas</h4>
+          <p>Belum ada media terenkripsi dalam kategori ini.</p>
+        </div>
+      {:else}
+        <div class="vault-items-list">
+          {#each filteredItems as item (item.id)}
+            <div class="media-card">
+              <!-- Icon / Thumbnail -->
+              <div class="media-preview-icon">
+                {#if item.isStego}
+                  🕵️
+                {:else if item.kind === 'image'}
+                  🖼️
+                {:else if item.kind === 'voice'}
+                  🎙️
+                {:else}
+                  📄
+                {/if}
+              </div>
+
+              <!-- Info -->
+              <div class="media-info-col">
+                <div class="media-name-row">
+                  <span class="media-name">{item.name}</span>
+                  {#if item.isStego}
+                    <span class="stego-pill-tag">Stego Photo</span>
+                  {/if}
+                </div>
+                <span class="media-conv-origin">Obrolan: <b>{item.conversationTitle}</b></span>
+                <span class="media-meta-line">{item.sizeLabel} • {item.timestamp}</span>
+                <code class="media-checksum-tag">{item.checksum}</code>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="media-actions-col">
+                {#if item.isStego && onOpenStegoDecoder}
+                  <button
+                    type="button"
+                    class="btn-action-decode"
+                    title="Buka Pesan di Balik Foto (Stego Photo)"
+                    onclick={() => handleExtractStego(item)}
+                  >
+                    Buka Pesan
+                  </button>
+                {/if}
+                <button
+                  type="button"
+                  class="btn-action-download"
+                  title="Buka / Ekspor Berkas"
+                  onclick={() => handleDownload(item)}
+                >
+                  Ekspor
+                </button>
+                <button
+                  type="button"
+                  class="btn-action-shred"
+                  title="Hapus Permanen (Shred)"
+                  onclick={() => handleShred(item)}
+                >
+                  🗑️
+                </button>
+              </div>
+            </div>
+          {/each}
         </div>
       {/if}
+    </div>
 
-      <!-- Search & Filter Bar -->
-      <div class="filter-controls-wrap">
-        <input
-          type="text"
-          class="vault-search-input"
-          placeholder="Cari nama berkas atau nama percakapan..."
-          bind:value={searchQuery}
-        />
-
-        <div class="category-tabs-bar">
-          <button
-            type="button"
-            class="cat-tab-btn {filterTab === 'all' ? 'active' : ''}"
-            onclick={() => (filterTab = 'all')}
-          >
-            Semua ({mekaarStore.vaultMediaItems.length})
-          </button>
-          <button
-            type="button"
-            class="cat-tab-btn {filterTab === 'image' ? 'active' : ''}"
-            onclick={() => (filterTab = 'image')}
-          >
-            🖼️ Foto
-          </button>
-          <button
-            type="button"
-            class="cat-tab-btn {filterTab === 'stego' ? 'active' : ''}"
-            onclick={() => (filterTab = 'stego')}
-          >
-            🕵️ Stego Photo
-          </button>
-          <button
-            type="button"
-            class="cat-tab-btn {filterTab === 'document' ? 'active' : ''}"
-            onclick={() => (filterTab = 'document')}
-          >
-            📄 Dokumen
-          </button>
-          <button
-            type="button"
-            class="cat-tab-btn {filterTab === 'voice' ? 'active' : ''}"
-            onclick={() => (filterTab = 'voice')}
-          >
-            🎙️ Suara
-          </button>
-        </div>
-      </div>
-
-      <!-- Scrollable Media Items List -->
-      <div class="vault-items-scroll">
-        {#if filteredItems.length === 0}
-          <div class="empty-vault-view">
-            <span class="empty-vault-icon">📂</span>
-            <h4>Tidak Ada Berkas</h4>
-            <p>Belum ada media terenkripsi dalam kategori ini.</p>
-          </div>
-        {:else}
-          <div class="vault-items-list">
-            {#each filteredItems as item (item.id)}
-              <div class="media-card">
-                <!-- Icon / Thumbnail -->
-                <div class="media-preview-icon">
-                  {#if item.isStego}
-                    🕵️
-                  {:else if item.kind === 'image'}
-                    🖼️
-                  {:else if item.kind === 'voice'}
-                    🎙️
-                  {:else}
-                    📄
-                  {/if}
-                </div>
-
-                <!-- Info -->
-                <div class="media-info-col">
-                  <div class="media-name-row">
-                    <span class="media-name">{item.name}</span>
-                    {#if item.isStego}
-                      <span class="stego-pill-tag">Stego Photo</span>
-                    {/if}
-                  </div>
-                  <span class="media-conv-origin">Obrolan: <b>{item.conversationTitle}</b></span>
-                  <span class="media-meta-line">{item.sizeLabel} • {item.timestamp}</span>
-                  <code class="media-checksum-tag">{item.checksum}</code>
-                </div>
-
-                <!-- Action Buttons -->
-                <div class="media-actions-col">
-                  {#if item.isStego && onOpenStegoDecoder}
-                    <button
-                      type="button"
-                      class="btn-action-decode"
-                      title="Buka Pesan di Balik Foto (Stego Photo)"
-                      onclick={() => handleExtractStego(item)}
-                    >
-                      Buka Pesan
-                    </button>
-                  {/if}
-                  <button
-                    type="button"
-                    class="btn-action-download"
-                    title="Buka / Ekspor Berkas"
-                    onclick={() => handleDownload(item)}
-                  >
-                    Ekspor
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-action-shred"
-                    title="Hapus Permanen (Shred)"
-                    onclick={() => handleShred(item)}
-                  >
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            {/each}
-          </div>
-        {/if}
-      </div>
-
-      <!-- Security Notice -->
-      <div class="vault-security-footer">
-        🔒 Semua berkas disimpan terenkripsi menggunakan SQLCipher di ruang penyimpanan lokal perangkat.
-      </div>
+    <!-- Security Notice -->
+    <div class="vault-security-footer">
+      🔒 Semua berkas disimpan terenkripsi menggunakan SQLCipher di ruang penyimpanan lokal perangkat.
     </div>
   </div>
-{/if}
+</Dialog>
 
 <style>
-  .vault-dialog-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(5px);
-    z-index: 1065;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    animation: fadeIn 0.2s ease-out;
-  }
-
-  .vault-dialog-modal {
-    width: 100%;
-    max-width: 520px;
-    background-color: var(--bg-card, #FFFFFF);
-    border-radius: var(--radius-xl, 24px);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.35);
-    padding: 20px;
+  .vault-dialog-content {
     display: flex;
     flex-direction: column;
-    max-height: 90vh;
-    overflow: hidden;
-  }
-
-  .dialog-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
-  }
-
-  .header-title-wrap {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-
-  .vault-header-icon {
-    font-size: 1.8rem;
-  }
-
-  .dialog-title {
-    font-size: 1.05rem;
-    font-weight: 800;
-    color: var(--text-primary, #0F172A);
-    margin: 0;
+    max-height: 75vh;
   }
 
   .dialog-sub {
-    font-size: 0.74rem;
-    color: var(--text-secondary, #64748B);
-    margin: 2px 0 0 0;
-  }
-
-  .close-x-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary, #64748B);
-    font-size: 1.1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .close-x-btn:hover {
-    background-color: var(--border-light, #F1F5F9);
-    color: var(--text-primary, #0F172A);
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    margin: -6px 0 12px 0;
   }
 
   .vault-toast-pill {
-    background-color: #0D9488;
+    background-color: var(--brand-teal, #0D9488);
     color: #FFFFFF;
     font-size: 0.78rem;
     font-weight: 700;
+    font-family: var(--font-active);
     padding: 6px 14px;
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     margin-bottom: 10px;
     align-self: center;
-    animation: fadeIn 0.2s ease-out;
   }
 
   .filter-controls-wrap {
@@ -310,53 +236,60 @@
 
   .vault-search-input {
     width: 100%;
+    min-height: var(--touch-target-min, 40px);
     padding: 8px 14px;
-    border-radius: var(--radius-pill, 999px);
-    border: 1px solid var(--border-subtle, #CBD5E1);
-    background-color: var(--bg-surface, #F8FAFC);
+    border-radius: var(--radius-pill);
+    border: 1px solid var(--border-light);
+    background-color: var(--bg-card);
     font-size: 0.84rem;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
   }
 
   .vault-search-input:focus {
-    border-color: var(--brand-blue, #0284C7);
+    border-color: var(--brand-blue);
   }
 
   .category-tabs-bar {
     display: flex;
-    background-color: var(--bg-surface, #F1F5F9);
-    padding: 3px;
-    border-radius: var(--radius-pill, 999px);
-    gap: 2px;
+    background-color: var(--bg-primary);
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    gap: 4px;
     overflow-x: auto;
   }
 
   .cat-tab-btn {
     flex: 1;
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     white-space: nowrap;
-    padding: 5px 10px;
-    border-radius: var(--radius-pill, 999px);
+    padding: 5px 12px;
+    border-radius: var(--radius-pill);
     border: none;
     background: transparent;
     font-size: 0.74rem;
     font-weight: 700;
-    color: var(--text-secondary, #64748B);
+    font-family: var(--font-active);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .cat-tab-btn.active {
-    background-color: #FFFFFF;
-    color: var(--brand-blue, #0284C7);
+    background-color: var(--bg-card);
+    color: var(--brand-blue);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   }
 
   /* Items Scroll */
   .vault-items-scroll {
     overflow-y: auto;
-    max-height: 440px;
+    max-height: 420px;
     padding-right: 4px;
   }
 
@@ -376,13 +309,14 @@
   .empty-vault-view h4 {
     font-size: 0.95rem;
     font-weight: 800;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     margin: 0 0 4px 0;
   }
 
   .empty-vault-view p {
     font-size: 0.8rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     margin: 0;
   }
 
@@ -393,9 +327,9 @@
   }
 
   .media-card {
-    background-color: var(--bg-surface, #F8FAFC);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    border-radius: 14px;
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: var(--radius-md);
     padding: 12px;
     display: flex;
     align-items: center;
@@ -404,14 +338,14 @@
   }
 
   .media-card:hover {
-    border-color: var(--brand-blue, #0284C7);
+    border-color: var(--brand-blue);
   }
 
   .media-preview-icon {
     width: 44px;
     height: 44px;
-    border-radius: 12px;
-    background-color: #EFF6FF;
+    border-radius: var(--radius-md);
+    background-color: var(--brand-blue-subtle);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -436,15 +370,16 @@
   .media-name {
     font-size: 0.86rem;
     font-weight: 700;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .stego-pill-tag {
-    background-color: rgba(13, 148, 136, 0.12);
-    color: #0D9488;
+    background-color: var(--brand-teal-light, rgba(13, 148, 136, 0.12));
+    color: var(--brand-teal, #0D9488);
     font-size: 0.65rem;
     font-weight: 800;
     padding: 1px 6px;
@@ -454,18 +389,18 @@
 
   .media-conv-origin {
     font-size: 0.74rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
   }
 
   .media-meta-line {
     font-size: 0.72rem;
-    color: var(--text-secondary, #94A3B8);
+    color: var(--text-secondary);
   }
 
   .media-checksum-tag {
     font-size: 0.65rem;
-    color: var(--brand-blue, #0284C7);
-    font-family: monospace;
+    color: var(--brand-blue);
+    font-family: var(--font-mono);
   }
 
   .media-actions-col {
@@ -476,38 +411,53 @@
   }
 
   .btn-action-decode {
-    padding: 4px 10px;
-    border-radius: var(--radius-pill, 999px);
-    background-color: #0D9488;
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    background-color: var(--brand-teal, #0D9488);
     color: #FFFFFF;
-    font-size: 0.72rem;
+    font-size: 0.74rem;
     font-weight: 700;
+    font-family: var(--font-active);
     border: none;
     cursor: pointer;
   }
 
   .btn-action-download {
-    padding: 4px 10px;
-    border-radius: var(--radius-pill, 999px);
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
     background: transparent;
-    border: 1px solid var(--border-subtle, #CBD5E1);
-    color: var(--brand-blue, #0284C7);
-    font-size: 0.72rem;
+    border: 1px solid var(--border-light);
+    color: var(--brand-blue);
+    font-size: 0.74rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: pointer;
   }
 
   .btn-action-download:hover {
-    background-color: #EFF6FF;
+    background-color: var(--brand-blue-subtle);
   }
 
   .btn-action-shred {
+    min-height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 4px 8px;
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     background: transparent;
     border: 1px solid rgba(239, 68, 68, 0.3);
     color: #DC2626;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     cursor: pointer;
   }
 
@@ -517,16 +467,11 @@
 
   .vault-security-footer {
     font-size: 0.72rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     text-align: center;
-    background-color: var(--bg-surface, #F1F5F9);
+    background-color: var(--bg-primary);
     padding: 8px 12px;
-    border-radius: 10px;
+    border-radius: var(--radius-sm);
     margin-top: 12px;
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
   }
 </style>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
+  import BottomSheet from './BottomSheet.svelte';
 
   let {
     open = false,
@@ -46,183 +47,70 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={onclose}>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-      class="modal-sheet"
-      role="dialog"
-      tabindex="-1"
-      aria-modal="true"
-      aria-label="Pemusnahan Forensik Darurat"
-      onclick={(e) => e.stopPropagation()}
-    >
-      <div class="sheet-drag-handle"></div>
+<BottomSheet
+  {open}
+  title="Pemusnahan Forensik Darurat"
+  subtitle="Penghapusan permanen militer (Crypto-Shredding Zeroing)"
+  {onclose}
+  maxWidth="520px"
+>
+  <div class="sheet-body">
+    <div class="danger-callout">
+      <div class="danger-badge">⚠️ PERINGATAN KRITIS • TIDAK DAPAT DIBATALKAN</div>
+      <p class="danger-text">
+        Protokol ini dirancang untuk situasi darurat ekstrem ketika perangkat Anda berisiko disita fisik atau digeledah.
+      </p>
+      <ul class="danger-list">
+        <li>Semua riwayat percakapan dan log obrolan akan dimusnahkan.</li>
+        <li>Brankas media, berkas steganografi, dan file lampiran akan di-zeroing.</li>
+        <li>Kunci sesi X25519 dan identitas lokal dihapus total.</li>
+        <li>Aplikasi akan langsung di-reset ke kondisi awal <em>Cold-Start</em>.</li>
+      </ul>
+    </div>
 
-      <div class="sheet-header">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div class="header-icon-circle">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#E11D48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-              <line x1="12" y1="9" x2="12" y2="13"></line>
-              <line x1="12" y1="17" x2="12.01" y2="17"></line>
-            </svg>
-          </div>
-          <div>
-            <h3 class="sheet-title">Pemusnahan Forensik Darurat</h3>
-            <p class="sheet-sub">Penghapusan permanen militer (Crypto-Shredding Zeroing)</p>
-          </div>
-        </div>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">✕</button>
+    <div class="confirm-box">
+      <label class="confirm-label" for="wipe-confirm-input">
+        Ketik <strong>WIPE-MEKAAR</strong> di bawah ini untuk konfirmasi:
+      </label>
+      <input
+        id="wipe-confirm-input"
+        type="text"
+        class="confirm-input"
+        placeholder="WIPE-MEKAAR"
+        bind:value={confirmInput}
+        autocomplete="off"
+        spellcheck="false"
+      />
+    </div>
+
+    {#if errorMessage}
+      <div class="error-banner">
+        {errorMessage}
       </div>
+    {/if}
 
-      <div class="sheet-body">
-        <div class="danger-callout">
-          <div class="danger-badge">⚠️ PERINGATAN KRITIS • TIDAK DAPAT DIBATALKAN</div>
-          <p class="danger-text">
-            Protokol ini dirancang untuk situasi darurat ekstrem ketika perangkat Anda berisiko disita fisik atau digeledah.
-          </p>
-          <ul class="danger-list">
-            <li>Semua riwayat percakapan dan log obrolan akan dimusnahkan.</li>
-            <li>Brankas media, berkas steganografi, dan file lampiran akan di-zeroing.</li>
-            <li>Kunci sesi X25519 dan identitas lokal dihapus total.</li>
-            <li>Aplikasi akan langsung di-reset ke kondisi awal <em>Cold-Start</em>.</li>
-          </ul>
-        </div>
-
-        <div class="confirm-box">
-          <label class="confirm-label" for="wipe-confirm-input">
-            Ketik <strong>WIPE-MEKAAR</strong> di bawah ini untuk konfirmasi:
-          </label>
-          <input
-            id="wipe-confirm-input"
-            type="text"
-            class="confirm-input"
-            placeholder="WIPE-MEKAAR"
-            bind:value={confirmInput}
-            autocomplete="off"
-            spellcheck="false"
-          />
-        </div>
-
-        {#if errorMessage}
-          <div class="error-banner">
-            {errorMessage}
-          </div>
+    <div class="dialog-actions-row">
+      <button type="button" class="btn-cancel" onclick={onclose} disabled={isExecuting}>
+        Batalkan
+      </button>
+      <button
+        type="button"
+        class="btn-wipe {isValid ? 'ready' : ''}"
+        onclick={handleWipe}
+        disabled={!isValid || isExecuting}
+      >
+        {#if isExecuting}
+          Sedang Memusnahkan Data...
+        {:else}
+          💥 Hancurkan Seluruh Data Sekarang
         {/if}
-
-        <div class="dialog-actions-row">
-          <button type="button" class="btn-cancel" onclick={onclose} disabled={isExecuting}>
-            Batalkan
-          </button>
-          <button
-            type="button"
-            class="btn-wipe {isValid ? 'ready' : ''}"
-            onclick={handleWipe}
-            disabled={!isValid || isExecuting}
-          >
-            {#if isExecuting}
-              Sedang Memusnahkan Data...
-            {:else}
-              💥 Hancurkan Seluruh Data Sekarang
-            {/if}
-          </button>
-        </div>
-      </div>
+      </button>
     </div>
   </div>
-{/if}
+</BottomSheet>
 
 <style>
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(6px);
-    z-index: 999;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-
-  .modal-sheet {
-    background-color: var(--bg-card);
-    width: 100%;
-    max-width: 520px;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.25);
-    display: flex;
-    flex-direction: column;
-    max-height: 85vh;
-    overflow-y: auto;
-    border-top: 2px solid #E11D48;
-    animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @keyframes slideUp {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  .sheet-drag-handle {
-    width: 36px;
-    height: 4px;
-    background-color: var(--border-light);
-    border-radius: var(--radius-pill);
-    margin: 10px auto 4px auto;
-  }
-
-  .sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px 14px 20px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .header-icon-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: #FFE4E6;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .sheet-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: #9F1239;
-    margin: 0;
-  }
-
-  .sheet-sub {
-    font-size: 0.78rem;
-    color: var(--text-secondary);
-    margin: 2px 0 0 0;
-  }
-
-  .close-x-btn {
-    background: none;
-    border: none;
-    font-size: 1.15rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 50%;
-  }
-
   .sheet-body {
-    padding: 18px 20px 24px 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -272,14 +160,16 @@
   }
 
   .confirm-input {
+    min-height: var(--touch-target-min, 40px);
     padding: 10px 14px;
     border-radius: var(--radius-md);
     border: 1.5px solid var(--border-light);
     font-size: 1.05rem;
     font-weight: 700;
+    font-family: var(--font-mono);
     letter-spacing: 2px;
     text-align: center;
-    background: #FFFFFF;
+    background: var(--bg-card);
     color: #E11D48;
     outline: none;
   }
@@ -306,6 +196,10 @@
   }
 
   .btn-cancel {
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 10px 18px;
     border-radius: var(--radius-pill);
     background: transparent;
@@ -313,10 +207,15 @@
     color: var(--text-secondary);
     font-size: 0.85rem;
     font-weight: 600;
+    font-family: var(--font-active);
     cursor: pointer;
   }
 
   .btn-wipe {
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 10px 20px;
     border-radius: var(--radius-pill);
     background-color: #94A3B8;
@@ -324,6 +223,7 @@
     color: #FFFFFF;
     font-size: 0.85rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: not-allowed;
     transition: all 0.15s ease;
   }

@@ -68,7 +68,7 @@
 
 <div class="map-container">
   <!-- Status Bar Geofence & Telemetri -->
-  <div class="sketch-card map-telemetry-header">
+  <div class="clean-card map-telemetry-header">
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
       <div style="display: flex; align-items: center; gap: 8px;">
         <span class="sketch-badge" style="background: {mekaarStore.telemetry.isInSafeZone ? '#DCFCE7' : '#FEF3C7'}; font-weight: 700;">
@@ -94,7 +94,7 @@
   </div>
 
   {#if subView === 'radar'}
-    <div class="map-canvas sketch-card">
+    <div class="map-canvas clean-card">
       <div class="map-grid-overlay"></div>
 
       <!-- Lingkaran Radius Geofence Rumah -->
@@ -140,7 +140,7 @@
         </button>
       {/each}
 
-      <div class="map-footer-bar sketch-card">
+      <div class="map-footer-bar clean-card">
         <div>
           <strong>Titik Terpilih:</strong> {selectedPin}
         </div>
@@ -257,15 +257,18 @@
 
 <style>
   .map-container {
-    padding: 16px 18px;
-    max-width: 880px;
     width: 100%;
+    max-width: 900px;
     margin: 0 auto;
+    padding: 0 16px 24px 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
   }
   .map-telemetry-header {
-    padding: 10px 14px;
+    padding: 12px 16px;
     margin-bottom: 14px;
-    background: var(--bg-secondary);
+    background: var(--bg-surface);
   }
   .map-canvas {
     position: relative;

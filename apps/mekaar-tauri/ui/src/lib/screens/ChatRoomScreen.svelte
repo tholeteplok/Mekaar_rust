@@ -322,8 +322,9 @@
               onclick={jumpToPrevSearchMatch}
               disabled={matchedMessageIds.length === 0}
               title="Kecocokan Sebelumnya"
+              aria-label="Kecocokan Sebelumnya"
             >
-              <CaretUp size={14} weight="bold" />
+              <CaretUp size={18} weight="bold" />
             </button>
             <button
               type="button"
@@ -331,8 +332,9 @@
               onclick={jumpToNextSearchMatch}
               disabled={matchedMessageIds.length === 0}
               title="Kecocokan Berikutnya"
+              aria-label="Kecocokan Berikutnya"
             >
-              <CaretDown size={14} weight="bold" />
+              <CaretDown size={18} weight="bold" />
             </button>
           </div>
         {/if}
@@ -346,8 +348,9 @@
             targetJumpId = '';
           }}
           title="Tutup Pencarian"
+          aria-label="Tutup Pencarian"
         >
-          <X size={16} weight="bold" />
+          <X size={18} weight="bold" />
         </button>
       </div>
     {/if}
@@ -428,8 +431,9 @@
             mekaarStore.pinMessage(activeConv.id, null);
           }}
           title="Lepas Sematan"
+          aria-label="Lepas Sematan"
         >
-          <X size={14} weight="bold" />
+          <X size={16} weight="bold" />
         </button>
       </div>
     {/if}
@@ -890,10 +894,10 @@
 
   .search-input-field {
     flex: 1;
-    height: 38px;
+    height: 42px;
     border-radius: var(--radius-pill);
-    background-color: #FFFFFF;
-    border: 1px solid var(--border-light, #CBD5E1);
+    background-color: var(--surface-card, #FFFFFF);
+    border: 1px solid var(--border-subtle, #CBD5E1);
     display: flex;
     align-items: center;
     padding: 0 12px;
@@ -905,12 +909,13 @@
     background: transparent;
     border: none;
     outline: none;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
+    font-family: var(--font-active);
     color: var(--text-primary);
   }
 
   .search-match-counter {
-    font-size: 0.76rem;
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--text-secondary);
     white-space: nowrap;
@@ -918,35 +923,54 @@
 
   .search-nav-arrows {
     display: flex;
-    gap: 2px;
+    align-items: center;
+    gap: 4px;
   }
 
   .search-nav-btn {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    background: #FFFFFF;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    border-radius: var(--radius-sm, 8px);
+    background: var(--surface-card, #FFFFFF);
     border: 1px solid var(--border-subtle, #E2E8F0);
     color: var(--text-primary);
-    font-size: 0.7rem;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background-color 0.15s ease;
+  }
+
+  .search-nav-btn:hover:not(:disabled) {
+    background-color: var(--bg-surface, #F1F5F9);
   }
 
   .search-nav-btn:disabled {
-    opacity: 0.4;
+    opacity: 0.35;
     cursor: not-allowed;
   }
 
   .close-search-btn {
-    background: none;
+    background: transparent;
     border: none;
     color: var(--text-secondary);
-    font-size: 0.95rem;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    border-radius: 50%;
     cursor: pointer;
-    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .close-search-btn:hover {
+    background-color: var(--bg-surface, #F1F5F9);
+    color: var(--text-primary);
   }
 
   /* Pinned Message Bar */
@@ -993,12 +1017,23 @@
   }
 
   .unpin-btn {
-    background: none;
+    background: transparent;
     border: none;
     color: #15803D;
-    font-size: 0.85rem;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    border-radius: 50%;
     cursor: pointer;
-    padding: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background-color 0.15s ease;
+  }
+
+  .unpin-btn:hover {
+    background-color: rgba(22, 101, 52, 0.12);
   }
 
   /* Messages Viewport */
@@ -1018,11 +1053,13 @@
     position: absolute;
     right: 20px;
     bottom: 84px;
-    width: 42px;
-    height: 42px;
+    width: var(--touch-target-base, 44px);
+    height: var(--touch-target-base, 44px);
+    min-width: var(--touch-target-base, 44px);
+    min-height: var(--touch-target-base, 44px);
     border-radius: 50%;
-    background-color: #FFFFFF;
-    border: 1px solid var(--border-light, #CBD5E1);
+    background-color: var(--surface-card, #FFFFFF);
+    border: 1px solid var(--border-subtle, #CBD5E1);
     color: var(--brand-blue, #0284C7);
     display: flex;
     align-items: center;
@@ -1036,7 +1073,7 @@
 
   .scroll-bottom-fab:hover {
     transform: scale(1.08);
-    background-color: #F8FAFC;
+    background-color: var(--bg-surface, #F8FAFC);
   }
 
   .scroll-bottom-fab:active {

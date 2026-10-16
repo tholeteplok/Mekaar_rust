@@ -19,12 +19,19 @@
   --text-muted: #9FB0C9;      /* Tertiary / Timestamp Text */
   --text-on-blue: #FFFFFF;    /* Text on Primary Blue */
 
+  /* Ergonomic & Touch Target Standards (WCAG 2.1 / Mobile Ergonomics) */
+  --touch-target-min: 40px;      /* Batas minimum absolut semua elemen interaktif */
+  --touch-target-base: 44px;     /* Ukuran standar tombol aksi primer / input */
+  --touch-target-large: 48px;    /* Ukuran nyaman navigasi bar / bottom dock */
+
   /* Functional & Semantic Brand Colors */
   --brand-blue: #136CFC;      /* Primary Blue (Actions, Outgoing Bubbles, FAB) */
   --brand-blue-hover: #0D59D6;
   --brand-blue-light: #EFF6FF; /* Pale Blue for Keypad & Active Backgrounds */
   --brand-blue-subtle: #DBEAFE;
   --brand-green: #C3F84A;     /* Lime Accent */
+  --brand-teal: #0D9488;      /* Aegis Shield Teal */
+  --brand-teal-light: #ECFDF5;
 
   /* Protective & Emergency Semantics */
   --sos-coral: #FF5D5D;       /* SOS Glowing Coral */
@@ -42,16 +49,33 @@
   --border-focus: #136CFC;
   --sketch-charcoal: #1E293B; /* Fine Charcoal Sketch Ink */
   --sketch-grey: #CBD5E1;     /* Architectural Corner Pencil Ticks */
+  --sketch-border-color: var(--border-subtle);
+  --border-sketch-color: var(--border-subtle);
 
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
   --radius-card: 20px;
   --radius-pill: 9999px;
   --radius-button: 16px;
   --radius-input: 9999px;
+  --sketch-radius-md: 12px;
 
   --shadow-card: 0 2px 10px rgba(21, 38, 65, 0.04);
   --shadow-floating: 0 6px 20px rgba(21, 38, 65, 0.08);
   --shadow-sos: 0 6px 18px rgba(255, 93, 93, 0.38);
   --shadow-fab: 0 6px 18px rgba(19, 108, 252, 0.35);
+  --sketch-shadow: var(--shadow-card);
+  --sketch-shadow-sm: 0 1px 4px rgba(21, 38, 65, 0.04);
+
+  /* Semantic Aliases & Compatibility Tokens */
+  --accent-primary: var(--brand-blue);
+  --accent-danger: var(--sos-coral);
+  --bg-card: var(--bg-surface);
+  --bg-input: #FFFFFF;
+  --bg-main: var(--bg-primary);
+  --text-main: var(--text-primary);
 
   /* Chat Bubbles */
   --bubble-self-bg: #136CFC;
@@ -82,9 +106,20 @@
   --border-subtle: #25395B;
   --border-light: #334155;
   --brand-blue-light: #1E293B;
+  --brand-teal: #14B8A6;
+  --brand-teal-light: #132E2B;
+
+  --sketch-border-color: #25395B;
+  --border-sketch-color: #25395B;
+  --bg-card: var(--bg-surface);
+  --bg-input: #171E29;
+  --bg-main: var(--bg-primary);
+  --text-main: var(--text-primary);
 
   --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.25);
   --shadow-floating: 0 6px 24px rgba(0, 0, 0, 0.35);
+  --sketch-shadow: var(--shadow-card);
+  --sketch-shadow-sm: 0 1px 4px rgba(0, 0, 0, 0.2);
 
   --bubble-self-bg: #136CFC;
   --bubble-self-text: #FFFFFF;
@@ -120,18 +155,21 @@ button, input, textarea, select {
   color: inherit;
 }
 
-/* Clean Button Styles */
+/* Clean Button Styles (Minimum Touch Target 40px) */
 .btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: var(--touch-target-min, 40px);
+  min-width: var(--touch-target-min, 40px);
   background-color: var(--brand-blue);
   color: #ffffff;
+  font-family: var(--font-active);
   font-weight: 600;
   border-radius: var(--radius-pill);
   border: none;
-  padding: 12px 24px;
+  padding: 10px 22px;
   cursor: pointer;
   transition: all 0.15s ease;
   box-shadow: 0 2px 8px rgba(19, 108, 252, 0.25);
@@ -147,12 +185,15 @@ button, input, textarea, select {
   align-items: center;
   justify-content: center;
   gap: 8px;
+  min-height: var(--touch-target-min, 40px);
+  min-width: var(--touch-target-min, 40px);
   background-color: var(--bg-secondary);
   color: var(--text-primary);
+  font-family: var(--font-active);
   font-weight: 600;
   border-radius: var(--radius-pill);
   border: 1px solid var(--border-subtle);
-  padding: 12px 24px;
+  padding: 10px 22px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -160,6 +201,31 @@ button, input, textarea, select {
 .btn-secondary:active {
   transform: scale(0.97);
   background-color: #E2E8F0;
+}
+
+/* Centralized Form Inputs (Minimum Touch Target 44px) */
+.clean-input, .sketch-input {
+  width: 100%;
+  min-height: var(--touch-target-base, 44px);
+  padding: 10px 16px;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-input, #FFFFFF);
+  color: var(--text-primary);
+  font-family: var(--font-active);
+  font-size: 0.92rem;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.clean-input:focus, .sketch-input:focus {
+  border-color: var(--brand-blue);
+  box-shadow: 0 0 0 3px rgba(19, 108, 252, 0.15);
+}
+
+.clean-input::placeholder, .sketch-input::placeholder {
+  color: var(--text-muted);
 }
 
 /* Citrea Architectural Card with Pencil Ticks */

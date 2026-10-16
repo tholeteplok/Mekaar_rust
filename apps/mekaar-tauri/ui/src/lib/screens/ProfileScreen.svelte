@@ -389,7 +389,11 @@
 
 <style>
   .profile-page-container {
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
     padding: 0 16px 24px 16px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -528,8 +532,11 @@
     font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
+    min-height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
     padding: 10px 20px;
     border-radius: var(--radius-pill);
+    transition: background-color 0.15s ease;
   }
 
   .logout-btn:active {

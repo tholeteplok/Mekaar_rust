@@ -81,8 +81,8 @@ fn test_rfc7748_x25519_test_vectors() {
     assert_eq!(alice_pub.as_bytes(), &expected_alice_public);
     assert_eq!(bob_pub.as_bytes(), &expected_bob_public);
 
-    let alice_shared = compute_shared_secret(&alice_priv, &bob_pub);
-    let bob_shared = compute_shared_secret(&bob_priv, &alice_pub);
+    let alice_shared = compute_shared_secret(&alice_priv, &bob_pub).expect("alice dh");
+    let bob_shared = compute_shared_secret(&bob_priv, &alice_pub).expect("bob dh");
 
     assert_eq!(alice_shared.as_bytes(), &expected_shared_secret);
     assert_eq!(bob_shared.as_bytes(), &expected_shared_secret);

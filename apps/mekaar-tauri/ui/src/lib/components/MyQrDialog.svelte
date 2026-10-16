@@ -1,6 +1,7 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
   import { generateContactPayload, generateQrSvg } from '../services/qr';
+  import Dialog from './Dialog.svelte';
 
   let { open = false, onclose, onScanClick }: {
     open: boolean;
@@ -45,7 +46,6 @@
         copied = false;
       }, 2500);
     } catch (_) {
-      // Fallback
       copied = true;
       setTimeout(() => (copied = false), 2000);
     }
@@ -57,169 +57,106 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="qr-dialog-backdrop" onclick={onclose}>
-    <div class="qr-dialog-modal" onclick={(e) => e.stopPropagation()}>
-      <!-- Header -->
-      <div class="dialog-header-row">
-        <h3 class="dialog-title">Kode QR Profil</h3>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">
-          ✕
-        </button>
-      </div>
+<Dialog
+  {open}
+  title="Kode QR Profil"
+  {onclose}
+  maxWidth="420px"
+>
+  <div class="qr-dialog-content">
+    <p class="dialog-desc">
+      Tunjukkan kode QR ini ke teman Anda agar dapat langsung terhubung dalam obrolan terenkripsi Mekaar Aegis.
+    </p>
 
-      <p class="dialog-desc">
-        Tunjukkan kode QR ini ke teman Anda agar dapat langsung terhubung dalam obrolan terenkripsi Mekaar Aegis.
-      </p>
-
-      <!-- Telegram-Style Overlapping QR Card -->
-      <div class="qr-card-stack">
-        <!-- Floating Avatar on Top -->
-        <div class="floating-avatar-wrap">
-          <div
-            class="floating-avatar"
-            style="background-color: {mekaarStore.currentUser.avatarColor || '#BFDBFE'};"
-          >
-            {mekaarStore.currentUser.displayName.charAt(0).toUpperCase()}
-          </div>
-        </div>
-
-        <!-- Inner White Card -->
-        <div class="inner-qr-card">
-          <!-- QR Matrix Box -->
-          <div class="qr-box">
-            {#if qrSvg}
-              {@html qrSvg}
-            {:else}
-              <div class="qr-loading-placeholder">
-                <span class="spinner-dot"></span>
-                <span>Menghasilkan kode QR...</span>
-              </div>
-            {/if}
-          </div>
-
-          <!-- Profile Details -->
-          <h4 class="profile-name">{mekaarStore.currentUser.displayName}</h4>
-          <p class="profile-handle">{mekaarStore.currentUser.username}</p>
-
-          <!-- Aegis Protection Badge -->
-          <div class="aegis-badge">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
-            </svg>
-            <span>Mekaar Aegis E2EE</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- Action Buttons -->
-      <div class="action-buttons-wrap">
-        <!-- Primary Action: Copy Link -->
-        <button
-          type="button"
-          class="btn-primary-share {copied ? 'btn-copied' : ''}"
-          onclick={handleCopy}
+    <!-- Telegram-Style Overlapping QR Card -->
+    <div class="qr-card-stack">
+      <!-- Floating Avatar on Top -->
+      <div class="floating-avatar-wrap">
+        <div
+          class="floating-avatar"
+          style="background-color: {mekaarStore.currentUser.avatarColor || '#BFDBFE'};"
         >
-          {#if copied}
-            ✓ Tautan Profil Disalin!
+          {mekaarStore.currentUser.displayName.charAt(0).toUpperCase()}
+        </div>
+      </div>
+
+      <!-- Inner White Card -->
+      <div class="inner-qr-card">
+        <!-- QR Matrix Box -->
+        <div class="qr-box">
+          {#if qrSvg}
+            {@html qrSvg}
           {:else}
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            Salin & Bagikan Tautan QR
+            <div class="qr-loading-placeholder">
+              <span class="spinner-dot"></span>
+              <span>Menghasilkan kode QR...</span>
+            </div>
           {/if}
-        </button>
+        </div>
 
-        <!-- Secondary Action: Scan Friend QR -->
-        <button
-          type="button"
-          class="btn-secondary-scan"
-          onclick={handleScan}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7"></rect>
-            <rect x="14" y="3" width="7" height="7"></rect>
-            <rect x="14" y="14" width="7" height="7"></rect>
-            <rect x="3" y="14" width="7" height="7"></rect>
+        <!-- Profile Details -->
+        <h4 class="profile-name">{mekaarStore.currentUser.displayName}</h4>
+        <p class="profile-handle">{mekaarStore.currentUser.username}</p>
+
+        <!-- Aegis Protection Badge -->
+        <div class="aegis-badge">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm-2 16l-4-4 1.41-1.41L10 14.17l6.59-6.59L18 9l-8 8z"/>
           </svg>
-          Pindai Kode QR Teman
-        </button>
+          <span>Mekaar Aegis E2EE</span>
+        </div>
       </div>
     </div>
+
+    <!-- Action Buttons -->
+    <div class="action-buttons-wrap">
+      <!-- Primary Action: Copy Link -->
+      <button
+        type="button"
+        class="btn-primary-share {copied ? 'btn-copied' : ''}"
+        onclick={handleCopy}
+      >
+        {#if copied}
+          ✓ Tautan Profil Disalin!
+        {:else}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+            <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+          </svg>
+          Salin & Bagikan Tautan QR
+        {/if}
+      </button>
+
+      <!-- Secondary Action: Scan Friend QR -->
+      <button
+        type="button"
+        class="btn-secondary-scan"
+        onclick={handleScan}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7"></rect>
+          <rect x="14" y="3" width="7" height="7"></rect>
+          <rect x="14" y="14" width="7" height="7"></rect>
+          <rect x="3" y="14" width="7" height="7"></rect>
+        </svg>
+        Pindai Kode QR Teman
+      </button>
+    </div>
   </div>
-{/if}
+</Dialog>
 
 <style>
-  .qr-dialog-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(15, 23, 42, 0.65);
-    backdrop-filter: blur(4px);
-    z-index: 1050;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    animation: fadeIn 0.2s ease-out;
-  }
-
-  .qr-dialog-modal {
-    width: 100%;
-    max-width: 400px;
-    background-color: var(--bg-card, #FFFFFF);
-    border-radius: var(--radius-xl, 24px);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.25);
-    padding: 24px 20px 20px 20px;
+  .qr-dialog-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     text-align: center;
     position: relative;
-    max-height: 92vh;
-    overflow-y: auto;
-  }
-
-  .dialog-header-row {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 8px;
-  }
-
-  .dialog-title {
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: var(--text-primary, #0F172A);
-    margin: 0;
-  }
-
-  .close-x-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary, #64748B);
-    font-size: 1.1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .close-x-btn:hover {
-    background-color: var(--border-light, #F1F5F9);
-    color: var(--text-primary, #0F172A);
   }
 
   .dialog-desc {
     font-size: 0.82rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     line-height: 1.45;
     margin: 0 0 24px 0;
   }
@@ -240,7 +177,7 @@
     transform: translateX(-50%);
     z-index: 2;
     padding: 4px;
-    background-color: var(--bg-card, #FFFFFF);
+    background-color: var(--bg-card);
     border-radius: 50%;
     box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
   }
@@ -258,9 +195,9 @@
   }
 
   .inner-qr-card {
-    background-color: var(--bg-surface, #F8FAFC);
-    border-radius: var(--radius-lg, 16px);
-    border: 1px solid var(--border-subtle, #E2E8F0);
+    background-color: var(--bg-primary);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border-light);
     padding: 44px 20px 20px 20px;
     display: flex;
     flex-direction: column;
@@ -289,7 +226,7 @@
 
   .qr-loading-placeholder {
     font-size: 0.8rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -299,14 +236,15 @@
   .profile-name {
     font-size: 1.15rem;
     font-weight: 800;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     margin: 16px 0 2px 0;
   }
 
   .profile-handle {
     font-size: 0.85rem;
     font-weight: 700;
-    color: var(--brand-blue, #0284C7);
+    color: var(--brand-blue);
     margin: 0 0 10px 0;
   }
 
@@ -314,10 +252,10 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    background-color: rgba(16, 185, 129, 0.12);
-    color: #059669;
+    background-color: var(--brand-teal-light, rgba(16, 185, 129, 0.12));
+    color: var(--brand-teal, #059669);
     padding: 4px 12px;
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     font-size: 0.75rem;
     font-weight: 700;
     letter-spacing: 0.3px;
@@ -333,12 +271,14 @@
 
   .btn-primary-share {
     width: 100%;
+    min-height: var(--touch-target-min, 40px);
     height: 48px;
-    border-radius: var(--radius-pill, 999px);
-    background-color: var(--brand-blue, #0284C7);
+    border-radius: var(--radius-pill);
+    background-color: var(--brand-blue);
     color: #FFFFFF;
     font-size: 0.92rem;
     font-weight: 700;
+    font-family: var(--font-active);
     border: none;
     display: flex;
     align-items: center;
@@ -364,13 +304,15 @@
 
   .btn-secondary-scan {
     width: 100%;
+    min-height: var(--touch-target-min, 40px);
     height: 46px;
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     background: transparent;
-    border: 1.5px solid var(--border-subtle, #CBD5E1);
-    color: var(--text-primary, #0F172A);
+    border: 1.5px solid var(--border-light);
+    color: var(--text-primary);
     font-size: 0.88rem;
     font-weight: 700;
+    font-family: var(--font-active);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -380,16 +322,11 @@
   }
 
   .btn-secondary-scan:hover {
-    background-color: var(--border-light, #F1F5F9);
-    border-color: var(--text-secondary, #94A3B8);
+    background-color: var(--bg-primary);
+    border-color: var(--text-secondary);
   }
 
   .btn-secondary-scan:active {
     transform: scale(0.98);
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
   }
 </style>

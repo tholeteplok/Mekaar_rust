@@ -1,3 +1,4 @@
+export { default as AuthScreen } from './AuthScreen.svelte';
 export { default as CallScreen } from './CallScreen.svelte';
 export { default as ChatRoomScreen } from './ChatRoomScreen.svelte';
 export { default as ContactListScreen } from './ContactListScreen.svelte';
@@ -9,4 +10,5 @@ export { default as ProfileScreen } from './ProfileScreen.svelte';
 export { default as SettingsScreen } from './SettingsScreen.svelte';
 export { default as SetUsernameScreen } from './SetUsernameScreen.svelte';
 export { default as SosScreen } from './SosScreen.svelte';
+export { default as SplashScreen } from './SplashScreen.svelte';
 export { default as VaultScreen } from './VaultScreen.svelte';

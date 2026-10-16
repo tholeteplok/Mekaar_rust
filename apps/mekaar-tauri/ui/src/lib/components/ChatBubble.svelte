@@ -146,7 +146,7 @@
             title="Beri Reaksi Emoji"
             aria-label="Reaksi"
           >
-            <Smiley size={14} weight="bold" />
+            <Smiley size={17} weight="bold" />
           </button>
 
           <!-- Reply Button -->
@@ -158,7 +158,7 @@
               title="Balas Pesan"
               aria-label="Balas"
             >
-              <ArrowBendUpLeft size={14} weight="bold" />
+              <ArrowBendUpLeft size={17} weight="bold" />
             </button>
           {/if}
 
@@ -173,7 +173,7 @@
             title="Opsi Pesan Lanjutan"
             aria-label="Opsi Pesan"
           >
-            <DotsThreeVertical size={14} weight="bold" />
+            <DotsThreeVertical size={17} weight="bold" />
           </button>
         </div>
       {/if}
@@ -600,9 +600,9 @@
   /* Hover Actions */
   .bubble-hover-actions {
     position: absolute;
-    top: -12px;
+    top: -16px;
     display: flex;
-    gap: 4px;
+    gap: 6px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.15s ease;
@@ -623,33 +623,36 @@
   }
 
   .hover-action-btn {
-    width: 24px;
-    height: 24px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
     border-radius: 50%;
-    background-color: #FFFFFF;
+    background-color: var(--surface-card, #FFFFFF);
     border: 1px solid var(--border-subtle, #CBD5E1);
     color: var(--text-secondary, #64748B);
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .hover-action-btn:hover {
     color: var(--brand-blue, #0284C7);
-    transform: scale(1.1);
+    border-color: var(--brand-blue, #0284C7);
+    transform: scale(1.08);
   }
 
   /* Quick Reactions Bar Popover */
   .quick-reactions-bar {
     position: absolute;
-    top: -42px;
-    background-color: #FFFFFF;
+    top: -50px;
+    background-color: var(--surface-card, #FFFFFF);
     border: 1px solid var(--border-subtle, #CBD5E1);
     border-radius: 999px;
-    padding: 3px 6px;
+    padding: 4px 8px;
     display: flex;
     align-items: center;
     gap: 4px;
@@ -680,10 +683,15 @@
   .quick-emoji-btn {
     background: none;
     border: none;
-    font-size: 1.15rem;
-    padding: 3px 5px;
+    font-size: 1.25rem;
+    min-width: 38px;
+    min-height: var(--touch-target-min, 40px);
+    padding: 0 4px;
     cursor: pointer;
     border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     transition: transform 0.15s ease;
     line-height: 1;
   }
@@ -696,15 +704,15 @@
   .more-options-menu {
     position: absolute;
     top: -10px;
-    background-color: #FFFFFF;
+    background-color: var(--surface-card, #FFFFFF);
     border: 1px solid var(--border-subtle, #E2E8F0);
-    border-radius: 12px;
+    border-radius: var(--radius-card, 12px);
     box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
     display: flex;
     flex-direction: column;
     padding: 4px;
     z-index: 25;
-    min-width: 160px;
+    min-width: 170px;
     animation: popIn 0.15s ease;
   }
 
@@ -721,27 +729,29 @@
     border: none;
     display: flex;
     align-items: center;
-    gap: 8px;
-    padding: 7px 12px;
-    font-size: 0.82rem;
+    gap: 10px;
+    padding: 0 14px;
+    min-height: var(--touch-target-min, 40px);
+    font-size: 0.85rem;
     font-weight: 600;
+    font-family: var(--font-active);
     color: var(--text-primary, #0F172A);
-    border-radius: 8px;
+    border-radius: var(--radius-sm, 8px);
     cursor: pointer;
     text-align: left;
     transition: background-color 0.12s ease;
   }
 
   .menu-item-btn:hover {
-    background-color: #F1F5F9;
+    background-color: var(--bg-surface, #F1F5F9);
   }
 
   .menu-item-btn.danger-item {
-    color: #E11D48;
+    color: var(--sos-coral, #E11D48);
   }
 
   .menu-item-btn.danger-item:hover {
-    background-color: #FFF1F2;
+    background-color: rgba(225, 29, 72, 0.08);
   }
 
   .sender-name {
@@ -889,14 +899,23 @@
   }
 
   .btn-extract-stego-pill {
-    padding: 3px 10px;
-    background-color: #0D9488;
+    padding: 6px 14px;
+    min-height: 36px;
+    background-color: var(--brand-teal, #0D9488);
     color: #FFFFFF;
-    font-size: 0.7rem;
+    font-size: 0.74rem;
     font-weight: 700;
     border-radius: var(--radius-pill, 999px);
     border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
+    transition: opacity 0.15s ease;
+  }
+
+  .btn-extract-stego-pill:hover {
+    opacity: 0.9;
   }
 
   .img-meta-row {
@@ -923,15 +942,17 @@
   }
 
   .voice-peer {
-    background-color: #F8FAFC;
+    background-color: var(--bg-surface, #F8FAFC);
     border: 1px solid var(--border-subtle, #E2E8F0);
   }
 
   .voice-play-circle {
-    width: 34px;
-    height: 34px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
     border-radius: 50%;
-    background-color: #FFFFFF;
+    background-color: var(--surface-card, #FFFFFF);
     color: var(--brand-blue, #0284C7);
     border: none;
     display: flex;
@@ -940,6 +961,11 @@
     cursor: pointer;
     flex-shrink: 0;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+    transition: transform 0.12s ease;
+  }
+
+  .voice-play-circle:active {
+    transform: scale(0.92);
   }
 
   .voice-waveform-col {
@@ -1005,12 +1031,16 @@
   }
 
   .speed-toggle-pill {
-    padding: 1px 6px;
-    font-size: 0.68rem;
+    padding: 3px 10px;
+    min-height: 28px;
+    font-size: 0.72rem;
     font-weight: 700;
     border-radius: 999px;
     cursor: pointer;
     border: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     transition: background-color 0.15s ease;
   }
 
@@ -1145,13 +1175,14 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 7px;
+    padding: 4px 10px;
+    min-height: 32px;
     border-radius: 999px;
-    background-color: #FFFFFF;
+    background-color: var(--surface-card, #FFFFFF);
     border: 1px solid var(--border-subtle, #E2E8F0);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
     cursor: pointer;
-    font-size: 0.75rem;
+    font-size: 0.78rem;
     color: var(--text-primary, #0F172A);
     transition: transform 0.15s ease, background-color 0.15s ease;
   }

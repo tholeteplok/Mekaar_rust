@@ -8,7 +8,7 @@
     message: string;
     mascotSize?: number;
     actionLabel?: string;
-    actionIcon?: Component<{ size?: number; weight?: string; color?: string }>;
+    actionIcon?: any;
     onaction?: () => void;
   }
 

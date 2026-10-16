@@ -15,8 +15,8 @@ use mekaar_core::events::EventBus;
 use mekaar_core::ChatEngine;
 use mekaar_crypto::{compute_fingerprint, generate_identity};
 use mekaar_net::{MekaarClient, ReconnectPolicy};
-use mekaar_proto::{ClientCommand, MessageType, ServerCommand};
-use mekaar_storage::{Contact, EncryptedDatabase};
+use mekaar_proto::{ClientCommand, ServerCommand};
+use mekaar_storage::EncryptedDatabase;
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -61,7 +61,16 @@ async fn main() -> Result<()> {
             let my_id = user_id.unwrap_or_else(Uuid::new_v4);
             let (priv_key, pub_key) = generate_identity();
 
-            let effective_db = db_path.unwrap_or_else(|| format!("daemon_{}.db", my_id));
+            // P0: tolak path traversal; hanya izinkan filename sederhana di CWD atau path absolut kanonis.
+            let effective_db = match db_path {
+                Some(p) => {
+                    if p.contains("..") {
+                        anyhow::bail!("db_path mengandung '..' (path traversal ditolak)");
+                    }
+                    p
+                }
+                None => format!("daemon_{}.db", my_id),
+            };
             let db = EncryptedDatabase::open(&effective_db, &pin)
                 .context("Gagal membuka database SQLCipher")?;
             let engine = Arc::new(ChatEngine::new(
@@ -91,10 +100,18 @@ async fn main() -> Result<()> {
                 match cmd {
                     ServerCommand::IncomingEnvelope(env) => {
                         println!("📥 Menerima pesan terenkripsi dari {}", env.sender_id);
-                        let _ = client.send_command(ClientCommand::DeliveryAck {
-                            message_id: env.message_id,
-                            sender_id: env.sender_id,
-                        });
+                        // P0: hanya ACK setelah dekripsi + verifikasi berhasil (fail-closed).
+                        match engine.receive_envelope(env.clone()).await {
+                            Ok(_) => {
+                                let _ = client.send_command(ClientCommand::DeliveryAck {
+                                    message_id: env.message_id,
+                                    sender_id: env.sender_id,
+                                });
+                            }
+                            Err(e) => {
+                                eprintln!("⚠️ Envelope ditolak tanpa ACK: {}", e);
+                            }
+                        }
                     }
                     ServerCommand::GuardianSosBroadcast {
                         victim_id,
@@ -117,58 +134,24 @@ async fn main() -> Result<()> {
         }
 
         Commands::Send {
-            from,
-            to,
+            from: _from,
+            to: _to,
             message,
-            view_once,
-            pin,
+            view_once: _view_once,
+            pin: _pin,
             db_path,
         } => {
-            let my_id = from.unwrap_or_else(Uuid::new_v4);
-            let (priv_key, pub_key) = generate_identity();
-            let effective_db = db_path.unwrap_or_else(|| "cli_send.db".to_string());
-
-            let db = EncryptedDatabase::open(&effective_db, &pin)?;
-            let peer_contact = Contact {
-                id: to,
-                username: "peer".to_string(),
-                display_name: format!("Peer-{}", &to.to_string()[..6]),
-                public_key: [0u8; 32],
-                safety_number: "".to_string(),
-                status: "active".to_string(),
-                updated_at: 0,
-            };
-            let _ = db.upsert_contact(&peer_contact);
-
-            let engine = ChatEngine::new(
-                my_id,
-                priv_key,
-                pub_key,
-                db.clone(),
-                EventBus::default(),
+            if message.is_empty() || message.len() > 8000 {
+                anyhow::bail!("message harus 1..8000 byte");
+            }
+            if db_path.as_deref().is_some_and(|p| p.contains("..")) {
+                anyhow::bail!("db_path mengandung '..' (ditolak)");
+            }
+            // P0: jangan gunakan kunci nol. Send satu-shot butuh kunci peer asli;
+            // tolak fail-closed dengan pesan jelas (bukan E2EE palsu).
+            anyhow::bail!(
+                "Perintah send satu-shot membutuhkan kunci publik peer asli di kontak (kunci nol ditolak). Gunakan 'chat' dengan kontak terverifikasi."
             );
-
-            let (_local_msg, envelope) = engine
-                .send_message(
-                    Uuid::new_v4(),
-                    to,
-                    &message,
-                    MessageType::Text,
-                    view_once,
-                    None,
-                )
-                .await?;
-
-            let client = MekaarClient::connect(
-                &cli.server_url,
-                my_id,
-                *pub_key.as_bytes(),
-                ReconnectPolicy::default(),
-            )
-            .await?;
-
-            client.send_command(ClientCommand::SendEnvelope(envelope))?;
-            println!("✅ Pesan terenkripsi terkirim ke {}", to);
         }
 
         Commands::Sos {
@@ -177,6 +160,9 @@ async fn main() -> Result<()> {
             lon,
             accuracy,
         } => {
+            if !accuracy.is_finite() || !(0.0..=100_000.0).contains(&accuracy) {
+                anyhow::bail!("accuracy harus 0..100000 meter");
+            }
             let my_id = user_id.unwrap_or_else(Uuid::new_v4);
             let (_priv, pub_key) = generate_identity();
 

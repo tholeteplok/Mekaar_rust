@@ -44,18 +44,29 @@ impl EncryptedDatabase {
 
     /// Menerapkan passkey enkripsi SQLCipher dan migrasi skema tabel.
     fn init(&self, passkey: &str) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        if passkey.is_empty() || passkey.len() > 256 {
+            return Err(StorageError::Encryption(
+                "Passkey harus 1..256 karakter".to_string(),
+            ));
+        }
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
 
-        // 1. Terapkan passkey SQLCipher (wajib dieksekusi sebelum query lain)
+        // 1. Terapkan passkey SQLCipher (wajib dieksekusi sebelum query lain).
+        // Catatan: pola interpolasi rapuh; gunakan escaping kutip + tolak passkey kosong.
+        // TODO(P1): migrasi ke hex `x'...'` + `PRAGMA cipher_memory_security=ON`.
         let escaped_key = passkey.replace('\'', "''");
         conn.execute_batch(&format!("PRAGMA key = '{}';", escaped_key))?;
 
-        // 2. Aktifkan WAL mode dan integritas foreign keys
+        // 2. Aktifkan WAL mode dan integritas foreign keys + hardening dasar.
         conn.execute_batch(
             "PRAGMA journal_mode = WAL;
              PRAGMA synchronous = NORMAL;
-             PRAGMA foreign_keys = ON;",
+             PRAGMA foreign_keys = ON;
+             PRAGMA secure_delete = ON;
+             PRAGMA temp_store = MEMORY;",
         )?;
+        // Versi skema untuk migrasi masa depan (M1).
+        conn.execute_batch("PRAGMA user_version = 1;")?;
 
         // 3. Buat skema tabel
         conn.execute_batch(
@@ -195,7 +206,7 @@ impl EncryptedDatabase {
 
     /// Menyimpan pesan baru ke database lokal.
     pub fn insert_message(&self, msg: &LocalMessage) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let reactions_json = serde_json::to_string(&msg.reactions).unwrap_or_else(|_| "{}".to_string());
         let msg_type_str = serde_json::to_string(&msg.msg_type).unwrap_or_else(|_| "\"text\"".to_string());
         let clean_msg_type = msg_type_str.trim_matches('"');
@@ -248,7 +259,7 @@ impl EncryptedDatabase {
         room_id: &Uuid,
         limit: usize,
     ) -> Result<Vec<LocalMessage>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, room_id, sender_id, recipient_id, content, media_url, msg_type,
                     is_view_once, is_opened, opened_at, reply_to_id, is_deleted, is_silent_deleted,
@@ -274,7 +285,7 @@ impl EncryptedDatabase {
 
     /// Mengambil pesan spesifik berdasarkan ID.
     pub fn get_message(&self, message_id: &Uuid) -> Result<Option<LocalMessage>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, room_id, sender_id, recipient_id, content, media_url, msg_type,
                     is_view_once, is_opened, opened_at, reply_to_id, is_deleted, is_silent_deleted,
@@ -296,7 +307,7 @@ impl EncryptedDatabase {
         message_id: &Uuid,
         status: DeliveryStatus,
     ) -> Result<bool, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -313,7 +324,7 @@ impl EncryptedDatabase {
     /// Scrubbing View-Once: Menandai pesan sekali lihat telah dibuka,
     /// serta meng-overwrite isi konten plaintext dengan placeholder aman.
     pub fn mark_as_viewed(&self, message_id: &Uuid) -> Result<bool, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -334,7 +345,7 @@ impl EncryptedDatabase {
 
     /// Menghapus pesan secara permanen dari database (digunakan oleh Disappearing Message worker).
     pub fn purge_expired_messages(&self, now: u64) -> Result<usize, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let rows = conn.execute(
             "DELETE FROM local_messages WHERE auto_delete_at IS NOT NULL AND auto_delete_at <= ?1",
             params![now as i64],
@@ -345,7 +356,7 @@ impl EncryptedDatabase {
 
     /// Menghapus seluruh pesan dalam room tertentu (Burn-on-Exit / Wipe).
     pub fn wipe_room_messages(&self, room_id: &Uuid) -> Result<usize, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let rows = conn.execute(
             "DELETE FROM local_messages WHERE room_id = ?1",
             params![room_id.to_string()],
@@ -358,7 +369,7 @@ impl EncryptedDatabase {
 
     /// Mendaftarkan atau memperbarui ruang obrolan.
     pub fn upsert_room(&self, room: &ChatRoom) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         conn.execute(
             "INSERT INTO chat_rooms (
                 id, room_type, name, peer_id, disappearing_timer, theme_preset,
@@ -391,7 +402,7 @@ impl EncryptedDatabase {
 
     /// Mengambil detail room berdasarkan ID.
     pub fn get_room(&self, room_id: &Uuid) -> Result<Option<ChatRoom>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, room_type, name, peer_id, disappearing_timer, theme_preset,
                     last_message_at, is_archived, is_muted, is_vault_hidden
@@ -409,7 +420,7 @@ impl EncryptedDatabase {
     /// Mengambil daftar seluruh room. Parameter `include_vault_hidden` mengontrol apakah
     /// chat room rahasia (Private Vault) disertakan atau disembunyikan.
     pub fn list_rooms(&self, include_vault_hidden: bool) -> Result<Vec<ChatRoom>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let query = if include_vault_hidden {
             "SELECT id, room_type, name, peer_id, disappearing_timer, theme_preset,
                     last_message_at, is_archived, is_muted, is_vault_hidden
@@ -434,7 +445,7 @@ impl EncryptedDatabase {
     // ── Contacts ───────────────────────────────────────────────────────
 
     pub fn upsert_contact(&self, contact: &Contact) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         conn.execute(
             "INSERT INTO contacts (id, username, display_name, public_key, safety_number, status, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
@@ -460,7 +471,7 @@ impl EncryptedDatabase {
     }
 
     pub fn get_contact(&self, id: &Uuid) -> Result<Option<Contact>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, username, display_name, public_key, safety_number, status, updated_at
              FROM contacts WHERE id = ?1",
@@ -470,10 +481,18 @@ impl EncryptedDatabase {
         if let Some(row) = rows.next()? {
             let id_str: String = row.get(0)?;
             let pub_blob: Vec<u8> = row.get(3)?;
-            let mut pub_key = [0u8; 32];
-            if pub_blob.len() == 32 {
-                pub_key.copy_from_slice(&pub_blob);
+            // Fail-closed: blob bukan 32 byte => data korup, jangan jadi kunci nol.
+            if pub_blob.len() != 32 {
+                return Err(StorageError::CorruptedData(
+                    "public_key bukan 32 byte".to_string(),
+                ));
             }
+            let mut pub_key = [0u8; 32];
+            pub_key.copy_from_slice(&pub_blob);
+
+            let updated_raw: i64 = row.get(6)?;
+            let updated_at = u64::try_from(updated_raw)
+                .map_err(|_| StorageError::CorruptedData("updated_at negatif".to_string()))?;
 
             return Ok(Some(Contact {
                 id: Uuid::parse_str(&id_str).map_err(|e| StorageError::CorruptedData(e.to_string()))?,
@@ -482,7 +501,7 @@ impl EncryptedDatabase {
                 public_key: pub_key,
                 safety_number: row.get(4)?,
                 status: row.get(5)?,
-                updated_at: row.get::<_, i64>(6)? as u64,
+                updated_at,
             }));
         }
 
@@ -491,7 +510,7 @@ impl EncryptedDatabase {
 
     /// Mengambil seluruh kontak yang tersimpan di database lokal.
     pub fn list_contacts(&self) -> Result<Vec<Contact>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, username, display_name, public_key, safety_number, status, updated_at
              FROM contacts ORDER BY display_name ASC",
@@ -500,19 +519,24 @@ impl EncryptedDatabase {
         let rows = stmt.query_map([], |row| {
             let id_str: String = row.get(0)?;
             let pub_blob: Vec<u8> = row.get(3)?;
-            let mut pub_key = [0u8; 32];
-            if pub_blob.len() == 32 {
-                pub_key.copy_from_slice(&pub_blob);
+            if pub_blob.len() != 32 {
+                return Err(rusqlite::Error::FromSqlConversionFailure(
+                    3,
+                    rusqlite::types::Type::Blob,
+                    "public_key bukan 32 byte".into(),
+                ));
             }
+            let mut pub_key = [0u8; 32];
+            pub_key.copy_from_slice(&pub_blob);
 
             Ok(Contact {
-                id: Uuid::parse_str(&id_str).unwrap_or_default(),
+                id: Self::parse_uuid_str(&id_str)?,
                 username: row.get(1)?,
                 display_name: row.get(2)?,
                 public_key: pub_key,
                 safety_number: row.get(4)?,
                 status: row.get(5)?,
-                updated_at: row.get::<_, i64>(6)? as u64,
+                updated_at: Self::u64_from_i64(row.get::<_, i64>(6)?, "updated_at")?,
             })
         })?;
 
@@ -534,7 +558,7 @@ impl EncryptedDatabase {
         event_type: &str,
         details: Option<&serde_json::Value>,
     ) -> Result<SecurityLog, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let id = Uuid::new_v4();
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -581,7 +605,7 @@ impl EncryptedDatabase {
 
     /// Mengambil seluruh log audit untuk verifikasi.
     pub fn get_security_logs(&self, user_id: &Uuid) -> Result<Vec<SecurityLog>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, user_id, sos_session_id, event_type, details_json, created_at, checksum
              FROM security_logs WHERE user_id = ?1 ORDER BY created_at ASC",
@@ -593,12 +617,12 @@ impl EncryptedDatabase {
             let sos_str: Option<String> = row.get(2)?;
 
             Ok(SecurityLog {
-                id: Uuid::parse_str(&id_str).unwrap_or_default(),
-                user_id: Uuid::parse_str(&uid_str).unwrap_or_default(),
+                id: Self::parse_uuid_str(&id_str)?,
+                user_id: Self::parse_uuid_str(&uid_str)?,
                 sos_session_id: sos_str.and_then(|s| Uuid::parse_str(&s).ok()),
                 event_type: row.get(3)?,
                 details_json: row.get(4)?,
-                created_at: row.get::<_, i64>(5)? as u64,
+                created_at: Self::u64_from_i64(row.get::<_, i64>(5)?, "created_at")?,
                 checksum: row.get(6)?,
             })
         })?;
@@ -614,7 +638,7 @@ impl EncryptedDatabase {
     // ── Key Store ──────────────────────────────────────────────────────
 
     pub fn set_key_item(&self, key_name: &str, key_data: &str) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -633,7 +657,7 @@ impl EncryptedDatabase {
     }
 
     pub fn get_key_item(&self, key_name: &str) -> Result<Option<String>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare("SELECT key_data FROM key_store WHERE key_name = ?1")?;
 
         let mut rows = stmt.query(params![key_name])?;
@@ -648,7 +672,7 @@ impl EncryptedDatabase {
     // ── SOS Sessions ───────────────────────────────────────────────────
 
     pub fn insert_sos_session(&self, record: &SosSessionRecord) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         conn.execute(
             "INSERT INTO sos_sessions (
                 id, user_id, guardian_id, started_at, ended_at, status,
@@ -677,7 +701,7 @@ impl EncryptedDatabase {
     }
 
     pub fn get_active_sos_session(&self, user_id: &Uuid) -> Result<Option<SosSessionRecord>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, user_id, guardian_id, started_at, ended_at, status,
                     gps_enabled, mic_enabled, video_enabled, ended_reason, created_at
@@ -689,19 +713,28 @@ impl EncryptedDatabase {
             let id_str: String = row.get(0)?;
             let uid_str: String = row.get(1)?;
             let gid_str: Option<String> = row.get(2)?;
+            let started_raw: i64 = row.get(3)?;
+            let ended_raw: Option<i64> = row.get(4)?;
+            let created_raw: i64 = row.get(10)?;
 
             return Ok(Some(SosSessionRecord {
-                id: Uuid::parse_str(&id_str).unwrap_or_default(),
-                user_id: Uuid::parse_str(&uid_str).unwrap_or_default(),
+                id: Uuid::parse_str(&id_str).map_err(|e| StorageError::CorruptedData(e.to_string()))?,
+                user_id: Uuid::parse_str(&uid_str).map_err(|e| StorageError::CorruptedData(e.to_string()))?,
                 guardian_id: gid_str.and_then(|s| Uuid::parse_str(&s).ok()),
-                started_at: row.get::<_, i64>(3)? as u64,
-                ended_at: row.get::<_, Option<i64>>(4)?.map(|v| v as u64),
+                started_at: u64::try_from(started_raw)
+                    .map_err(|_| StorageError::CorruptedData("started_at negatif".to_string()))?,
+                ended_at: match ended_raw {
+                    Some(v) => Some(u64::try_from(v)
+                        .map_err(|_| StorageError::CorruptedData("ended_at negatif".to_string()))?),
+                    None => None,
+                },
                 status: row.get(5)?,
                 gps_enabled: row.get::<_, i32>(6)? != 0,
                 mic_enabled: row.get::<_, i32>(7)? != 0,
                 video_enabled: row.get::<_, i32>(8)? != 0,
                 ended_reason: row.get(9)?,
-                created_at: row.get::<_, i64>(10)? as u64,
+                created_at: u64::try_from(created_raw)
+                    .map_err(|_| StorageError::CorruptedData("created_at negatif".to_string()))?,
             }));
         }
 
@@ -709,6 +742,34 @@ impl EncryptedDatabase {
     }
 
     // ── Row Mappers ────────────────────────────────────────────────────
+    // Fail-closed: UUID korup / timestamp negatif => row error, bukan nil-UUID diam-diam.
+
+    fn parse_uuid_str(s: &str) -> Result<Uuid, rusqlite::Error> {
+        Uuid::parse_str(s).map_err(|_| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Text,
+                "UUID korup".into(),
+            )
+        })
+    }
+
+    fn u64_from_i64(v: i64, _field: &str) -> Result<u64, rusqlite::Error> {
+        u64::try_from(v).map_err(|_| {
+            rusqlite::Error::FromSqlConversionFailure(
+                0,
+                rusqlite::types::Type::Integer,
+                "timestamp negatif/overflow".into(),
+            )
+        })
+    }
+
+    fn opt_u64_from_opt_i64(v: Option<i64>) -> Result<Option<u64>, rusqlite::Error> {
+        match v {
+            Some(x) => Ok(Some(Self::u64_from_i64(x, "opt")?)),
+            None => Ok(None),
+        }
+    }
 
     fn row_to_message(row: &rusqlite::Row) -> Result<LocalMessage, rusqlite::Error> {
         let id_str: String = row.get(0)?;
@@ -732,25 +793,25 @@ impl EncryptedDatabase {
         };
 
         Ok(LocalMessage {
-            id: Uuid::parse_str(&id_str).unwrap_or_default(),
-            room_id: Uuid::parse_str(&room_str).unwrap_or_default(),
-            sender_id: Uuid::parse_str(&sender_str).unwrap_or_default(),
-            recipient_id: Uuid::parse_str(&recipient_str).unwrap_or_default(),
+            id: Self::parse_uuid_str(&id_str)?,
+            room_id: Self::parse_uuid_str(&room_str)?,
+            sender_id: Self::parse_uuid_str(&sender_str)?,
+            recipient_id: Self::parse_uuid_str(&recipient_str)?,
             content: row.get(4)?,
             media_url: row.get(5)?,
             msg_type,
             is_view_once: row.get::<_, i32>(7)? != 0,
             is_opened: row.get::<_, i32>(8)? != 0,
-            opened_at: row.get::<_, Option<i64>>(9)?.map(|v| v as u64),
+            opened_at: Self::opt_u64_from_opt_i64(row.get::<_, Option<i64>>(9)?)?,
             reply_to_id: reply_str.and_then(|s| Uuid::parse_str(&s).ok()),
             is_deleted: row.get::<_, i32>(11)? != 0,
             is_silent_deleted: row.get::<_, i32>(12)? != 0,
-            auto_delete_at: row.get::<_, Option<i64>>(13)?.map(|v| v as u64),
-            edited_at: row.get::<_, Option<i64>>(14)?.map(|v| v as u64),
+            auto_delete_at: Self::opt_u64_from_opt_i64(row.get::<_, Option<i64>>(13)?)?,
+            edited_at: Self::opt_u64_from_opt_i64(row.get::<_, Option<i64>>(14)?)?,
             reactions,
             is_encrypted: row.get::<_, i32>(16)? != 0,
-            created_at: row.get::<_, i64>(17)? as u64,
-            updated_at: row.get::<_, i64>(18)? as u64,
+            created_at: Self::u64_from_i64(row.get::<_, i64>(17)?, "created_at")?,
+            updated_at: Self::u64_from_i64(row.get::<_, i64>(18)?, "updated_at")?,
             status: DeliveryStatus::from_str(&status_str),
         })
     }
@@ -760,13 +821,13 @@ impl EncryptedDatabase {
         let peer_str: Option<String> = row.get(3)?;
 
         Ok(ChatRoom {
-            id: Uuid::parse_str(&id_str).unwrap_or_default(),
+            id: Self::parse_uuid_str(&id_str)?,
             room_type: row.get(1)?,
             name: row.get(2)?,
             peer_id: peer_str.and_then(|s| Uuid::parse_str(&s).ok()),
-            disappearing_timer: row.get::<_, Option<i64>>(4)?.map(|v| v as u64),
+            disappearing_timer: Self::opt_u64_from_opt_i64(row.get::<_, Option<i64>>(4)?)?,
             theme_preset: row.get(5)?,
-            last_message_at: row.get::<_, i64>(6)? as u64,
+            last_message_at: Self::u64_from_i64(row.get::<_, i64>(6)?, "last_message_at")?,
             is_archived: row.get::<_, i32>(7)? != 0,
             is_muted: row.get::<_, i32>(8)? != 0,
             is_vault_hidden: row.get::<_, i32>(9)? != 0,
@@ -776,7 +837,7 @@ impl EncryptedDatabase {
     // ── User Trips & Kawal Perjalanan ──────────────────────────────────
 
     pub fn list_trips(&self, user_id: &Uuid) -> Result<Vec<UserTripRecord>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, user_id, origin_name, destination_name, dest_lat, dest_lng,
                     dest_radius, eta_minutes, status, started_at, ended_at,
@@ -818,7 +879,7 @@ impl EncryptedDatabase {
     }
 
     pub fn upsert_trip(&self, trip: &UserTripRecord) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         conn.execute(
             "INSERT INTO user_trips (
                 id, user_id, origin_name, destination_name, dest_lat, dest_lng,
@@ -857,7 +918,7 @@ impl EncryptedDatabase {
     }
 
     pub fn complete_trip(&self, trip_id: &Uuid, status: &str) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap_or_default()
@@ -875,7 +936,7 @@ impl EncryptedDatabase {
     // ── Saved Places & Zona Aman ───────────────────────────────────────
 
     pub fn list_saved_places(&self, user_id: &Uuid) -> Result<Vec<SavedPlaceRecord>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, user_id, name, category, address, latitude, longitude,
                     radius_meters, auto_notify_guardian, updated_at
@@ -910,7 +971,7 @@ impl EncryptedDatabase {
     }
 
     pub fn upsert_saved_place(&self, place: &SavedPlaceRecord) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         conn.execute(
             "INSERT INTO saved_places (
                 id, user_id, name, category, address, latitude, longitude,
@@ -942,7 +1003,7 @@ impl EncryptedDatabase {
     }
 
     pub fn delete_saved_place(&self, user_id: &Uuid, place_id: &str) -> Result<bool, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let affected = conn.execute(
             "DELETE FROM saved_places WHERE id = ?1 AND user_id = ?2",
             params![place_id, user_id.to_string()],
@@ -953,7 +1014,7 @@ impl EncryptedDatabase {
     // ── Guardians & Pendamping ─────────────────────────────────────────
 
     pub fn list_guardians(&self, user_id: &Uuid) -> Result<Vec<GuardianRecord>, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let mut stmt = conn.prepare(
             "SELECT id, user_id, name, username, avatar_color, relation, status,
                     can_view_live_location, can_receive_sos_alert, battery_percent,
@@ -994,7 +1055,7 @@ impl EncryptedDatabase {
     }
 
     pub fn upsert_guardian(&self, guardian: &GuardianRecord) -> Result<(), StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         conn.execute(
             "INSERT INTO guardians (
                 id, user_id, name, username, avatar_color, relation, status,
@@ -1033,7 +1094,7 @@ impl EncryptedDatabase {
     }
 
     pub fn delete_guardian(&self, user_id: &Uuid, guardian_id: &str) -> Result<bool, StorageError> {
-        let conn = self.conn.lock().unwrap();
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
         let affected = conn.execute(
             "DELETE FROM guardians WHERE id = ?1 AND user_id = ?2",
             params![guardian_id, user_id.to_string()],

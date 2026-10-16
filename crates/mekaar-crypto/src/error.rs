@@ -17,6 +17,10 @@ pub enum CryptoError {
     #[error("Gagal melakukan dekripsi (otentikasi MAC gagal atau data rusak)")]
     DecryptionFailed,
 
+    /// Kegagalan saat enkripsi (misal: plaintext terlalu besar, RNG gagal).
+    #[error("Gagal melakukan enkripsi")]
+    EncryptionFailed,
+
     /// Kegagalan dalam proses ekspansi HKDF-SHA256.
     #[error("Kegagalan derivasi kunci sesi")]
     KeyDerivationFailed,

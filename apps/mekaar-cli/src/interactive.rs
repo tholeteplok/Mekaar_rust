@@ -9,7 +9,7 @@ use mekaar_core::ChatEngine;
 use mekaar_crypto::{compute_fingerprint, generate_identity};
 use mekaar_net::{MekaarClient, ReconnectPolicy};
 use mekaar_proto::{ClientCommand, MessageType, ServerCommand};
-use mekaar_storage::{Contact, EncryptedDatabase};
+use mekaar_storage::EncryptedDatabase;
 use std::sync::Arc;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use uuid::Uuid;
@@ -28,27 +28,36 @@ pub async fn run_interactive_chat(
     // Setup database lokal SQLCipher
     let temp_dir;
     let effective_db_path = match db_path {
-        Some(path) => path,
+        Some(path) => {
+            if path.contains("..") {
+                anyhow::bail!("db_path mengandung '..' (ditolak)");
+            }
+            path
+        }
         None => {
             temp_dir = tempfile::tempdir().context("Gagal buat direktori sementara DB")?;
-            temp_dir.path().join("chat.db").to_str().unwrap().to_string()
+            temp_dir
+                .path()
+                .join("chat.db")
+                .to_str()
+                .ok_or_else(|| anyhow::anyhow!("DB temp path bukan UTF-8"))?
+                .to_string()
         }
     };
 
     let db = EncryptedDatabase::open(&effective_db_path, pin)
         .context("Gagal membuka database SQLCipher lokal")?;
 
-    // Daftarkan dummy contact peer jika belum ada
-    let peer_contact = Contact {
-        id: peer_id,
-        username: "peer".to_string(),
-        display_name: format!("Peer-{}", &peer_id.to_string()[..6]),
-        public_key: [0u8; 32],
-        safety_number: "".to_string(),
-        status: "active".to_string(),
-        updated_at: 0,
-    };
-    let _ = db.upsert_contact(&peer_contact);
+    // P0: jangan tanam kontak kunci-nol (E2EE palsu). Wajib sudah ada kontak terverifikasi.
+    if db
+        .get_contact(&peer_id)?
+        .map(|c| c.public_key == [0u8; 32])
+        .unwrap_or(true)
+    {
+        anyhow::bail!(
+            "Kontak peer belum terverifikasi (kunci nol/hilang). Daftarkan kunci publik asli dulu."
+        );
+    }
 
     let engine = Arc::new(ChatEngine::new(
         my_id,
@@ -103,16 +112,16 @@ pub async fn run_interactive_chat(
                             } else {
                                 println!("\n[Lawan Bicara]: {} 🔒", msg.content);
                             }
+                            let _ = client.send_command(ClientCommand::DeliveryAck {
+                                message_id: env.message_id,
+                                sender_id: env.sender_id,
+                            });
                         }
                         Err(_) => {
                             println!("\n[Lawan Bicara]: [Paket terenkripsi diterima - {} bytes]", env.ciphertext.len());
+                            // Tanpa ACK: dekripsi/verifikasi gagal, jangan hapus dari outbox server.
                         }
                     }
-
-                    let _ = client.send_command(ClientCommand::DeliveryAck {
-                        message_id: env.message_id,
-                        sender_id: env.sender_id,
-                    });
                 }
                 ServerCommand::DeliveryReceipt { message_id, .. } => {
                     let _ = engine_rx.mark_delivered(&message_id).await;

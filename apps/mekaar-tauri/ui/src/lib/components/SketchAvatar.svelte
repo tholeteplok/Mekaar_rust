@@ -5,6 +5,7 @@
     online?: boolean;
     isGuardian?: boolean;
     isGroup?: boolean;
+    color?: string;
   }
 
   let {
@@ -12,7 +13,8 @@
     size = 48,
     online = false,
     isGuardian = false,
-    isGroup = false
+    isGroup = false,
+    color
   }: Props = $props();
 
   const initial = $derived(

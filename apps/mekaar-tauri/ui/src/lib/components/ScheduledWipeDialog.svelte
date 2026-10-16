@@ -1,5 +1,6 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
+  import BottomSheet from './BottomSheet.svelte';
 
   let {
     open = false,
@@ -49,217 +50,101 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="modal-backdrop" onclick={onclose}>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-    <div
-      class="modal-sheet"
-      role="dialog"
-      tabindex="-1"
-      aria-modal="true"
-      aria-label="Pembersihan Terjadwal"
-      onclick={(e) => e.stopPropagation()}
-    >
-      <div class="sheet-drag-handle"></div>
-
-      <div class="sheet-header">
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <div class="header-icon-circle">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10"></circle>
-              <polyline points="12 6 12 12 16 14"></polyline>
-            </svg>
-          </div>
-          <div>
-            <h3 class="sheet-title">Pembersihan Pesan Terjadwal</h3>
-            <p class="sheet-sub">Pemusnahan kriptografi otomatis riwayat obrolan berbasis jam</p>
-          </div>
+<BottomSheet
+  {open}
+  title="Pembersihan Pesan Terjadwal"
+  subtitle="Pemusnahan kriptografi otomatis riwayat obrolan berbasis jam"
+  {onclose}
+  maxWidth="520px"
+>
+  <div class="sheet-body">
+    <div class="mode-options-grid">
+      <!-- Option: OFF -->
+      <label class="mode-card {selectedMode === 'off' ? 'active' : ''}">
+        <input
+          type="radio"
+          name="wipe-mode"
+          value="off"
+          checked={selectedMode === 'off'}
+          onchange={() => (selectedMode = 'off')}
+        />
+        <div class="mode-info">
+          <div class="mode-label">🚫 Nonaktif</div>
+          <div class="mode-desc">Riwayat obrolan disimpan selamanya tanpa pembersihan otomatis.</div>
         </div>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">✕</button>
+      </label>
+
+      <!-- Option: ONE-SHOT -->
+      <label class="mode-card {selectedMode === 'one_shot' ? 'active' : ''}">
+        <input
+          type="radio"
+          name="wipe-mode"
+          value="one_shot"
+          checked={selectedMode === 'one_shot'}
+          onchange={() => (selectedMode = 'one_shot')}
+        />
+        <div class="mode-info">
+          <div class="mode-label">⏱️ Sekali Eksekusi (One-Shot)</div>
+          <div class="mode-desc">Hapus seluruh riwayat pesan sekali saja pada jam target mendatang.</div>
+        </div>
+      </label>
+
+      <!-- Option: DAILY -->
+      <label class="mode-card {selectedMode === 'daily' ? 'active' : ''}">
+        <input
+          type="radio"
+          name="wipe-mode"
+          value="daily"
+          checked={selectedMode === 'daily'}
+          onchange={() => (selectedMode = 'daily')}
+        />
+        <div class="mode-info">
+          <div class="mode-label">🔄 Berulang Setiap Hari (Daily)</div>
+          <div class="mode-desc">Rutin bersihkan seluruh obrolan setiap malam pada jam yang ditentukan.</div>
+        </div>
+      </label>
+    </div>
+
+    {#if selectedMode !== 'off'}
+      <div class="time-picker-section">
+        <span class="time-label">PILIH JAM TARGET EKSEKUSI:</span>
+        <div class="time-input-row">
+          <input
+            type="time"
+            class="time-picker-field"
+            bind:value={selectedTime}
+          />
+          <span class="tz-badge">WIB (Lokal)</span>
+        </div>
       </div>
+    {/if}
 
-      <div class="sheet-body">
-        <div class="mode-options-grid">
-          <!-- Option: OFF -->
-          <label class="mode-card {selectedMode === 'off' ? 'active' : ''}">
-            <input
-              type="radio"
-              name="wipe-mode"
-              value="off"
-              checked={selectedMode === 'off'}
-              onchange={() => (selectedMode = 'off')}
-            />
-            <div class="mode-info">
-              <div class="mode-label">🚫 Nonaktif</div>
-              <div class="mode-desc">Riwayat obrolan disimpan selamanya tanpa pembersihan otomatis.</div>
-            </div>
-          </label>
-
-          <!-- Option: ONE-SHOT -->
-          <label class="mode-card {selectedMode === 'one_shot' ? 'active' : ''}">
-            <input
-              type="radio"
-              name="wipe-mode"
-              value="one_shot"
-              checked={selectedMode === 'one_shot'}
-              onchange={() => (selectedMode = 'one_shot')}
-            />
-            <div class="mode-info">
-              <div class="mode-label">⏱️ Sekali Eksekusi (One-Shot)</div>
-              <div class="mode-desc">Hapus seluruh riwayat pesan sekali saja pada jam target mendatang.</div>
-            </div>
-          </label>
-
-          <!-- Option: DAILY -->
-          <label class="mode-card {selectedMode === 'daily' ? 'active' : ''}">
-            <input
-              type="radio"
-              name="wipe-mode"
-              value="daily"
-              checked={selectedMode === 'daily'}
-              onchange={() => (selectedMode = 'daily')}
-            />
-            <div class="mode-info">
-              <div class="mode-label">🔄 Berulang Setiap Hari (Daily)</div>
-              <div class="mode-desc">Rutin bersihkan seluruh obrolan setiap malam pada jam yang ditentukan.</div>
-            </div>
-          </label>
-        </div>
-
-        {#if selectedMode !== 'off'}
-          <div class="time-picker-section">
-            <span class="time-label">PILIH JAM TARGET EKSEKUSI:</span>
-            <div class="time-input-row">
-              <input
-                type="time"
-                class="time-picker-field"
-                bind:value={selectedTime}
-              />
-              <span class="tz-badge">WIB (Lokal)</span>
-            </div>
-          </div>
-        {/if}
-
-        <div class="target-callout-box">
-          <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
-            RENCANA TINDAKAN:
-          </div>
-          <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.45;">
-            {targetDescription}
-          </div>
-        </div>
-
-        {#if isSaved}
-          <div class="success-banner">
-            ✓ Konfigurasi pembersihan terjadwal berhasil disimpan!
-          </div>
-        {/if}
-
-        <div class="dialog-actions-row">
-          <button type="button" class="btn-cancel" onclick={onclose}>Batal</button>
-          <button type="button" class="btn-save" onclick={handleSave}>
-            Simpan Pengaturan
-          </button>
-        </div>
+    <div class="target-callout-box">
+      <div style="font-weight: 700; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 4px;">
+        RENCANA TINDAKAN:
+      </div>
+      <div style="font-size: 0.85rem; color: var(--text-primary); line-height: 1.45;">
+        {targetDescription}
       </div>
     </div>
+
+    {#if isSaved}
+      <div class="success-banner">
+        ✓ Konfigurasi pembersihan terjadwal berhasil disimpan!
+      </div>
+    {/if}
+
+    <div class="dialog-actions-row">
+      <button type="button" class="btn-cancel" onclick={onclose}>Batal</button>
+      <button type="button" class="btn-save" onclick={handleSave}>
+        Simpan Pengaturan
+      </button>
+    </div>
   </div>
-{/if}
+</BottomSheet>
 
 <style>
-  .modal-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(15, 23, 42, 0.45);
-    backdrop-filter: blur(4px);
-    z-index: 999;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-  }
-
-  .modal-sheet {
-    background-color: var(--bg-card);
-    width: 100%;
-    max-width: 520px;
-    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
-    box-shadow: 0 -8px 32px rgba(15, 23, 42, 0.16);
-    display: flex;
-    flex-direction: column;
-    max-height: 85vh;
-    overflow-y: auto;
-    animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  @keyframes slideUp {
-    from {
-      transform: translateY(100%);
-    }
-    to {
-      transform: translateY(0);
-    }
-  }
-
-  .sheet-drag-handle {
-    width: 36px;
-    height: 4px;
-    background-color: var(--border-light);
-    border-radius: var(--radius-pill);
-    margin: 10px auto 4px auto;
-  }
-
-  .sheet-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 20px 14px 20px;
-    border-bottom: 1px solid var(--border-light);
-  }
-
-  .header-icon-circle {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background-color: var(--brand-blue-subtle);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .sheet-title {
-    font-size: 1.05rem;
-    font-weight: 700;
-    color: var(--text-primary);
-    margin: 0;
-  }
-
-  .sheet-sub {
-    font-size: 0.78rem;
-    color: var(--text-secondary);
-    margin: 2px 0 0 0;
-  }
-
-  .close-x-btn {
-    background: none;
-    border: none;
-    font-size: 1.15rem;
-    color: var(--text-secondary);
-    cursor: pointer;
-    padding: 4px 8px;
-    border-radius: 50%;
-  }
-
-  .close-x-btn:hover {
-    background-color: var(--bg-input);
-    color: var(--text-primary);
-  }
-
   .sheet-body {
-    padding: 18px 20px 24px 20px;
     display: flex;
     flex-direction: column;
     gap: 14px;
@@ -305,6 +190,7 @@
   .mode-label {
     font-size: 0.88rem;
     font-weight: 700;
+    font-family: var(--font-active);
     color: var(--text-primary);
   }
 
@@ -339,12 +225,13 @@
   }
 
   .time-picker-field {
+    min-height: var(--touch-target-min, 40px);
     padding: 8px 14px;
     border-radius: var(--radius-pill);
     border: 1px solid var(--border-light);
     font-size: 1.15rem;
     font-weight: 700;
-    background: #FFFFFF;
+    background: var(--bg-card);
     color: var(--text-primary);
     font-family: inherit;
     outline: none;
@@ -381,6 +268,10 @@
   }
 
   .btn-cancel {
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 10px 18px;
     border-radius: var(--radius-pill);
     background: transparent;
@@ -388,10 +279,15 @@
     color: var(--text-secondary);
     font-size: 0.85rem;
     font-weight: 600;
+    font-family: var(--font-active);
     cursor: pointer;
   }
 
   .btn-save {
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 10px 22px;
     border-radius: var(--radius-pill);
     background-color: var(--brand-blue);
@@ -399,6 +295,7 @@
     color: #FFFFFF;
     font-size: 0.85rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: pointer;
     box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
   }

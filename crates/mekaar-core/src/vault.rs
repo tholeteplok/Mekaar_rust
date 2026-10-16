@@ -11,6 +11,16 @@ use mekaar_crypto::derive_pin_key;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use zeroize::Zeroize;
+
+/// Perbandingan constant-time untuk hash PIN.
+fn ct_eq_bytes(a: &[u8; 32], b: &[u8; 32]) -> bool {
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
+}
 
 /// Hasil verifikasi PIN akses.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -47,6 +57,18 @@ impl VaultManager {
 
     /// Menetapkan Master PIN baru (diderivasi via Argon2id).
     pub async fn set_master_pin(&self, pin: &str) -> Result<(), CoreError> {
+        // Tolak jika sama dengan duress aktif (hindari silent-SOS tiap login benar).
+        if let Some(duress) = *self.duress_hash.read().await {
+            let candidate = derive_pin_key(pin, &self.salt)?;
+            let equal = ct_eq_bytes(&candidate, &duress);
+            let mut tmp = candidate;
+            tmp.zeroize();
+            if equal {
+                return Err(CoreError::InvalidState(
+                    "Master PIN tidak boleh sama dengan Duress PIN".to_string(),
+                ));
+            }
+        }
         let key = derive_pin_key(pin, &self.salt)?;
         let mut master = self.master_hash.write().await;
         *master = Some(key);
@@ -55,6 +77,17 @@ impl VaultManager {
 
     /// Menetapkan Duress PIN baru (PIN Paksaan).
     pub async fn set_duress_pin(&self, pin: &str) -> Result<(), CoreError> {
+        if let Some(master) = *self.master_hash.read().await {
+            let candidate = derive_pin_key(pin, &self.salt)?;
+            let equal = ct_eq_bytes(&candidate, &master);
+            let mut tmp = candidate;
+            tmp.zeroize();
+            if equal {
+                return Err(CoreError::InvalidState(
+                    "Duress PIN tidak boleh sama dengan Master PIN".to_string(),
+                ));
+            }
+        }
         let key = derive_pin_key(pin, &self.salt)?;
         let mut duress = self.duress_hash.write().await;
         *duress = Some(key);
@@ -86,26 +119,29 @@ impl VaultManager {
             return Err(CoreError::PinLocked(attempts, locked_until));
         }
 
-        let input_hash = derive_pin_key(input_pin, &self.salt)?;
+        let mut input_hash = derive_pin_key(input_pin, &self.salt)?;
 
-        // 2. Cek apakah cocok dengan Duress PIN
+        // 2. Cek apakah cocok dengan Duress PIN (constant-time)
         if let Some(duress_key) = *self.duress_hash.read().await {
-            if input_hash == duress_key {
+            if ct_eq_bytes(&input_hash, &duress_key) {
                 // Reset failed attempts
                 *self.failed_attempts.write().await = 0;
                 *self.is_vault_unlocked.write().await = true;
+                input_hash.zeroize();
                 return Ok(AuthOutcome::Duress);
             }
         }
 
-        // 3. Cek apakah cocok dengan Master PIN
+        // 3. Cek apakah cocok dengan Master PIN (constant-time)
         if let Some(master_key) = *self.master_hash.read().await {
-            if input_hash == master_key {
+            if ct_eq_bytes(&input_hash, &master_key) {
                 *self.failed_attempts.write().await = 0;
                 *self.is_vault_unlocked.write().await = true;
+                input_hash.zeroize();
                 return Ok(AuthOutcome::Unlocked);
             }
         }
+        input_hash.zeroize();
 
         // 4. Input PIN salah: tingkatkan failed attempts
         let mut attempts = self.failed_attempts.write().await;

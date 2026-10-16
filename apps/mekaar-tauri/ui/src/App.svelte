@@ -4,8 +4,10 @@
   import { mekaarStore } from './lib/stores';
   import { MekaarScaffold, ForensicExportDialog } from './lib/components';
   import {
-    VaultScreen,
+    SplashScreen,
     OnboardingScreen,
+    AuthScreen,
+    VaultScreen,
     SetUsernameScreen,
     ConversationListScreen,
     ContactListScreen,
@@ -32,8 +34,12 @@
   });
 </script>
 
-{#if mekaarStore.ftueStep === 'onboarding'}
+{#if mekaarStore.ftueStep === 'splash'}
+  <SplashScreen />
+{:else if mekaarStore.ftueStep === 'onboarding'}
   <OnboardingScreen />
+{:else if mekaarStore.ftueStep === 'auth'}
+  <AuthScreen />
 {:else if mekaarStore.ftueStep === 'pin_setup'}
   <VaultScreen isSetup={true} />
 {:else if mekaarStore.ftueStep === 'username_setup'}

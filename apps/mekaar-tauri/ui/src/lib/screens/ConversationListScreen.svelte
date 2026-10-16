@@ -1,7 +1,6 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
   import AppBar from '../components/AppBar.svelte';
-  import Card from '../components/Card.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
   import Dialog from '../components/Dialog.svelte';
   import EmptyState from '../components/EmptyState.svelte';
@@ -49,6 +48,8 @@
         isPinned: false,
         isGroup: false,
         isOnline: true,
+        isMuted: false,
+        isTyping: false,
         isGuardian: false,
         disappearingSeconds: 0,
         chatTheme: 'classic',
@@ -166,35 +167,40 @@
   </div>
 
   <!-- Conversations List -->
-  <div class="conversations-feed">
-    {#each filteredConversations as conv (conv.id)}
-      <Card
-        interactive
-        withTicks={false}
-        padding="16px"
-        onclick={() => mekaarStore.openConversation(conv.id)}
-      >
-        <div class="chat-tile-content">
-          <SketchAvatar
-            name={conv.title}
-            size={52}
-            online={conv.isOnline}
-            isGuardian={conv.isGuardian}
-            isGroup={conv.isGroup}
-          />
-          <div class="chat-tile-text">
+  {#if filteredConversations.length > 0}
+    <div class="conversations-flat-card">
+      {#each filteredConversations as conv (conv.id)}
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
+        <div
+          role="button"
+          tabindex="0"
+          class="chat-tile-row"
+          onclick={() => mekaarStore.openConversation(conv.id)}
+          onkeydown={(e) => (e.key === 'Enter' || e.key === ' ') && mekaarStore.openConversation(conv.id)}
+        >
+          <div class="chat-tile-avatar-wrap">
+            <SketchAvatar
+              name={conv.title}
+              size={50}
+              online={conv.isOnline}
+              isGuardian={conv.isGuardian}
+              isGroup={conv.isGroup}
+            />
+          </div>
+          <div class="chat-tile-body">
             <div class="chat-tile-row-top">
               <span class="chat-tile-name">{conv.title}</span>
-              <span class="chat-tile-date">{conv.lastTimestamp}</span>
+              <span class="chat-tile-date {conv.unreadCount > 0 ? 'unread' : ''}">{conv.lastTimestamp}</span>
             </div>
             <div class="chat-tile-row-bottom">
-              <span class="chat-tile-sub" style="display: flex; align-items: center; gap: 4px;">
+              <span class="chat-tile-sub">
                 {#if conv.subtitle.includes('🔒')}
-                  <LockKey size={13} weight="bold" color="var(--brand-teal, #0D9488)" />
+                  <LockKey size={14} weight="bold" color="var(--brand-teal, #0D9488)" />
                 {:else if conv.isGroup}
-                  <Users size={13} weight="bold" color="var(--text-secondary, #64748B)" />
+                  <Users size={14} weight="bold" color="var(--text-secondary, #64748B)" />
                 {/if}
-                <span>{conv.subtitle.replace(/^🔒\s*/, '')}</span>
+                <span class="chat-tile-sub-text">{conv.subtitle.replace(/^🔒\s*/, '')}</span>
               </span>
               {#if conv.unreadCount > 0}
                 <span class="unread-badge">{conv.unreadCount}</span>
@@ -202,8 +208,10 @@
             </div>
           </div>
         </div>
-      </Card>
-    {:else}
+      {/each}
+    </div>
+  {:else}
+    <div class="conversations-empty-wrap">
       {#if searchQuery.trim()}
         <EmptyState
           pose="confused"
@@ -232,8 +240,8 @@
           onaction={() => (mekaarStore.showNewChatModal = true)}
         />
       {/if}
-    {/each}
-  </div>
+    </div>
+  {/if}
 </div>
 
 <!-- Modal Mulai Chat Baru -->
@@ -266,7 +274,11 @@
 
 <style>
   .chat-list-container {
-    padding: 0 16px 20px 16px;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 16px 24px 16px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -293,8 +305,10 @@
   }
 
   .icon-action-btn {
-    width: 36px;
-    height: 36px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
     border-radius: 50%;
     background: transparent;
     border: none;
@@ -302,10 +316,11 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color 0.15s ease, transform 0.1s ease;
   }
 
   .icon-action-btn:active {
+    transform: scale(0.92);
     background-color: var(--brand-blue-subtle);
   }
 
@@ -358,54 +373,109 @@
     box-shadow: 0 2px 8px rgba(19, 108, 252, 0.28);
   }
 
-  /* Feed of Conversations */
-  .conversations-feed {
+  /* Flat Unified Card Container (Signal & Telegram Parity) */
+  .conversations-flat-card {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    background: var(--bg-surface);
+    border-radius: var(--radius-card);
+    border: 0.75px solid var(--border-subtle);
+    box-shadow: var(--shadow-card);
+    overflow: hidden;
     margin-top: 4px;
   }
 
-  .chat-tile-content {
+  .chat-tile-row {
     display: flex;
     align-items: center;
-    gap: 14px;
+    padding: 0 16px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    background-color: transparent;
+    user-select: none;
+    outline: none;
   }
 
-  .chat-tile-text {
+  .chat-tile-row:hover {
+    background-color: rgba(19, 108, 252, 0.04);
+  }
+
+  .chat-tile-row:active {
+    background-color: rgba(19, 108, 252, 0.08);
+  }
+
+  .chat-tile-avatar-wrap {
+    padding: 12px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .chat-tile-body {
     flex: 1;
     min-width: 0;
+    padding: 14px 0 14px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    border-bottom: 0.75px solid var(--border-light);
+  }
+
+  /* Inset divider: baris terakhir tidak memiliki garis pemisah */
+  .chat-tile-row:last-child .chat-tile-body {
+    border-bottom: none;
   }
 
   .chat-tile-row-top {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 4px;
+    gap: 8px;
+    margin-bottom: 3px;
   }
 
   .chat-tile-name {
+    font-family: var(--font-active);
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 1.02rem;
     color: var(--text-primary);
-    letter-spacing: -0.1px;
+    letter-spacing: -0.15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 
   .chat-tile-date {
-    font-size: 0.82rem;
-    color: var(--text-secondary);
+    font-size: 0.8rem;
+    color: var(--text-muted);
     font-weight: 500;
+    flex-shrink: 0;
+  }
+
+  .chat-tile-date.unread {
+    color: var(--brand-blue);
+    font-weight: 700;
   }
 
   .chat-tile-row-bottom {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
   }
 
   .chat-tile-sub {
     font-size: 0.88rem;
     color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .chat-tile-sub-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -417,6 +487,16 @@
     font-size: 0.72rem;
     font-weight: 700;
     padding: 2px 7px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
+    min-width: 18px;
+    text-align: center;
+    box-shadow: 0 1px 4px rgba(19, 108, 252, 0.3);
+    flex-shrink: 0;
+  }
+
+  .conversations-empty-wrap {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
   }
 </style>

@@ -118,6 +118,7 @@
           isPinned: false,
           isGroup: false,
           isMuted: false,
+          isTyping: false,
           isGuardian: contact.isGuardian,
           disappearingSeconds: 0,
           chatTheme: 'classic',
@@ -194,7 +195,7 @@
       title="Kode QR & Pindai"
       aria-label="Kode QR"
     >
-      <QrCode size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
+      <QrCode size={22} weight="bold" color="var(--brand-blue)" />
     </button>
 
     <!-- Search Button -->
@@ -205,7 +206,7 @@
       title="Cari Kontak"
       aria-label="Cari Kontak"
     >
-      <MagnifyingGlass size={22} weight="bold" color="var(--brand-blue, #0284C7)" />
+      <MagnifyingGlass size={22} weight="bold" color="var(--brand-blue)" />
     </button>
   {/snippet}
 </AppBar>
@@ -215,7 +216,7 @@
   {#if vaultToast}
     <div class="vault-toast-banner">
       <span style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-        <ShieldCheck size={18} weight="bold" color="var(--brand-teal, #0D9488)" />
+        <ShieldCheck size={18} weight="bold" color="var(--brand-teal)" />
         <span>{vaultToast}</span>
       </span>
     </div>
@@ -238,7 +239,7 @@
     <div class="vault-status-banner">
       <div class="vault-status-left">
         <span class="vault-status-icon" style="display: flex; align-items: center;">
-          <LockKey size={18} weight="bold" color="var(--brand-teal, #0D9488)" />
+          <LockKey size={18} weight="bold" color="var(--brand-teal)" />
         </span>
         <span class="vault-status-text">Private Vault Terbuka</span>
       </div>
@@ -262,7 +263,7 @@
     <div class="radar-header-row">
       <div class="radar-title-wrap">
         <span class="radar-icon" style="display: flex; align-items: center;">
-          <Broadcast size={20} weight="bold" color="var(--brand-blue, #0284C7)" />
+          <Broadcast size={20} weight="bold" color="var(--brand-blue)" />
         </span>
         <span class="radar-title">Teman Sekitar</span>
       </div>
@@ -288,7 +289,7 @@
         title="Pindai Ulang Radar"
         aria-label="Pindai Ulang"
       >
-        <ArrowsClockwise size={18} weight="bold" color="var(--brand-blue, #0284C7)" />
+        <ArrowsClockwise size={18} weight="bold" color="var(--brand-blue)" />
       </button>
     </div>
 
@@ -311,7 +312,7 @@
       <!-- Card Toolbar Header -->
       <div class="card-toolbar-row">
         <div class="card-toolbar-left">
-          <Users size={18} weight="bold" color="var(--brand-blue, #0284C7)" />
+          <Users size={18} weight="bold" color="var(--brand-blue)" />
           <span class="toolbar-title">Kontak</span>
           <span class="count-pill">{sortedContacts.length}</span>
         </div>
@@ -603,15 +604,21 @@
 
 <style>
   .contacts-page-container {
-    padding: 0 16px 20px 16px;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 16px 24px 16px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 16px;
   }
 
   .icon-action-btn {
-    width: 36px;
-    height: 36px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
     border-radius: 50%;
     background: transparent;
     border: none;
@@ -619,19 +626,22 @@
     align-items: center;
     justify-content: center;
     cursor: pointer;
+    transition: background-color 0.15s ease, transform 0.1s ease;
   }
 
   .icon-action-btn:active {
+    transform: scale(0.92);
     background-color: var(--brand-blue-subtle, #EFF6FF);
   }
 
   .req-badge-action-btn {
     display: flex;
     align-items: center;
-    gap: 5px;
+    gap: 6px;
     background-color: rgba(249, 115, 22, 0.12);
     border: 1px solid rgba(249, 115, 22, 0.3);
-    padding: 4px 10px;
+    min-height: var(--touch-target-min, 40px);
+    padding: 6px 12px;
     border-radius: var(--radius-pill, 999px);
     cursor: pointer;
     transition: all 0.15s ease;
@@ -652,12 +662,12 @@
   }
 
   .vault-toast-banner {
-    background-color: #0D9488;
+    background-color: var(--brand-teal);
     color: #FFFFFF;
     font-size: 0.82rem;
     font-weight: 700;
     padding: 9px 16px;
-    border-radius: 12px;
+    border-radius: var(--radius-md, 12px);
     box-shadow: 0 4px 12px rgba(13, 148, 136, 0.25);
     animation: fadeIn 0.2s ease-out;
   }
@@ -668,7 +678,7 @@
     justify-content: space-between;
     background-color: rgba(13, 148, 136, 0.12);
     border: 1px solid rgba(13, 148, 136, 0.25);
-    border-radius: 12px;
+    border-radius: var(--radius-md, 12px);
     padding: 8px 14px;
   }
 
@@ -685,14 +695,15 @@
   .vault-status-text {
     font-size: 0.82rem;
     font-weight: 800;
-    color: #0D9488;
+    color: var(--brand-teal);
   }
 
   .btn-vault-lock {
-    background-color: #0D9488;
+    background-color: var(--brand-teal);
     color: #FFFFFF;
     border: none;
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
+    min-height: 32px;
     padding: 4px 12px;
     font-size: 0.75rem;
     font-weight: 700;
@@ -822,6 +833,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
   }
 
   .card-toolbar-left {
@@ -833,40 +846,49 @@
   .toolbar-title {
     font-size: 0.95rem;
     font-weight: 700;
+    font-family: var(--font-active);
     color: var(--text-primary, #0F172A);
   }
 
   .count-pill {
-    background-color: #EFF6FF;
+    background-color: var(--brand-blue-subtle, #EFF6FF);
     color: var(--brand-blue, #0284C7);
     font-size: 0.76rem;
     font-weight: 700;
-    padding: 1px 7px;
+    padding: 2px 8px;
     border-radius: 999px;
   }
 
   .sort-segment {
     display: flex;
-    background-color: #F1F5F9;
-    padding: 2px;
+    background-color: var(--bg-surface, #F1F5F9);
+    padding: 3px;
     border-radius: var(--radius-pill, 999px);
     gap: 2px;
   }
 
   .sort-btn {
-    padding: 4px 12px;
-    border-radius: var(--radius-pill, 999px);
+    padding: 6px 14px;
+    min-height: var(--touch-target-min, 40px);
+    border-radius: var(--radius-pill);
     border: none;
     background: transparent;
-    font-size: 0.78rem;
+    font-size: 0.8rem;
+    font-family: var(--font-active);
     font-weight: 600;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
 
   .sort-btn.active {
-    background-color: var(--brand-blue, #0284C7);
+    background-color: var(--brand-blue);
     color: #FFFFFF;
+    box-shadow: 0 1px 4px rgba(2, 132, 199, 0.2);
   }
 
   .card-toolbar-right-actions {
@@ -878,7 +900,7 @@
   .view-mode-toggle {
     display: flex;
     align-items: center;
-    background: #F1F5F9;
+    background: var(--bg-surface, #F1F5F9);
     padding: 2px;
     border-radius: var(--radius-sm, 8px);
     gap: 2px;
@@ -887,30 +909,80 @@
   .view-mode-btn {
     border: none;
     background: transparent;
-    padding: 3px 8px;
+    padding: 0;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
     border-radius: var(--radius-sm, 6px);
     font-size: 0.85rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     cursor: pointer;
     line-height: 1;
     transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
 
   .view-mode-btn.active {
-    background: #FFFFFF;
-    color: var(--brand-blue, #0284C7);
+    background: var(--surface-card, #FFFFFF);
+    color: var(--brand-blue);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  }
+
+  @media (max-width: 600px) {
+    .card-toolbar-row {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .card-toolbar-left {
+      justify-content: space-between;
+    }
+
+    .card-toolbar-center {
+      width: 100%;
+    }
+
+    .sort-segment {
+      width: 100%;
+      display: flex;
+    }
+
+    .sort-btn {
+      flex: 1;
+      justify-content: center;
+    }
+
+    .card-toolbar-right-actions {
+      justify-content: flex-end;
+    }
   }
 
   .toolbar-more-btn {
     background: transparent;
     border: none;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     cursor: pointer;
-    padding: 4px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .toolbar-more-btn:hover {
+    background-color: var(--bg-secondary);
+  }
+
+  .toolbar-more-btn:active {
+    transform: scale(0.92);
   }
 
   .grid-contact-name {
@@ -956,9 +1028,10 @@
   .grid-action-btn {
     border: none;
     cursor: pointer;
-    padding: 6px 10px;
-    border-radius: var(--radius-pill, 999px);
-    font-size: 0.78rem;
+    min-height: var(--touch-target-min, 40px);
+    padding: 8px 12px;
+    border-radius: var(--radius-pill);
+    font-size: 0.82rem;
     font-weight: 600;
     transition: opacity 0.15s ease;
   }
@@ -969,7 +1042,7 @@
 
   .grid-chat-btn {
     flex: 1;
-    background: var(--brand-blue, #0284C7);
+    background: var(--brand-blue);
     color: #FFFFFF;
     display: flex;
     align-items: center;
@@ -979,8 +1052,8 @@
 
   .grid-info-btn {
     background: #F1F5F9;
-    color: var(--text-secondary, #64748B);
-    padding: 6px 8px;
+    color: var(--text-secondary);
+    padding: 8px 12px;
   }
 
   .divider-line {
@@ -1025,12 +1098,12 @@
   .contact-item-name {
     font-size: 1.05rem;
     font-weight: 700;
-    color: var(--text-primary, #0F172A);
+    color: var(--text-primary);
   }
 
   .vault-tag-pill {
     background-color: rgba(13, 148, 136, 0.12);
-    color: #0D9488;
+    color: var(--brand-teal);
     font-size: 0.68rem;
     font-weight: 700;
     padding: 1px 6px;
@@ -1048,7 +1121,7 @@
 
   .contact-item-handle {
     font-size: 0.85rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     margin-top: 2px;
   }
 
@@ -1056,10 +1129,23 @@
     background: transparent;
     border: none;
     cursor: pointer;
-    padding: 6px;
+    width: var(--touch-target-min, 40px);
+    height: var(--touch-target-min, 40px);
+    min-width: var(--touch-target-min, 40px);
+    min-height: var(--touch-target-min, 40px);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: background-color 0.15s ease, transform 0.1s ease;
+  }
+
+  .contact-info-btn:hover {
+    background-color: var(--bg-secondary);
+  }
+
+  .contact-info-btn:active {
+    transform: scale(0.92);
   }
 
   @keyframes fadeIn {

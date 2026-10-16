@@ -1,6 +1,7 @@
 <script lang="ts">
   import { mekaarStore } from '../stores';
   import { parseContactPayload } from '../services/qr';
+  import Dialog from './Dialog.svelte';
 
   let { open = false, onclose, onConnectSuccess }: {
     open: boolean;
@@ -61,7 +62,6 @@
   }
 
   function initBarcodeDetection() {
-    // Cek apakah BarcodeDetector didukung native di Chromium/WebView2
     if ('BarcodeDetector' in window) {
       try {
         // @ts-ignore
@@ -150,7 +150,6 @@
     if (!target.files || target.files.length === 0) return;
     const file = target.files[0];
 
-    // Deteksi barcode dari image file jika didukung BarcodeDetector
     if ('BarcodeDetector' in window) {
       try {
         isProcessing = true;
@@ -176,255 +175,184 @@
   }
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_click_events_have_key_events -->
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="scan-dialog-backdrop" onclick={onclose}>
-    <div class="scan-dialog-modal" onclick={(e) => e.stopPropagation()}>
-      <!-- Header -->
-      <div class="scan-header-row">
-        <div class="scan-header-title">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--brand-blue, #0284C7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="3" width="7" height="7"></rect>
-            <rect x="14" y="3" width="7" height="7"></rect>
-            <rect x="14" y="14" width="7" height="7"></rect>
-            <rect x="3" y="14" width="7" height="7"></rect>
-          </svg>
-          <h3>Pindai QR Kontak</h3>
-        </div>
-        <button type="button" class="close-x-btn" onclick={onclose} aria-label="Tutup">
-          ✕
-        </button>
+<Dialog
+  {open}
+  title="Pindai QR Kontak"
+  {onclose}
+  maxWidth="460px"
+>
+  <div class="scan-dialog-content">
+    <!-- Segment Tabs (Kamera, Manual/Tempel, Unggah) -->
+    <div class="scan-tabs-bar">
+      <button
+        type="button"
+        class="scan-tab-btn {activeTab === 'camera' ? 'active' : ''}"
+        onclick={() => { activeTab = 'camera'; startCamera(); }}
+      >
+        📷 Kamera
+      </button>
+      <button
+        type="button"
+        class="scan-tab-btn {activeTab === 'manual' ? 'active' : ''}"
+        onclick={() => { activeTab = 'manual'; stopCamera(); }}
+      >
+        ⌨️ Tempel / Manual
+      </button>
+      <button
+        type="button"
+        class="scan-tab-btn {activeTab === 'upload' ? 'active' : ''}"
+        onclick={() => { activeTab = 'upload'; stopCamera(); }}
+      >
+        🖼️ Unggah
+      </button>
+    </div>
+
+    <!-- Error Alert Banner -->
+    {#if errorMessage}
+      <div class="error-banner">
+        <span class="error-icon">⚠️</span>
+        <span class="error-text">{errorMessage}</span>
       </div>
+    {/if}
 
-      <!-- Segment Tabs (Kamera, Manual/Tempel, Unggah) -->
-      <div class="scan-tabs-bar">
-        <button
-          type="button"
-          class="scan-tab-btn {activeTab === 'camera' ? 'active' : ''}"
-          onclick={() => { activeTab = 'camera'; startCamera(); }}
-        >
-          📷 Kamera
-        </button>
-        <button
-          type="button"
-          class="scan-tab-btn {activeTab === 'manual' ? 'active' : ''}"
-          onclick={() => { activeTab = 'manual'; stopCamera(); }}
-        >
-          ⌨️ Tempel / Manual
-        </button>
-        <button
-          type="button"
-          class="scan-tab-btn {activeTab === 'upload' ? 'active' : ''}"
-          onclick={() => { activeTab = 'upload'; stopCamera(); }}
-        >
-          🖼️ Unggah
-        </button>
+    <!-- Tab Content 1: Camera Viewfinder -->
+    {#if activeTab === 'camera'}
+      <div class="camera-viewport-wrap">
+        <video
+          bind:this={videoEl}
+          class="camera-video-feed"
+          playsinline
+          muted
+          autoplay
+        ></video>
+
+        <!-- Viewfinder Frame ala contact_qr_scan_screen.dart (240x240 Soft Coral/Aegis Blue) -->
+        <div class="viewfinder-frame">
+          <div class="viewfinder-corner top-left"></div>
+          <div class="viewfinder-corner top-right"></div>
+          <div class="viewfinder-corner bottom-left"></div>
+          <div class="viewfinder-corner bottom-right"></div>
+          <div class="laser-scanner-line"></div>
+        </div>
+
+        <div class="camera-guidance-pill">
+          Arahkan kamera ke kode QR profil teman Anda untuk memulai obrolan.
+        </div>
       </div>
+    {/if}
 
-      <!-- Error Alert Banner -->
-      {#if errorMessage}
-        <div class="error-banner">
-          <span class="error-icon">⚠️</span>
-          <span class="error-text">{errorMessage}</span>
+    <!-- Tab Content 2: Manual Payload Input (Off-grid / Desktop Fallback) -->
+    {#if activeTab === 'manual'}
+      <div class="manual-input-wrap">
+        <p class="manual-desc">
+          Masukkan ID kontak, tautan <code>mekaar://user/...</code>, atau <code>@username</code> untuk memulai obrolan langsung secara off-grid.
+        </p>
+        <div class="input-row">
+          <input
+            type="text"
+            class="manual-text-input"
+            placeholder="Contoh: mekaar://user/usr-citra-99?name=Citra+Kirana"
+            bind:value={manualInput}
+            onkeydown={(e) => { if (e.key === 'Enter') handleManualSubmit(); }}
+          />
         </div>
-      {/if}
 
-      <!-- Tab Content 1: Camera Viewfinder -->
-      {#if activeTab === 'camera'}
-        <div class="camera-viewport-wrap">
-          <video
-            bind:this={videoEl}
-            class="camera-video-feed"
-            playsinline
-            muted
-            autoplay
-          ></video>
-
-          <!-- Viewfinder Frame ala contact_qr_scan_screen.dart (240x240 Soft Coral/Aegis Blue) -->
-          <div class="viewfinder-frame">
-            <div class="viewfinder-corner top-left"></div>
-            <div class="viewfinder-corner top-right"></div>
-            <div class="viewfinder-corner bottom-left"></div>
-            <div class="viewfinder-corner bottom-right"></div>
-            <div class="laser-scanner-line"></div>
-          </div>
-
-          <div class="camera-guidance-pill">
-            Arahkan kamera ke kode QR profil teman Anda untuk memulai obrolan.
-          </div>
-        </div>
-      {/if}
-
-      <!-- Tab Content 2: Manual Payload Input (Off-grid / Desktop Fallback) -->
-      {#if activeTab === 'manual'}
-        <div class="manual-input-wrap">
-          <p class="manual-desc">
-            Masukkan ID kontak, tautan <code>mekaar://user/...</code>, atau <code>@username</code> untuk memulai obrolan langsung secara off-grid.
-          </p>
-          <div class="input-row">
-            <input
-              type="text"
-              class="manual-text-input"
-              placeholder="Contoh: mekaar://user/usr-citra-99?name=Citra+Kirana"
-              bind:value={manualInput}
-              onkeydown={(e) => { if (e.key === 'Enter') handleManualSubmit(); }}
-            />
-          </div>
-
-          <!-- Quick Test Presets -->
-          <div class="preset-pills-row">
-            <span class="preset-label">Cepat:</span>
-            <button
-              type="button"
-              class="preset-chip"
-              onclick={() => (manualInput = 'mekaar://user/usr-citra-99?name=Citra+Kirana&username=citrakirana&pubkey=ED25519-78AB')}
-            >
-              + Citra Kirana
-            </button>
-            <button
-              type="button"
-              class="preset-chip"
-              onclick={() => (manualInput = 'mekaar://user/usr-dewi-88?name=Dewi+Anggraini&username=dewianggraini&pubkey=ED25519-99FF')}
-            >
-              + Dewi Anggraini
-            </button>
-          </div>
-
+        <!-- Quick Test Presets -->
+        <div class="preset-pills-row">
+          <span class="preset-label">Cepat:</span>
           <button
             type="button"
-            class="btn-submit-manual"
-            disabled={!manualInput.trim() || isProcessing}
-            onclick={handleManualSubmit}
+            class="preset-chip"
+            onclick={() => (manualInput = 'mekaar://user/usr-citra-99?name=Citra+Kirana&username=citrakirana&pubkey=ED25519-78AB')}
           >
-            Hubungkan Kontak & Mulai Chat
+            + Citra Kirana
+          </button>
+          <button
+            type="button"
+            class="preset-chip"
+            onclick={() => (manualInput = 'mekaar://user/usr-dewi-88?name=Dewi+Anggraini&username=dewianggraini&pubkey=ED25519-99FF')}
+          >
+            + Dewi Anggraini
           </button>
         </div>
-      {/if}
 
-      <!-- Tab Content 3: Upload Image File -->
-      {#if activeTab === 'upload'}
-        <div class="upload-wrap">
-          <div class="upload-dropzone">
-            <span class="upload-icon">📂</span>
-            <p class="upload-title">Pilih Berkas Gambar Kode QR</p>
-            <p class="upload-subtitle">Format PNG, JPG, atau WebP</p>
-            <label class="btn-browse-file">
-              Pilih Berkas
-              <input type="file" accept="image/*" onchange={handleFileUpload} style="display: none;" />
-            </label>
-          </div>
-        </div>
-      {/if}
+        <button
+          type="button"
+          class="btn-submit-manual"
+          disabled={!manualInput.trim() || isProcessing}
+          onclick={handleManualSubmit}
+        >
+          Hubungkan Kontak & Mulai Chat
+        </button>
+      </div>
+    {/if}
 
-      <!-- Processing Backdrop Overlay -->
-      {#if isProcessing}
-        <div class="processing-overlay">
-          <div class="processing-card">
-            <div class="processing-spinner"></div>
-            <h4>Memproses kode...</h4>
-            <p>Mekaar sedang mengenali profil teman Anda.</p>
-          </div>
+    <!-- Tab Content 3: Upload Image File -->
+    {#if activeTab === 'upload'}
+      <div class="upload-wrap">
+        <div class="upload-dropzone">
+          <span class="upload-icon">📂</span>
+          <p class="upload-title">Pilih Berkas Gambar Kode QR</p>
+          <p class="upload-subtitle">Format PNG, JPG, atau WebP</p>
+          <label class="btn-browse-file">
+            Pilih Berkas
+            <input type="file" accept="image/*" onchange={handleFileUpload} style="display: none;" />
+          </label>
         </div>
-      {/if}
-    </div>
+      </div>
+    {/if}
+
+    <!-- Processing Backdrop Overlay -->
+    {#if isProcessing}
+      <div class="processing-overlay">
+        <div class="processing-card">
+          <div class="processing-spinner"></div>
+          <h4>Memproses kode...</h4>
+          <p>Mekaar sedang mengenali profil teman Anda.</p>
+        </div>
+      </div>
+    {/if}
   </div>
-{/if}
+</Dialog>
 
 <style>
-  .scan-dialog-backdrop {
-    position: fixed;
-    inset: 0;
-    background-color: rgba(15, 23, 42, 0.75);
-    backdrop-filter: blur(5px);
-    z-index: 1060;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    animation: fadeIn 0.2s ease-out;
-  }
-
-  .scan-dialog-modal {
-    width: 100%;
-    max-width: 440px;
-    background-color: var(--bg-card, #FFFFFF);
-    border-radius: var(--radius-xl, 24px);
-    border: 1px solid var(--border-subtle, #E2E8F0);
-    box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.3);
-    padding: 20px;
+  .scan-dialog-content {
     display: flex;
     flex-direction: column;
     position: relative;
-    max-height: 92vh;
-    overflow: hidden;
-  }
-
-  .scan-header-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 14px;
-  }
-
-  .scan-header-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
-  .scan-header-title h3 {
-    font-size: 1.15rem;
-    font-weight: 800;
-    color: var(--text-primary, #0F172A);
-    margin: 0;
-  }
-
-  .close-x-btn {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    background: transparent;
-    border: none;
-    color: var(--text-secondary, #64748B);
-    font-size: 1.1rem;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .close-x-btn:hover {
-    background-color: var(--border-light, #F1F5F9);
-    color: var(--text-primary, #0F172A);
   }
 
   /* Tabs Bar */
   .scan-tabs-bar {
     display: flex;
-    background-color: var(--bg-surface, #F1F5F9);
-    padding: 3px;
-    border-radius: var(--radius-pill, 999px);
-    gap: 2px;
+    background-color: var(--bg-primary);
+    padding: 4px;
+    border-radius: var(--radius-pill);
+    gap: 4px;
     margin-bottom: 14px;
   }
 
   .scan-tab-btn {
     flex: 1;
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 7px 10px;
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     border: none;
     background: transparent;
     font-size: 0.8rem;
     font-weight: 700;
-    color: var(--text-secondary, #64748B);
+    font-family: var(--font-active);
+    color: var(--text-secondary);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .scan-tab-btn.active {
-    background-color: #FFFFFF;
-    color: var(--brand-blue, #0284C7);
+    background-color: var(--bg-card);
+    color: var(--brand-blue);
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   }
 
@@ -432,7 +360,7 @@
   .error-banner {
     background-color: rgba(239, 68, 68, 0.12);
     border: 1px solid rgba(239, 68, 68, 0.25);
-    border-radius: 10px;
+    border-radius: var(--radius-md);
     padding: 10px 14px;
     display: flex;
     align-items: center;
@@ -446,9 +374,9 @@
   .camera-viewport-wrap {
     position: relative;
     width: 100%;
-    height: 340px;
+    height: 320px;
     background-color: #0F172A;
-    border-radius: 16px;
+    border-radius: var(--radius-lg);
     overflow: hidden;
     display: flex;
     align-items: center;
@@ -464,8 +392,8 @@
   /* Viewfinder Frame (240x240 ala Flutter) */
   .viewfinder-frame {
     position: absolute;
-    width: 220px;
-    height: 220px;
+    width: 200px;
+    height: 200px;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-radius: 20px;
     box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.5);
@@ -476,7 +404,7 @@
     position: absolute;
     width: 24px;
     height: 24px;
-    border-color: #F43F5E; /* Soft Coral ala Flutter */
+    border-color: #F43F5E;
     border-style: solid;
     pointer-events: none;
   }
@@ -528,7 +456,7 @@
     padding: 8px 14px;
     background-color: rgba(15, 23, 42, 0.75);
     backdrop-filter: blur(4px);
-    border-radius: var(--radius-pill, 999px);
+    border-radius: var(--radius-pill);
     font-size: 0.78rem;
     color: #FFFFFF;
     text-align: center;
@@ -544,34 +472,35 @@
 
   .manual-desc {
     font-size: 0.82rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     line-height: 1.4;
     margin: 0;
   }
 
   .manual-desc code {
-    background-color: var(--border-light, #F1F5F9);
+    background-color: var(--bg-primary);
     padding: 2px 5px;
     border-radius: 4px;
     font-size: 0.8rem;
-    color: var(--brand-blue, #0284C7);
+    color: var(--brand-blue);
   }
 
   .manual-text-input {
     width: 100%;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1.5px solid var(--border-subtle, #CBD5E1);
-    background-color: var(--bg-surface, #F8FAFC);
+    min-height: var(--touch-target-min, 40px);
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    border: 1.5px solid var(--border-light);
+    background-color: var(--bg-card);
     font-size: 0.88rem;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     outline: none;
     box-sizing: border-box;
   }
 
   .manual-text-input:focus {
-    border-color: var(--brand-blue, #0284C7);
-    background-color: #FFFFFF;
+    border-color: var(--brand-blue);
   }
 
   .preset-pills-row {
@@ -583,35 +512,42 @@
 
   .preset-label {
     font-size: 0.78rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     font-weight: 600;
   }
 
   .preset-chip {
-    padding: 4px 10px;
-    border-radius: var(--radius-pill, 999px);
-    background-color: var(--border-light, #F1F5F9);
-    border: 1px solid var(--border-subtle, #CBD5E1);
-    color: var(--brand-blue, #0284C7);
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    border-radius: var(--radius-pill);
+    background-color: var(--bg-primary);
+    border: 1px solid var(--border-light);
+    color: var(--brand-blue);
     font-size: 0.76rem;
     font-weight: 700;
+    font-family: var(--font-active);
     cursor: pointer;
     transition: all 0.15s ease;
   }
 
   .preset-chip:hover {
-    background-color: #EFF6FF;
-    border-color: var(--brand-blue, #0284C7);
+    background-color: var(--brand-blue-subtle);
+    border-color: var(--brand-blue);
   }
 
   .btn-submit-manual {
     width: 100%;
-    height: 46px;
-    border-radius: var(--radius-pill, 999px);
-    background-color: var(--brand-blue, #0284C7);
+    min-height: var(--touch-target-min, 40px);
+    height: 44px;
+    border-radius: var(--radius-pill);
+    background-color: var(--brand-blue);
     color: #FFFFFF;
     font-size: 0.9rem;
     font-weight: 700;
+    font-family: var(--font-active);
     border: none;
     cursor: pointer;
     margin-top: 6px;
@@ -629,15 +565,15 @@
   }
 
   .upload-dropzone {
-    border: 2px dashed var(--border-subtle, #CBD5E1);
-    border-radius: 16px;
+    border: 2px dashed var(--border-light);
+    border-radius: var(--radius-lg);
     padding: 36px 20px;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 8px;
-    background-color: var(--bg-surface, #F8FAFC);
+    background-color: var(--bg-primary);
   }
 
   .upload-icon {
@@ -647,23 +583,29 @@
   .upload-title {
     font-size: 0.95rem;
     font-weight: 700;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     margin: 0;
   }
 
   .upload-subtitle {
     font-size: 0.8rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     margin: 0 0 10px 0;
   }
 
   .btn-browse-file {
+    min-height: var(--touch-target-min, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     padding: 9px 20px;
-    background-color: var(--brand-blue, #0284C7);
+    background-color: var(--brand-blue);
     color: #FFFFFF;
     font-size: 0.85rem;
     font-weight: 700;
-    border-radius: var(--radius-pill, 999px);
+    font-family: var(--font-active);
+    border-radius: var(--radius-pill);
     cursor: pointer;
   }
 
@@ -678,11 +620,12 @@
     justify-content: center;
     padding: 24px;
     z-index: 5;
+    border-radius: var(--radius-lg);
   }
 
   .processing-card {
-    background-color: var(--bg-card, #FFFFFF);
-    border-radius: 16px;
+    background-color: var(--bg-card);
+    border-radius: var(--radius-lg);
     padding: 24px 20px;
     display: flex;
     flex-direction: column;
@@ -697,7 +640,7 @@
     width: 36px;
     height: 36px;
     border: 3px solid rgba(2, 132, 199, 0.2);
-    border-top-color: var(--brand-blue, #0284C7);
+    border-top-color: var(--brand-blue);
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
     margin-bottom: 12px;
@@ -706,13 +649,14 @@
   .processing-card h4 {
     font-size: 1rem;
     font-weight: 800;
-    color: var(--text-primary, #0F172A);
+    font-family: var(--font-active);
+    color: var(--text-primary);
     margin: 0 0 4px 0;
   }
 
   .processing-card p {
     font-size: 0.82rem;
-    color: var(--text-secondary, #64748B);
+    color: var(--text-secondary);
     margin: 0;
   }
 
@@ -725,10 +669,5 @@
 
   @keyframes spin {
     to { transform: rotate(360deg); }
-  }
-
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
   }
 </style>

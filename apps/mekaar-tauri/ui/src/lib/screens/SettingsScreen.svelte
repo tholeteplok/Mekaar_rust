@@ -937,7 +937,11 @@
 
 <style>
   .settings-page-container {
-    padding: 0 16px 28px 16px;
+    width: 100%;
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 16px 24px 16px;
+    box-sizing: border-box;
     display: flex;
     flex-direction: column;
     gap: 20px;

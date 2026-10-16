@@ -78,7 +78,7 @@
 
 <div class="guardian-container">
   <!-- Status Telemetri Langsung & Geofencing -->
-  <div class="sketch-card telemetry-card">
+  <div class="clean-card telemetry-card">
     <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;">
       <div style="display: flex; align-items: center; gap: 10px;">
         <span class="sketch-badge" style="background: {mekaarStore.telemetry.isInSafeZone ? '#DCFCE7' : '#FEF3C7'}; font-weight: 700;">
@@ -96,7 +96,7 @@
 
   <!-- Panel Perjalanan Aktif (guardian_map_screen.dart parity) -->
   {#each mekaarStore.trips.filter((t) => t.status === 'ongoing') as activeTrip (activeTrip.id)}
-    <div class="sketch-card" style="padding: 16px; margin-bottom: 16px; background: #ECFDF5;">
+    <div class="clean-card" style="padding: 16px; margin-bottom: 16px; background: #ECFDF5; border-color: #A7F3D0;">
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
         <span class="sketch-badge" style="background: #10B981; color: #FFFFFF;">🛵 PERJALANAN SEDANG DIKAWAL</span>
         <span style="font-size: 0.82rem; font-weight: 700;">ETA {activeTrip.etaMinutes} Menit</span>
@@ -242,22 +242,25 @@
 
 <style>
   .guardian-container {
-    padding: 16px 18px;
-    max-width: 880px;
     width: 100%;
+    max-width: 900px;
     margin: 0 auto;
+    padding: 0 16px 24px 16px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
   }
   .telemetry-card {
-    padding: 12px 16px;
+    padding: 14px 16px;
     margin-bottom: 16px;
-    background: var(--bg-secondary);
+    background: var(--bg-surface);
   }
   .trip-progress-track {
     width: 100%;
     height: 12px;
     background: #FFFFFF;
-    border: 2px solid var(--sketch-border-color);
-    border-radius: 999px;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-pill);
     overflow: hidden;
   }
   .trip-progress-fill {
