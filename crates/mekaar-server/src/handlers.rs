@@ -318,6 +318,33 @@ pub async fn reset_password(
     }
 }
 
+/// Pencarian akun pengguna dan kunci publik berdasarkan username atau email untuk tambah kontak.
+pub async fn lookup_user(
+    State(hub): State<Arc<Hub>>,
+    Path(identifier): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let clean = identifier.trim().to_lowercase();
+    let user = match hub.db().find_user_by_identifier(&clean) {
+        Ok(Some(u)) => u,
+        Ok(None) => return Err((StatusCode::NOT_FOUND, "Pengguna tidak ditemukan di direktori".to_string())),
+        Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, e.to_string())),
+    };
+
+    let public_key = hub.db().get_public_key(&user.id).unwrap_or(None);
+
+    Ok((
+        StatusCode::OK,
+        Json(json!({
+            "status": "success",
+            "user_id": user.id,
+            "username": user.username,
+            "display_name": user.display_name,
+            "email": user.email,
+            "public_key": public_key
+        })),
+    ))
+}
+
 /// Mengambil daftar seluruh Guardian untuk seorang korban.
 pub async fn get_guardians(
     State(hub): State<Arc<Hub>>,

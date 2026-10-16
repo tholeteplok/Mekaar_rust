@@ -50,6 +50,18 @@
 
   let newContactUsername = $state('');
   let newContactDisplayName = $state('');
+  let isSearchingContact = $state(false);
+  let addContactError = $state('');
+  let addContactSuccess = $state('');
+
+  function openAddContactModal() {
+    newContactUsername = '';
+    newContactDisplayName = '';
+    addContactError = '';
+    addContactSuccess = '';
+    isSearchingContact = false;
+    showAddContactDialog = true;
+  }
 
   function triggerVaultToast(msg: string) {
     vaultToast = msg;
@@ -135,25 +147,37 @@
     }
   }
 
-  function handleAddContact() {
-    if (!newContactUsername.trim()) return;
-    const username = newContactUsername.startsWith('@') ? newContactUsername.trim() : `@${newContactUsername.trim()}`;
-    const displayName = newContactDisplayName.trim() || username.replace('@', '');
-    const newContact = {
-      id: `usr-${Date.now()}`,
-      username,
-      displayName,
-      avatarColor: '#EFF6FF',
-      fingerprint: 'ED25519: VERIFIED-AEGIS',
-      isOnline: true,
-      isGuardian: false,
-      isBlocked: false,
-      notes: 'Ditambahkan secara manual'
-    };
-    mekaarStore.contacts = [newContact, ...mekaarStore.contacts];
-    newContactUsername = '';
-    newContactDisplayName = '';
-    showAddContactDialog = false;
+  async function handleAddContact() {
+    if (!newContactUsername.trim()) {
+      addContactError = 'Silakan masukkan username pengguna.';
+      return;
+    }
+    isSearchingContact = true;
+    addContactError = '';
+    addContactSuccess = '';
+
+    try {
+      const res = await mekaarStore.searchAndAddContact(newContactUsername);
+      if (res.success) {
+        addContactSuccess = res.message;
+        setTimeout(() => {
+          showAddContactDialog = false;
+          newContactUsername = '';
+          newContactDisplayName = '';
+          addContactSuccess = '';
+          isSearchingContact = false;
+          if (res.conversationId) {
+            mekaarStore.openConversation(res.conversationId);
+          }
+        }, 900);
+      } else {
+        addContactError = res.message;
+        isSearchingContact = false;
+      }
+    } catch {
+      addContactError = 'Gagal memproses penambahan kontak. Periksa koneksi jaringan.';
+      isSearchingContact = false;
+    }
   }
 
   function openContactInfo(contact: typeof mekaarStore.contacts[0]) {
@@ -368,7 +392,7 @@
           <button
             type="button"
             class="toolbar-more-btn"
-            onclick={() => (showAddContactDialog = true)}
+            onclick={openAddContactModal}
             title="Tambah Kontak"
             aria-label="Tambah Kontak"
             style="display: flex; align-items: center; justify-content: center;"
@@ -455,7 +479,7 @@
                   message="Mulai tambahkan teman terpercaya atau pindai kode QR untuk memulai komunikasi terenkripsi."
                   actionLabel="Tambah Kontak"
                   actionIcon={UserPlus}
-                  onaction={() => (showAddContactDialog = true)}
+                  onaction={openAddContactModal}
                 />
               {/if}
             </div>
@@ -521,7 +545,7 @@
                   message="Mulai tambahkan teman terpercaya atau pindai kode QR untuk memulai komunikasi terenkripsi."
                   actionLabel="Tambah Kontak"
                   actionIcon={UserPlus}
-                  onaction={() => (showAddContactDialog = true)}
+                  onaction={openAddContactModal}
                 />
               {/if}
             </div>
@@ -539,6 +563,16 @@
   onclose={() => (showAddContactDialog = false)}
 >
   <div style="display: flex; flex-direction: column; gap: 14px;">
+    {#if addContactError}
+      <div style="padding: 10px 14px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: #ef4444; font-size: 0.85rem; line-height: 1.4;">
+        {addContactError}
+      </div>
+    {/if}
+    {#if addContactSuccess}
+      <div style="padding: 10px 14px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; color: #22c55e; font-size: 0.85rem; line-height: 1.4;">
+        {addContactSuccess}
+      </div>
+    {/if}
     <label style="font-size: 0.85rem; font-weight: 600;">
       Username Teman:
       <input
@@ -546,6 +580,7 @@
         class="sketch-input"
         placeholder="@teplok"
         bind:value={newContactUsername}
+        disabled={isSearchingContact}
         style="margin-top: 4px;"
       />
     </label>
@@ -556,15 +591,16 @@
         class="sketch-input"
         placeholder="Nama Panggilan"
         bind:value={newContactDisplayName}
+        disabled={isSearchingContact}
         style="margin-top: 4px;"
       />
     </label>
     <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
-      <button type="button" class="btn-secondary" onclick={() => (showAddContactDialog = false)}>
+      <button type="button" class="btn-secondary" onclick={() => (showAddContactDialog = false)} disabled={isSearchingContact}>
         Batal
       </button>
-      <button type="button" class="btn-primary" onclick={handleAddContact}>
-        Simpan Kontak
+      <button type="button" class="btn-primary" onclick={handleAddContact} disabled={isSearchingContact}>
+        {isSearchingContact ? 'Mencari ke Server...' : 'Simpan Kontak'}
       </button>
     </div>
   </div>

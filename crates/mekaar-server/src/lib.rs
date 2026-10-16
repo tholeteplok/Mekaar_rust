@@ -29,6 +29,8 @@ pub fn create_router(hub: Arc<Hub>) -> Router {
         .route("/auth/login", post(handlers::login_account))
         .route("/auth/resolve-email", post(handlers::resolve_email))
         .route("/auth/reset-password", post(handlers::reset_password))
+        // User lookup directory for contact addition
+        .route("/users/lookup/{identifier}", get(handlers::lookup_user))
         // Guardian relationships
         .route("/guardians", post(handlers::add_guardian))
         .route("/guardians/{victim_id}", get(handlers::get_guardians))

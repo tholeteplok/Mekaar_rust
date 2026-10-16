@@ -266,6 +266,9 @@ class MekaarStore {
       } catch {
         // Abaikan parse error jika storage korup
       }
+      if (this.currentUser.id) {
+        safeInvoke('set_current_user_identity', { userId: this.currentUser.id });
+      }
     }
 
     // Default start selalu pada splash screen
@@ -755,15 +758,70 @@ class MekaarStore {
         this.wsInstance.close();
       }
       const ws = new WebSocket(wsUrl);
-      ws.onopen = () => {
+      ws.onopen = async () => {
+        // Daftarkan session identitas via AuthSubscribe sesuai mekaar-proto
+        const pubKeyRes = await safeInvoke<number[]>('get_identity_public_key');
+        const pubKey = pubKeyRes && pubKeyRes.length === 32
+          ? pubKeyRes
+          : Array.from(new Uint8Array(32));
+
+        try {
+          ws.send(
+            JSON.stringify({
+              auth_subscribe: {
+                user_id: this.currentUser.id,
+                public_key: pubKey
+              }
+            })
+          );
+        } catch {}
+
         this.serverStatus.wsConnected = true;
         this.serverStatus.online = true;
       };
-      ws.onmessage = (event) => {
+
+      ws.onmessage = async (event) => {
         try {
           const payload = JSON.parse(event.data);
-          if (payload?.type === 'chat_message' && payload.conversationId && payload.text) {
-            this.receiveIncomingMessage(payload.conversationId, payload.senderName || 'Peer', payload.text);
+
+          if (payload?.subscribed_ack) {
+            this.serverStatus.wsConnected = true;
+            this.serverStatus.online = true;
+          } else if (payload?.delivery_receipt) {
+            const msgId = payload.delivery_receipt.message_id;
+            for (const cId in this.messagesByConv) {
+              const m = this.messagesByConv[cId].find((item) => item.id === msgId);
+              if (m) {
+                m.status = 'delivered';
+                break;
+              }
+            }
+          } else if (payload?.incoming_envelope) {
+            const env = payload.incoming_envelope;
+            const decrypted = await safeInvoke<{
+              id: string;
+              roomId: string;
+              senderId: string;
+              content: string;
+            }>('decrypt_incoming_envelope', { envelope: env });
+
+            const senderContact = this.contacts.find((c) => c.id === env.sender_id);
+            const senderName = senderContact?.displayName || `User ${env.sender_id.slice(0, 6)}`;
+            const convId = env.room_id ? `conv-${env.room_id}` : 'conv-1';
+
+            this.receiveIncomingMessage(convId, senderName, decrypted?.content || '[Pesan Terenkripsi]');
+
+            // Kirim konfirmasi tanda terima nyata (DeliveryAck) ke relay server
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(
+                JSON.stringify({
+                  delivery_ack: {
+                    message_id: env.message_id,
+                    sender_id: env.sender_id
+                  }
+                })
+              );
+            }
           } else if (payload?.type === 'call_offer' && payload.callerName) {
             this.receiveIncomingCall(
               payload.conversationId || 'conv-1',
@@ -782,7 +840,7 @@ class MekaarStore {
             this.endCall();
           }
         } catch {
-          // Abaikan frame non-JSON
+          // Abaikan frame corrupt
         }
       };
       ws.onclose = () => {
@@ -797,7 +855,7 @@ class MekaarStore {
     }
   }
 
-  sendMessage(
+  async sendMessage(
     convId: string,
     text: string,
     replyTo?: MessageModel | null,
@@ -806,15 +864,48 @@ class MekaarStore {
     if (!text.trim() && !attachment) return;
     const conv = this.conversations.find((c) => c.id === convId);
     const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const content = text.trim() || `[Lampiran ${attachment?.name}]`;
+
+    const recipient = conv?.participants.find((p) => p.userId !== this.currentUser.id);
+    const recipientId = recipient?.userId || '44444444-4444-4444-4444-444444444444';
+
+    // 1. Enkripsi E2EE XChaCha20-Poly1305 & simpan ke database lokal SQLCipher via Rust IPC
+    const sendRes = await safeInvoke<{
+      message: {
+        id: string;
+        roomId: string;
+        senderId: string;
+        recipientId: string;
+        content: string;
+      };
+      envelope: {
+        version: number;
+        message_id: string;
+        sender_id: string;
+        recipient_id: string;
+        room_id: string;
+        nonce: number[];
+        ciphertext: number[];
+        timestamp_ms: number;
+        msg_type: string;
+      };
+    }>('send_e2ee_message', {
+      roomId: convId,
+      recipientId,
+      content
+    });
+
+    const msgId = sendRes?.envelope?.message_id || sendRes?.message?.id || `msg-${Date.now()}`;
+
     const newMsg: MessageModel = {
-      id: `msg-${Date.now()}`,
+      id: msgId,
       conversationId: convId,
       senderId: this.currentUser.id,
       senderName: this.currentUser.displayName,
-      text: text.trim(),
+      text: content,
       timestamp: now,
       isSelf: true,
-      status: this.serverStatus.wsConnected ? 'delivered' : 'sent',
+      status: this.serverStatus.wsConnected ? 'sent' : 'sent',
       replyToId: replyTo?.id,
       replyPreviewText: replyTo?.text,
       replySenderName: replyTo?.senderName,
@@ -827,38 +918,16 @@ class MekaarStore {
     const existing = this.messagesByConv[convId] ?? [];
     this.messagesByConv[convId] = [...existing, newMsg];
     if (conv) {
-      conv.subtitle = text.trim() || `[Lampiran ${attachment?.name}]`;
+      conv.subtitle = content;
       conv.lastTimestamp = now;
     }
 
-    // Simulasi transisi tanda terima (Signal/Telegram standard: sent -> delivered -> read)
-    setTimeout(() => {
-      const list = this.messagesByConv[convId];
-      if (list) {
-        const m = list.find((item) => item.id === newMsg.id);
-        if (m && m.status === 'sent') m.status = 'delivered';
-      }
-    }, 600);
-
-    setTimeout(() => {
-      const list = this.messagesByConv[convId];
-      if (list) {
-        const m = list.find((item) => item.id === newMsg.id);
-        if (m && m.status !== 'read') m.status = 'read';
-      }
-    }, 1400);
-
-    // Kirim melalui WebSocket teplok-pc jika tersambung
-    if (this.wsInstance && this.serverStatus.wsConnected) {
+    // 2. Transmisi Envelope Terenkripsi ke Blind Relay Server teplok-pc via WebSocket
+    if (sendRes?.envelope && this.wsInstance && this.wsInstance.readyState === WebSocket.OPEN) {
       try {
         this.wsInstance.send(
           JSON.stringify({
-            type: 'chat_message',
-            conversationId: convId,
-            senderId: this.currentUser.id,
-            senderName: this.currentUser.displayName,
-            text: newMsg.text,
-            timestamp: now
+            send_envelope: sendRes.envelope
           })
         );
       } catch {
@@ -866,14 +935,7 @@ class MekaarStore {
       }
     }
 
-    // Enkripsi XChaCha20-Poly1305 & simpan ke SQLCipher via Tauri jika aktif
-    safeInvoke('send_e2ee_message', {
-      roomId: convId,
-      recipientId: conv?.participants.find((p) => p.userId !== this.currentUser.id)?.userId || '44444444-4444-4444-4444-444444444444',
-      content: text.trim() || `[Lampiran ${attachment?.name}]`
-    }).catch(() => {});
-
-    // Jika pesan membawa lampiran media/steganografi, simpan ke Secure Media Vault
+    // 3. Jika pesan membawa lampiran media/steganografi, simpan ke Secure Media Vault
     if (attachment) {
       const isStego = !!attachment.isStego;
       const mediaItem: VaultMediaItemModel = {
@@ -890,7 +952,6 @@ class MekaarStore {
       };
       this.vaultMediaItems = [mediaItem, ...this.vaultMediaItems];
 
-      // Catat ke Rust SQLCipher security_logs
       safeInvoke('log_media_attachment', {
         fileName: attachment.name,
         fileType: attachment.kind,
@@ -898,6 +959,136 @@ class MekaarStore {
         isStego
       }).catch(() => {});
     }
+  }
+
+  async searchAndAddContact(query: string): Promise<{
+    success: boolean;
+    message: string;
+    contact?: ContactModel;
+    conversationId?: string;
+  }> {
+    const clean = query.trim();
+    if (!clean) {
+      return { success: false, message: 'Masukkan username atau ID kontak.' };
+    }
+    const cleanUsername = clean.startsWith('@') ? clean : `@${clean}`;
+
+    // Cek apakah mencoba menambah diri sendiri
+    if (
+      clean.toLowerCase() === this.currentUser.username.toLowerCase() ||
+      cleanUsername.toLowerCase() === this.currentUser.username.toLowerCase() ||
+      clean === this.currentUser.id
+    ) {
+      return { success: false, message: 'Tidak dapat menambahkan diri sendiri sebagai kontak.' };
+    }
+
+    // Cek apakah sudah ada di kontak
+    const existing = this.contacts.find(
+      (c) =>
+        c.username.toLowerCase() === cleanUsername.toLowerCase() ||
+        c.id.toLowerCase() === clean.toLowerCase()
+    );
+    if (existing) {
+      const existingConvId = `conv-${existing.id}`;
+      return {
+        success: true,
+        message: `Kontak ${existing.displayName} sudah ada di buku kontak.`,
+        contact: existing,
+        conversationId: existingConvId
+      };
+    }
+
+    const httpBase = this.serverStatus.mode === 'local' ? LOCAL_HTTP : TAILSCALE_HTTP;
+    let serverUser: {
+      user_id: string;
+      username: string;
+      display_name: string;
+      public_key?: number[];
+    } | null = null;
+
+    // 1. Cek keberadaan user di server direktori teplok-pc
+    try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3500);
+      const res = await fetch(`${httpBase}/users/lookup/${encodeURIComponent(cleanUsername)}`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+      if (res.ok) {
+        serverUser = await res.json();
+      }
+    } catch {
+      // Server offline / tidak terjangkau
+    }
+
+    // 2. Tentukan ID dan Public Key
+    const contactId = serverUser?.user_id || `usr-${Date.now()}`;
+    const displayName = serverUser?.display_name || cleanUsername.replace('@', '');
+    const publicKey = serverUser?.public_key;
+
+    // 3. Simpan ke database SQLCipher via Rust IPC
+    await safeInvoke('save_contact', {
+      id: contactId,
+      username: cleanUsername,
+      displayName,
+      publicKey,
+      safetyNumber: publicKey ? undefined : 'UNVERIFIED'
+    });
+
+    const fingerprint = publicKey && publicKey.length === 32
+      ? `ED25519: ${publicKey.slice(0, 4).map((b) => b.toString(16).padStart(2, '0')).join('').toUpperCase()}`
+      : 'ED25519: UNVERIFIED-AEGIS';
+
+    const newContact: ContactModel = {
+      id: contactId,
+      username: cleanUsername,
+      displayName,
+      avatarColor: '#EFF6FF',
+      fingerprint,
+      isOnline: !!serverUser,
+      isGuardian: false,
+      isBlocked: false,
+      notes: serverUser ? 'Kontak terverifikasi dari direktori server' : 'Ditambahkan secara lokal'
+    };
+
+    this.contacts = [newContact, ...this.contacts];
+
+    // 4. Buat ruang obrolan percakapan terenkripsi
+    const convId = `conv-${contactId}`;
+    const existingConv = this.conversations.find((c) => c.id === convId);
+    if (!existingConv) {
+      this.conversations = [
+        {
+          id: convId,
+          title: displayName,
+          subtitle: 'Mulai percakapan aman',
+          avatarColor: '#3B82F6',
+          isGroup: false,
+          unreadCount: 0,
+          lastTimestamp: 'Baru saja',
+          isOnline: newContact.isOnline,
+          isTyping: false,
+          isPinned: false,
+          isMuted: false,
+          disappearingSeconds: 0,
+          chatTheme: 'midnight',
+          participants: [
+            { userId: this.currentUser.id, displayName: this.currentUser.displayName, role: 'admin', muted: false },
+            { userId: contactId, displayName, role: 'member', muted: false }
+          ]
+        },
+        ...this.conversations
+      ];
+    }
+
+    return {
+      success: true,
+      message: serverUser
+        ? `Kontak ${displayName} ditemukan di server dan berhasil ditambahkan!`
+        : `Kontak ${displayName} disimpan secara lokal (server tidak merespon).`,
+      contact: newContact,
+      conversationId: convId
+    };
   }
 
   addVaultMediaItem(item: VaultMediaItemModel) {

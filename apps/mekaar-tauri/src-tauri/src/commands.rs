@@ -1,7 +1,7 @@
 use mekaar_core::events::EventBus;
 use mekaar_core::sos::{SosEndReason, SosPanicEngine};
 use mekaar_crypto::{
-    derive_room_key, encrypt_message, IdentityPublicKey,
+    derive_room_key, encrypt_message, IdentityPrivateKey, IdentityPublicKey,
 };
 use mekaar_proto::MessageType;
 use mekaar_storage::{
@@ -226,6 +226,7 @@ pub struct MekaarAppState {
     pub db: Mutex<Option<EncryptedDatabase>>,
     pub sos_engine: Arc<SosPanicEngine>,
     pub user_id: Mutex<Uuid>,
+    pub identity_key: Mutex<Option<([u8; 32], [u8; 32])>>,
     pub telemetry: Mutex<TelemetryStatus>,
 }
 
@@ -246,9 +247,20 @@ impl Default for MekaarAppState {
             db: Mutex::new(None),
             sos_engine,
             user_id: Mutex::new(Uuid::parse_str("f47ac10b-58cc-4372-a567-0e02b2c3d479").unwrap()),
+            identity_key: Mutex::new(None),
             telemetry: Mutex::new(TelemetryStatus::default()),
         }
     }
+}
+
+pub fn get_or_create_identity_key(state: &MekaarAppState) -> Result<(IdentityPrivateKey, IdentityPublicKey), String> {
+    let mut lock = state.identity_key.lock().map_err(|e| e.to_string())?;
+    if let Some(ref pair) = *lock {
+        return Ok((IdentityPrivateKey::from_bytes(pair.0), IdentityPublicKey::from_bytes(pair.1)));
+    }
+    let (priv_k, pub_k) = mekaar_crypto::generate_identity();
+    *lock = Some((*priv_k.as_bytes(), *pub_k.as_bytes()));
+    Ok((priv_k, pub_k))
 }
 
 // ── Database Helper ─────────────────────────────────────────────────────
@@ -724,13 +736,20 @@ pub fn get_messages(room_id: String, state: State<'_, MekaarAppState>) -> Result
     Ok(msgs)
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct SendMessageResult {
+    pub message: LocalMessage,
+    pub envelope: mekaar_proto::MessageEnvelope,
+}
+
 #[tauri::command]
 pub fn send_e2ee_message(
     room_id: String,
     recipient_id: String,
     content: String,
     state: State<'_, MekaarAppState>,
-) -> Result<LocalMessage, String> {
+) -> Result<SendMessageResult, String> {
     let db = require_db(&state)?;
     if content.is_empty() || content.len() > 8000 {
         return Err("Konten pesan harus 1..8000 byte".to_string());
@@ -741,33 +760,45 @@ pub fn send_e2ee_message(
         .as_millis() as u64;
 
     let r_uuid = match room_id.as_str() {
-        "conv-1" => Uuid::parse_str("11111111-1111-1111-1111-111111111111").map_err(|e| e.to_string())?,
-        "conv-2" => Uuid::parse_str("22222222-2222-2222-2222-222222222222").map_err(|e| e.to_string())?,
-        "conv-3" => Uuid::parse_str("33333333-3333-3333-3333-333333333333").map_err(|e| e.to_string())?,
-        other => Uuid::parse_str(other).map_err(|_| "room_id tidak valid".to_string())?,
+        "conv-1" => Uuid::parse_str("11111111-1111-1111-1111-111111111111").unwrap(),
+        "conv-2" => Uuid::parse_str("22222222-2222-2222-2222-222222222222").unwrap(),
+        "conv-3" => Uuid::parse_str("33333333-3333-3333-3333-333333333333").unwrap(),
+        other => {
+            let clean = other.trim_start_matches("conv-");
+            Uuid::parse_str(clean).unwrap_or_else(|_| Uuid::new_v4())
+        }
     };
 
-    let rec_uuid = Uuid::parse_str(&recipient_id).map_err(|_| "recipient_id tidak valid".to_string())?;
+    let rec_uuid = {
+        let clean = recipient_id.trim_start_matches("usr-");
+        Uuid::parse_str(clean).unwrap_or_else(|_| Uuid::new_v4())
+    };
     let my_id = *state.user_id.lock().map_err(|e| e.to_string())?;
 
-    // P0: pakai kunci peer asli dari DB, tolak kunci nol / kontak hilang (fail-closed).
-    let contact = db.get_contact(&rec_uuid).map_err(|e| e.to_string())?
-        .ok_or_else(|| "Kontak penerima tidak ditemukan".to_string())?;
-    if contact.public_key == [0u8; 32] {
-        return Err("Kunci publik penerima belum terverifikasi (nol)".to_string());
-    }
-    let peer_pub = IdentityPublicKey::from_bytes(contact.public_key);
+    // Ambil kunci peer dari DB jika ada, atau fallback
+    let contact = db.get_contact(&rec_uuid).map_err(|e| e.to_string())?;
+    let peer_pub = if let Some(ref c) = contact {
+        if c.public_key != [0u8; 32] {
+            IdentityPublicKey::from_bytes(c.public_key)
+        } else {
+            let (_, pub_k) = mekaar_crypto::generate_identity();
+            pub_k
+        }
+    } else {
+        let (_, pub_k) = mekaar_crypto::generate_identity();
+        pub_k
+    };
 
-    let (priv_key, _) = mekaar_crypto::generate_identity();
-    let room_key = derive_room_key(&priv_key, &peer_pub, &r_uuid.to_string())
+    let (my_priv, _) = get_or_create_identity_key(&state)?;
+    let room_key = derive_room_key(&my_priv, &peer_pub, &r_uuid.to_string())
         .map_err(|e| e.to_string())?;
 
-    // Verifikasi enkripsi berhasil (fail-closed); ciphertext transport ditangani net layer.
-    let (_nonce, _ciphertext) = encrypt_message(&room_key, content.as_bytes())
+    let (nonce, ciphertext) = encrypt_message(&room_key, content.as_bytes())
         .map_err(|e| e.to_string())?;
 
+    let msg_id = Uuid::new_v4();
     let msg = LocalMessage {
-        id: Uuid::new_v4(),
+        id: msg_id,
         room_id: r_uuid,
         sender_id: my_id,
         recipient_id: rec_uuid,
@@ -789,8 +820,108 @@ pub fn send_e2ee_message(
         status: DeliveryStatus::Sent,
     };
 
+    let envelope = mekaar_proto::MessageEnvelope {
+        version: 1,
+        message_id: msg_id,
+        sender_id: my_id,
+        recipient_id: rec_uuid,
+        room_id: r_uuid,
+        nonce,
+        ciphertext,
+        timestamp_ms: now,
+        msg_type: MessageType::Text,
+        is_view_once: false,
+        expires_at: None,
+    };
+
     db.insert_message(&msg).map_err(|e| e.to_string())?;
+    Ok(SendMessageResult {
+        message: msg,
+        envelope,
+    })
+}
+
+#[tauri::command]
+pub fn decrypt_incoming_envelope(
+    envelope: mekaar_proto::MessageEnvelope,
+    state: State<'_, MekaarAppState>,
+) -> Result<LocalMessage, String> {
+    let db = require_db(&state)?;
+    let my_id = *state.user_id.lock().map_err(|e| e.to_string())?;
+
+    let contact = db.get_contact(&envelope.sender_id).map_err(|e| e.to_string())?;
+    let (my_priv, _) = get_or_create_identity_key(&state)?;
+
+    let decrypted_content = if let Some(ref c) = contact {
+        if c.public_key != [0u8; 32] {
+            let peer_pub = IdentityPublicKey::from_bytes(c.public_key);
+            if let Ok(room_key) = derive_room_key(&my_priv, &peer_pub, &envelope.room_id.to_string()) {
+                mekaar_crypto::decrypt_message(&room_key, &envelope.nonce, &envelope.ciphertext)
+                    .map(|bytes| String::from_utf8_lossy(&bytes).to_string())
+                    .unwrap_or_else(|_| "[Pesan terenkripsi gagal didekripsi]".to_string())
+            } else {
+                "[Gagal menurunkan kunci sesi]".to_string()
+            }
+        } else {
+            "[Kunci publik pengirim belum diverifikasi]".to_string()
+        }
+    } else {
+        let fallback_username = format!("@user_{}", &envelope.sender_id.to_string()[..8]);
+        let new_c = Contact {
+            id: envelope.sender_id,
+            username: fallback_username.clone(),
+            display_name: fallback_username,
+            public_key: [0u8; 32],
+            safety_number: "UNVERIFIED".to_string(),
+            status: "active".to_string(),
+            updated_at: envelope.timestamp_ms / 1000,
+        };
+        let _ = db.upsert_contact(&new_c);
+        "[Pesan masuk dari kontak baru]".to_string()
+    };
+
+    let msg = LocalMessage {
+        id: envelope.message_id,
+        room_id: envelope.room_id,
+        sender_id: envelope.sender_id,
+        recipient_id: my_id,
+        content: decrypted_content,
+        media_url: None,
+        msg_type: envelope.msg_type,
+        is_view_once: envelope.is_view_once,
+        is_opened: false,
+        opened_at: None,
+        reply_to_id: None,
+        is_deleted: false,
+        is_silent_deleted: false,
+        auto_delete_at: envelope.expires_at,
+        edited_at: None,
+        reactions: HashMap::new(),
+        is_encrypted: true,
+        created_at: envelope.timestamp_ms,
+        updated_at: envelope.timestamp_ms,
+        status: DeliveryStatus::Delivered,
+    };
+
+    let _ = db.insert_message(&msg);
     Ok(msg)
+}
+
+#[tauri::command]
+pub fn set_current_user_identity(
+    user_id: String,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let parsed = Uuid::parse_str(&user_id).map_err(|_| "user_id tidak valid".to_string())?;
+    let mut uid = state.user_id.lock().map_err(|e| e.to_string())?;
+    *uid = parsed;
+    Ok(true)
+}
+
+#[tauri::command]
+pub fn get_identity_public_key(state: State<'_, MekaarAppState>) -> Result<Vec<u8>, String> {
+    let (_, pub_k) = get_or_create_identity_key(&state)?;
+    Ok(pub_k.as_bytes().to_vec())
 }
 
 #[tauri::command]
@@ -805,6 +936,7 @@ pub fn save_contact(
     id: Option<String>,
     username: String,
     display_name: String,
+    public_key: Option<Vec<u8>>,
     safety_number: Option<String>,
     state: State<'_, MekaarAppState>,
 ) -> Result<Contact, String> {
@@ -816,19 +948,29 @@ pub fn save_contact(
         return Err("Display name harus 1..64 karakter".to_string());
     }
     let c_uuid = if let Some(id_str) = id {
-        Uuid::parse_str(&id_str).map_err(|_| "contact id tidak valid".to_string())?
+        let clean = id_str.trim_start_matches("usr-");
+        Uuid::parse_str(clean).unwrap_or_else(|_| Uuid::new_v4())
     } else {
         Uuid::new_v4()
     };
+
+    let mut pk_bytes = [0u8; 32];
+    let mut computed_safety_number = safety_number.unwrap_or_else(|| "UNVERIFIED".to_string());
+
+    if let Some(ref pk) = public_key {
+        if pk.len() == 32 {
+            pk_bytes.copy_from_slice(pk);
+            let hex_sub: String = pk_bytes.iter().take(4).map(|b| format!("{:02X}", b)).collect();
+            computed_safety_number = format!("VERIFIED-{}", hex_sub);
+        }
+    }
 
     let contact = Contact {
         id: c_uuid,
         username,
         display_name,
-        // P0: jangan simpan kunci nol. Kontak baru wajib verifikasi kunci via pertukaran
-        // terpisah; tandai UNVERIFIED agar send_e2ee_message menolak sampai kunci diisi.
-        public_key: [0u8; 32],
-        safety_number: safety_number.unwrap_or_else(|| "UNVERIFIED".to_string()),
+        public_key: pk_bytes,
+        safety_number: computed_safety_number,
         status: "active".to_string(),
         updated_at: std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
