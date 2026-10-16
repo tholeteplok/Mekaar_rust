@@ -112,7 +112,7 @@ class MekaarStore {
     username: '@pengguna',
     displayName: 'Pengguna Mekaar',
     avatarColor: '#BFDBFE',
-    bio: 'Mekaar Native • Terenkripsi E2EE',
+    bio: '',
     publicKeyFingerprint: 'ED25519: Belum Dibuat',
     isOnline: true,
     lastSeen: 'Online',
@@ -245,6 +245,14 @@ class MekaarStore {
     if (storedIdentity) {
       try {
         const parsed = JSON.parse(storedIdentity);
+        if (
+          parsed.bio === 'Mekaar Native • Terenkripsi E2EE' ||
+          parsed.bio === 'Mekaar Rust Native • E2EE • Teplok Relay Sync' ||
+          parsed.bio === 'Mekaar Rust Native • E2EE • Pulih dari Server' ||
+          parsed.bio === 'Aktif di Mekaar Mesh Network'
+        ) {
+          parsed.bio = '';
+        }
         this.currentUser = { ...this.currentUser, ...parsed };
       } catch {
         // Abaikan parse error jika storage korup
@@ -402,7 +410,7 @@ class MekaarStore {
           username: data.username,
           displayName: data.display_name,
           recoveryEmail: data.email,
-          bio: 'Mekaar Rust Native • E2EE • Pulih dari Server'
+          bio: data.bio || ''
         };
 
         if (typeof localStorage !== 'undefined') {
@@ -595,7 +603,7 @@ class MekaarStore {
       username: cleanUsername,
       displayName: params.displayName,
       recoveryEmail: params.email,
-      bio: 'Mekaar Rust Native • E2EE • Teplok Relay Sync',
+      bio: '',
       publicKeyFingerprint: fingerprint,
       isOnline: true,
       lastSeen: 'Online'

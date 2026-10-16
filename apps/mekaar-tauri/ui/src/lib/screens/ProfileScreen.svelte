@@ -41,6 +41,9 @@
     } else if (editFieldKey === 'bio') {
       mekaarStore.currentUser.bio = editFieldValue.trim();
     }
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('mekaar_identity', JSON.stringify(mekaarStore.currentUser));
+    }
     showEditFieldModal = false;
   }
 
@@ -161,11 +164,15 @@
       <!-- Bio -->
       <div class="attr-row">
         <span class="attr-label">Bio</span>
-        <span class="attr-value bio-val">{mekaarStore.currentUser.bio || 'Aktif di Mekaar Mesh Network'}</span>
+        {#if mekaarStore.currentUser.bio && mekaarStore.currentUser.bio.trim() !== ''}
+          <span class="attr-value bio-val">{mekaarStore.currentUser.bio}</span>
+        {:else}
+          <span class="attr-value bio-val bio-empty">Belum ada bio</span>
+        {/if}
         <button
           type="button"
           class="attr-edit-btn"
-          onclick={() => openEditField('bio', 'Bio', mekaarStore.currentUser.bio || 'Aktif di Mekaar Mesh Network')}
+          onclick={() => openEditField('bio', 'Bio', mekaarStore.currentUser.bio || '')}
           aria-label="Edit Bio"
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -177,7 +184,7 @@
       <!-- Email / Alamat Jaringan Privat -->
       <div class="attr-row">
         <span class="attr-label">Alamat Node</span>
-        <span class="attr-value" style="font-family: var(--font-mono); font-size: 0.85rem;">{mekaarStore.currentUser.username.replace('@', '')}@mesh.internal</span>
+        <span class="attr-value node-val">{mekaarStore.currentUser.username.replace('@', '')}@mesh.internal</span>
         <span class="attr-lock-icon" title="Identitas mesh terenkripsi E2EE">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--brand-teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
@@ -435,10 +442,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 16px;
   }
 
   .attr-label {
-    width: 90px;
+    width: 110px;
+    min-width: 110px;
     font-size: 0.95rem;
     color: var(--text-secondary);
   }
@@ -453,6 +462,18 @@
   .bio-val {
     font-weight: 500;
     font-size: 0.98rem;
+  }
+
+  .bio-empty {
+    color: var(--text-secondary);
+    font-weight: 400;
+    font-style: italic;
+  }
+
+  .node-val {
+    font-family: var(--font-mono);
+    font-size: 0.85rem;
+    word-break: break-all;
   }
 
   .attr-edit-btn, .attr-lock-icon {

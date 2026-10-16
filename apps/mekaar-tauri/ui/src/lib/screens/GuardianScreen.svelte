@@ -6,6 +6,7 @@
   import Button from '../components/Button.svelte';
   import Dialog from '../components/Dialog.svelte';
   import SketchAvatar from '../components/SketchAvatar.svelte';
+  import EmptyState from '../components/EmptyState.svelte';
 
   let originInput = $state('');
   let destinationInput = $state('');
@@ -89,7 +90,11 @@
         </span>
       </div>
       <div style="font-size: 0.78rem; font-family: var(--font-mono); color: var(--text-muted);">
-        GPS: {mekaarStore.telemetry.latitude.toFixed(4)}, {mekaarStore.telemetry.longitude.toFixed(4)} • E2EE Enclave
+        {#if mekaarStore.telemetry.latitude !== 0 || mekaarStore.telemetry.longitude !== 0}
+          GPS: {mekaarStore.telemetry.latitude.toFixed(4)}, {mekaarStore.telemetry.longitude.toFixed(4)} • E2EE Enclave
+        {:else}
+          GPS: Siaga • E2EE Enclave
+        {/if}
       </div>
     </div>
   </div>
@@ -132,73 +137,88 @@
   </CardExpanded>
 
   <!-- Daftar Guardian & Permintaan Pendamping (guardian_dashboard_screen & guardian_request_screen parity) -->
-  <div style="display: flex; justify-content: space-between; align-items: center; margin: 18px 0 10px;">
-    <h3 style="font-family: var(--font-crayon); font-size: 1.05rem; margin: 0;">
-      🛡️ Daftar Guardian Pendamping ({mekaarStore.guardians.length})
+  <div class="guardian-section-header">
+    <h3 class="section-heading">
+      Daftar Guardian Pendamping ({mekaarStore.guardians.length})
     </h3>
-    <Button size="sm" variant="secondary" onclick={() => (showAddGuardianDialog = true)}>
-      + Tambah
-    </Button>
   </div>
 
-  <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
-    {#each mekaarStore.guardians as g (g.id)}
-      <Card>
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
-          <div style="display: flex; align-items: center; gap: 12px;">
-            <SketchAvatar name={g.name} color={g.avatarColor} online={g.status !== 'pending_request'} />
-            <div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <strong>{g.name}</strong>
-                <span class="sketch-badge" style="background: {g.status === 'active' ? '#DCFCE7' : '#FEF3C7'};">
-                  {g.status === 'active' ? 'Mengawal' : g.status === 'standby' ? 'Siaga' : 'Menunggu Konfirmasi'}
-                </span>
-              </div>
-              <div style="font-size: 0.82rem; color: var(--text-secondary);">
-                {g.relation} ({g.username}) • 🔋 {g.batteryPercent}% • {g.lastUpdated}
+  {#if mekaarStore.guardians.length === 0}
+    <EmptyState
+      pose="shield"
+      title="Belum Ada Guardian"
+      message="Tambahkan kontak terpercaya sebagai guardian untuk saling menjaga dalam situasi darurat."
+      actionLabel="Tambah Guardian"
+      onaction={() => (showAddGuardianDialog = true)}
+    />
+  {:else}
+    <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 18px;">
+      {#each mekaarStore.guardians as g (g.id)}
+        <Card>
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <SketchAvatar name={g.name} color={g.avatarColor} online={g.status !== 'pending_request'} />
+              <div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <strong>{g.name}</strong>
+                  <span class="sketch-badge" style="background: {g.status === 'active' ? '#DCFCE7' : '#FEF3C7'};">
+                    {g.status === 'active' ? 'Mengawal' : g.status === 'standby' ? 'Siaga' : 'Menunggu Konfirmasi'}
+                  </span>
+                </div>
+                <div style="font-size: 0.82rem; color: var(--text-secondary);">
+                  {g.relation} ({g.username}) • 🔋 {g.batteryPercent}% • {g.lastUpdated}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div style="display: flex; gap: 6px; align-items: center;">
-            {#if g.status === 'pending_request'}
-              <Button size="sm" variant="primary" onclick={() => handleApproveGuardian(g.id)}>Setujui Guardian</Button>
-            {:else}
-              <Button
-                size="sm"
-                variant={g.canViewLiveLocation ? 'primary' : 'secondary'}
-                onclick={() => (g.canViewLiveLocation = !g.canViewLiveLocation)}
-              >
-                📍 Lokasi: {g.canViewLiveLocation ? 'Aktif' : 'Nonaktif'}
+            <div style="display: flex; gap: 6px; align-items: center;">
+              {#if g.status === 'pending_request'}
+                <Button size="sm" variant="primary" onclick={() => handleApproveGuardian(g.id)}>Setujui Guardian</Button>
+              {:else}
+                <Button
+                  size="sm"
+                  variant={g.canViewLiveLocation ? 'primary' : 'secondary'}
+                  onclick={() => (g.canViewLiveLocation = !g.canViewLiveLocation)}
+                >
+                  📍 Lokasi: {g.canViewLiveLocation ? 'Aktif' : 'Nonaktif'}
+                </Button>
+              {/if}
+              <Button size="sm" variant="danger" onclick={() => handleDeleteGuardian(g.id)}>
+                ✕
               </Button>
-            {/if}
-            <Button size="sm" variant="danger" onclick={() => handleDeleteGuardian(g.id)}>
-              ✕
-            </Button>
+            </div>
           </div>
-        </div>
-      </Card>
-    {/each}
-  </div>
+        </Card>
+      {/each}
+    </div>
+  {/if}
 
   <!-- Riwayat Perjalanan (trip_history_screen.dart parity) -->
-  <h3 style="font-family: var(--font-crayon); font-size: 1.05rem; margin: 14px 0 10px;">
-    📜 Riwayat Perjalanan Terkawal
+  <h3 class="section-heading" style="margin: 18px 0 10px;">
+    Riwayat Perjalanan Terkawal
   </h3>
   <div style="display: flex; flex-direction: column; gap: 10px;">
-    {#each mekaarStore.trips.filter((t) => t.status !== 'ongoing') as trip (trip.id)}
-      <Card>
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div>
-            <strong>{trip.originName} → {trip.destinationName}</strong>
-            <div style="font-size: 0.8rem; color: var(--text-secondary);">
-              {trip.startedAt} — {trip.endedAt ?? 'Selesai'} • Dikawal oleh {trip.activeGuardians.join(', ')}
-            </div>
-          </div>
-          <span class="sketch-badge" style="background: #DCFCE7;">✓ Selesai Aman</span>
+    {#if mekaarStore.trips.filter((t) => t.status !== 'ongoing').length === 0}
+      <Card withTicks={false} padding="20px">
+        <div style="text-align: center; color: var(--text-secondary); font-size: 0.88rem;">
+          Belum ada riwayat perjalanan terkawal.
         </div>
       </Card>
-    {/each}
+    {:else}
+      {#each mekaarStore.trips.filter((t) => t.status !== 'ongoing') as trip (trip.id)}
+        <Card>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <strong>{trip.originName} → {trip.destinationName}</strong>
+              <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                {trip.startedAt} — {trip.endedAt ?? 'Selesai'} • Dikawal oleh {trip.activeGuardians.join(', ')}
+              </div>
+            </div>
+            <span class="sketch-badge" style="background: #DCFCE7;">✓ Selesai Aman</span>
+          </div>
+        </Card>
+      {/each}
+    {/if}
   </div>
 </div>
 
@@ -249,6 +269,19 @@
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
+  }
+  .guardian-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 18px 0 10px;
+  }
+  .section-heading {
+    font-family: var(--font-active);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--text-primary);
+    margin: 0;
   }
   .telemetry-card {
     padding: 14px 16px;
