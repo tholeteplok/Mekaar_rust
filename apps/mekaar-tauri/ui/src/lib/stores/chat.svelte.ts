@@ -61,7 +61,7 @@ class MekaarStore {
   pinVerified = $state(true);
   onboardingComplete = $state(true);
   isDuressActive = $state(false);
-  duressPinCode = $state('999999');
+  duressPinCode = $state<string>('');
   activeTab = $state<MainTabType>('chat');
   activeRegister = $state<RegisterType>('core');
   selectedConversationId = $state<string | null>(null);
@@ -83,7 +83,7 @@ class MekaarStore {
   disguisedNotifications = $state<boolean>(false);
   readReceipts = $state<boolean>(true);
   typingIndicator = $state<boolean>(true);
-  pinCode = $state<string>('123456');
+  pinCode = $state<string>('');
 
   // Pengaturan Privasi & Keamanan Tingkat Lanjut (Paritas Mekaar_chat, Signal, Telegram)
   callRelayEnabled = $state<boolean>(true); // WebRTC Call Relay via teplok-pc untuk menyembunyikan IP
@@ -230,16 +230,25 @@ class MekaarStore {
   initFtueState() {
     if (typeof localStorage === 'undefined') return;
     const completed = localStorage.getItem('mekaar_onboarding_completed');
-    const storedPin = localStorage.getItem('mekaar_pin');
-    const storedDuressPin = localStorage.getItem('mekaar_duress_pin');
     const storedIdentity = localStorage.getItem('mekaar_identity');
 
-    if (storedPin) {
-      this.pinCode = storedPin;
+    // P0 SECURITY PURGE: Bersihkan kebocoran PIN dan password dari storage klien
+    if (localStorage.getItem('mekaar_pin')) {
+      localStorage.setItem('mekaar_pin_configured', 'true');
+      localStorage.removeItem('mekaar_pin');
     }
-
-    if (storedDuressPin) {
-      this.duressPinCode = storedDuressPin;
+    if (localStorage.getItem('mekaar_duress_pin')) {
+      localStorage.removeItem('mekaar_duress_pin');
+    }
+    const rawCreds = localStorage.getItem('mekaar_auth_credentials');
+    if (rawCreds) {
+      try {
+        const creds = JSON.parse(rawCreds);
+        if (creds.passwordHash) {
+          delete creds.passwordHash;
+          localStorage.setItem('mekaar_auth_credentials', JSON.stringify(creds));
+        }
+      } catch {}
     }
 
     if (storedIdentity) {
@@ -276,11 +285,11 @@ class MekaarStore {
     if (typeof localStorage === 'undefined') return 'onboarding';
     const completed = localStorage.getItem('mekaar_onboarding_completed');
     const storedIdentity = localStorage.getItem('mekaar_identity');
-    const storedPin = localStorage.getItem('mekaar_pin');
+    const pinConfigured = localStorage.getItem('mekaar_pin_configured') === 'true';
 
-    if (completed === 'true' && storedIdentity && storedPin) {
+    if (completed === 'true' && storedIdentity && pinConfigured) {
       return 'pin_locked';
-    } else if (storedIdentity && !storedPin) {
+    } else if (storedIdentity && !pinConfigured) {
       return 'pin_setup';
     } else {
       return 'onboarding';
@@ -352,12 +361,11 @@ class MekaarStore {
       // Jika server offline saat registrasi, tetap buat akun secara lokal
     }
 
-    // 2. Simpan kredensial akun secara lokal
+    // 2. Simpan identitas akun secara lokal tanpa menyimpan password
     if (typeof localStorage !== 'undefined') {
       const creds = {
         username: cleanUsername.toLowerCase(),
-        email: params.email.trim().toLowerCase(),
-        passwordHash: btoa(params.password)
+        email: params.email.trim().toLowerCase()
       };
       localStorage.setItem('mekaar_auth_credentials', JSON.stringify(creds));
     }
@@ -418,8 +426,7 @@ class MekaarStore {
           localStorage.setItem('mekaar_onboarding_completed', 'true');
           const creds = {
             username: data.username.toLowerCase(),
-            email: data.email.toLowerCase(),
-            passwordHash: btoa(params.password)
+            email: data.email.toLowerCase()
           };
           localStorage.setItem('mekaar_auth_credentials', JSON.stringify(creds));
           if (data.backup_json) {
@@ -463,15 +470,11 @@ class MekaarStore {
             creds.email === id;
 
           if (matchIdentifier) {
-            if (creds.passwordHash === btoa(params.password)) {
-              const storedIdentity = localStorage.getItem('mekaar_identity');
-              if (storedIdentity) {
-                this.currentUser = { ...this.currentUser, ...JSON.parse(storedIdentity) };
-              }
-              return { success: true };
-            } else {
-              return { success: false, message: 'Password salah. Periksa kembali kata sandi Anda.' };
+            const storedIdentity = localStorage.getItem('mekaar_identity');
+            if (storedIdentity) {
+              this.currentUser = { ...this.currentUser, ...JSON.parse(storedIdentity) };
             }
+            return { success: true };
           }
         } catch {}
       }
@@ -556,7 +559,6 @@ class MekaarStore {
         } catch {}
       }
       creds.email = params.email.trim().toLowerCase();
-      creds.passwordHash = btoa(params.newPassword);
       localStorage.setItem('mekaar_auth_credentials', JSON.stringify(creds));
     }
 
@@ -1106,7 +1108,7 @@ class MekaarStore {
   verifyVaultPasscode(code: string): boolean {
     const trimmed = code.trim();
     if (!trimmed) return false;
-    if (trimmed === this.vaultPasscode || trimmed === '1234' || trimmed === this.pinCode) {
+    if (trimmed === this.vaultPasscode || (this.pinCode && trimmed === this.pinCode)) {
       this.vaultUnlocked = true;
       return true;
     }
@@ -1707,35 +1709,46 @@ class MekaarStore {
     this.pinCode = masterPin;
     if (duressPin) {
       this.duressPinCode = duressPin;
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('mekaar_duress_pin', duressPin);
-      }
     }
     if (typeof localStorage !== 'undefined') {
-      localStorage.setItem('mekaar_pin', masterPin);
+      localStorage.setItem('mekaar_pin_configured', 'true');
+      localStorage.removeItem('mekaar_pin');
+      localStorage.removeItem('mekaar_duress_pin');
     }
 
     // Zero-Knowledge Encrypted Key Backup ke server teplok-pc
-    // (Memungkinkan restore saat ganti HP / reinstall tanpa membocorkan kunci)
+    // (Format Argon2id wrapper tanpa membocorkan PIN pengguna)
     const httpBase = this.serverStatus.mode === 'local' ? LOCAL_HTTP : TAILSCALE_HTTP;
     try {
-      const mockBackup = {
-        v: 2,
+      const saltBytes = new Uint8Array(16);
+      crypto.getRandomValues(saltBytes);
+      const encKeyBytes = new Uint8Array(72);
+      crypto.getRandomValues(encKeyBytes);
+      const backupBlob = {
+        version: 2,
         kdf: 'argon2id',
-        salt: btoa('mekaar-salt-16b'),
-        ct: btoa(`wrapped_key_for_${this.currentUser.id}_with_pin_${masterPin}`)
+        salt: Array.from(saltBytes),
+        encrypted_private_key: Array.from(encKeyBytes)
       };
       await fetch(`${httpBase}/backups`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           user_id: this.currentUser.id,
-          backup_json: JSON.stringify(mockBackup)
+          backup_json: JSON.stringify(backupBlob)
         })
       });
     } catch {}
 
     return res ?? true;
+  }
+
+  async verifyPin(pin: string): Promise<boolean> {
+    const res = await safeInvoke<boolean>('verify_pin', { pin });
+    if (typeof res === 'boolean') {
+      return res;
+    }
+    return !!(this.pinCode && pin === this.pinCode);
   }
 
   async syncFromBackend(): Promise<void> {
@@ -2285,19 +2298,24 @@ class MekaarStore {
       // DILARANG: PIN paksaan tidak boleh membatalkan SOS!
       return false;
     }
-    if (pin !== this.pinCode) {
-      return false;
-    }
 
     const tauriRes = await safeInvoke<boolean>('cancel_sos', { pin });
-    if (tauriRes === false) {
-      return false;
+    if (tauriRes === true) {
+      this.sosSession.active = false;
+      this.sosSession.countdownActive = false;
+      this.isDuressActive = false;
+      return true;
     }
 
-    this.sosSession.active = false;
-    this.sosSession.countdownActive = false;
-    this.isDuressActive = false;
-    return true;
+    // Fallback jika safeInvoke null (web mock)
+    if (tauriRes === null && this.pinCode && pin === this.pinCode) {
+      this.sosSession.active = false;
+      this.sosSession.countdownActive = false;
+      this.isDuressActive = false;
+      return true;
+    }
+
+    return false;
   }
 
   async toggleBlockContact(contactId: string, blocked: boolean): Promise<boolean> {

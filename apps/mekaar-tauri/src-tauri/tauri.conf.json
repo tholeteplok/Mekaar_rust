@@ -22,7 +22,7 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: asset: https://asset.localhost; connect-src 'self' http://127.0.0.1:8085 ws://127.0.0.1:8085 http://localhost:8085 ws://localhost:8085 http://100.101.96.120:8085 ws://100.101.96.120:8085;"
     }
   },
   "bundle": {

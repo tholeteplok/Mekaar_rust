@@ -61,7 +61,8 @@
     pinError = '';
     pinSuccess = '';
 
-    if (oldPinInput !== mekaarStore.pinCode) {
+    const isOldPinValid = await mekaarStore.verifyPin(oldPinInput);
+    if (!isOldPinValid) {
       pinError = 'PIN lama tidak sesuai. Masukkan PIN master aktif Anda.';
       return;
     }
