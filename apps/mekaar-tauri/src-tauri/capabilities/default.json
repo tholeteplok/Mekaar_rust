@@ -4,6 +4,8 @@
   "description": "Default capability for MEKAAR main window",
   "windows": ["main"],
   "permissions": [
-    "core:default"
+    "core:default",
+    "core:window:allow-minimize",
+    "core:app:allow-exit"
   ]
 }
