@@ -137,7 +137,7 @@
     background: var(--bg-primary);
     color: var(--text-primary);
     position: relative;
-    padding-top: env(safe-area-inset-top, 0px);
+    padding-top: 0;
     box-sizing: border-box;
     overflow-x: hidden;
   }

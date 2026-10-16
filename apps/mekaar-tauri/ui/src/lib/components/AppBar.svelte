@@ -60,7 +60,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 16px 20px 10px 20px;
+    padding: calc(12px + env(safe-area-inset-top, 0px)) 20px 10px 20px;
     background-color: var(--bg-primary);
     position: sticky;
     top: 0;
