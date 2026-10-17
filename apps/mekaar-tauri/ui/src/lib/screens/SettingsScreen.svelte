@@ -78,7 +78,15 @@
 
 </script>
 
-<AppBar title="Pengaturan" />
+{#if mekaarStore.settingsSubView === 'advanced'}
+  <AppBar
+    title="Pengaturan Lanjutan"
+    showBack={true}
+    onback={() => (mekaarStore.settingsSubView = 'main')}
+  />
+{:else}
+  <AppBar title="Pengaturan" />
+{/if}
 
 <div class="settings-page-container">
   {#if cacheToast}
@@ -87,130 +95,56 @@
     </div>
   {/if}
 
-  <!-- Section: Akun -->
-  <div class="settings-group">
-    <span class="group-title">Akun</span>
-    <!-- svelte-ignore a11y_click_events_have_key_events -->
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div
-      class="clean-card account-card"
-      onclick={() => mekaarStore.setTab('profile')}
-    >
-      <div class="account-card-left">
-        <SketchAvatar
-          name={mekaarStore.currentUser.displayName || 'Mika'}
-          size={52}
-          online={true}
-        />
-        <div class="account-info">
-          <span class="account-name">{mekaarStore.currentUser.displayName}</span>
-          <span class="account-email">{mekaarStore.currentUser.username || '@pengguna'}</span>
-        </div>
-      </div>
-      <div class="arrow-circle">
-        <CaretRight size={16} weight="bold" color="#9FB0C9" />
-      </div>
-    </div>
-  </div>
+  {#if mekaarStore.settingsSubView === 'main'}
+    <!-- ==================== PENGATURAN UMUM / REGULER ==================== -->
 
-  <!-- Section: Tampilan -->
-  <div class="settings-group">
-    <span class="group-title">Tampilan & Gaya</span>
-    <div class="clean-card list-tile-card">
-      <!-- Tampilan, Tema & Font (Appearance Center) -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (showAppearanceModal = true)}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-purple">
-            <Palette size={20} weight="duotone" color="#8B5CF6" />
-          </div>
-          <div>
-            <span class="item-title">Tampilan, Tema & Font</span>
-            <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 1px;">
-              Live chat preview, ukuran huruf & palet warna
-            </div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="item-value">{mekaarStore.fontFamily} • {Math.round(mekaarStore.fontSizeScale * 100)}%</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Tema & Wallpaper Chat -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (mekaarStore.themeMode = mekaarStore.themeMode === 'light' ? 'dark' : 'light')}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-blue">
-            {#if mekaarStore.themeMode === 'light'}
-              <Sun size={20} weight="duotone" color="var(--brand-blue)" />
-            {:else}
-              <Moon size={20} weight="duotone" color="var(--brand-blue)" />
-            {/if}
-          </div>
-          <span class="item-title">Tema & Wallpaper Chat</span>
-        </div>
-        <div class="item-right">
-          <span class="item-value">{mekaarStore.themeMode === 'light' ? 'Mode Terang' : 'Mode Gelap'}</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Section: Privasi (Disembunyikan jika dalam Mode Duress / Paksaan) -->
-  {#if !mekaarStore.isDuressActive}
+    <!-- Section: Akun -->
     <div class="settings-group">
-      <span class="group-title">Privasi & Mode Samaran</span>
-      <div class="clean-card list-tile-card">
-        <!-- Proteksi Layar -->
-        <div class="setting-item-row">
-          <div class="item-left">
-            <div class="item-icon-circle icon-teal">
-              <DeviceMobileSlash size={20} weight="duotone" color="#0D9488" />
-            </div>
-            <span class="item-title">Proteksi Layar</span>
-          </div>
-          <div class="item-right">
-            <span class="item-value">{mekaarStore.privacyBlurOnUnfocus ? 'Aktif' : 'Nonaktif'}</span>
-            <label class="switch-toggle">
-              <input type="checkbox" bind:checked={mekaarStore.privacyBlurOnUnfocus} />
-              <span class="slider"></span>
-            </label>
+      <span class="group-title">Akun</span>
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div
+        class="clean-card account-card"
+        onclick={() => mekaarStore.setTab('profile')}
+      >
+        <div class="account-card-left">
+          <SketchAvatar
+            name={mekaarStore.currentUser.displayName || 'Mika'}
+            size={52}
+            online={true}
+          />
+          <div class="account-info">
+            <span class="account-name">{mekaarStore.currentUser.displayName}</span>
+            <span class="account-email">{mekaarStore.currentUser.username || '@pengguna'}</span>
           </div>
         </div>
+        <div class="arrow-circle">
+          <CaretRight size={16} weight="bold" color="#9FB0C9" />
+        </div>
+      </div>
+    </div>
 
-        <div class="item-divider"></div>
-
-        <!-- Kunci Otomatis (Inactivity Auto-Lock) -->
+    <!-- Section: Tampilan & Gaya -->
+    <div class="settings-group">
+      <span class="group-title">Tampilan & Gaya</span>
+      <div class="clean-card list-tile-card">
+        <!-- Tampilan, Tema & Font (Appearance Center) -->
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="setting-item-row" onclick={() => (showAutoLockModal = true)}>
+        <div class="setting-item-row" onclick={() => (showAppearanceModal = true)}>
           <div class="item-left">
-            <div class="item-icon-circle icon-blue">
-              <LockKey size={20} weight="duotone" color="var(--brand-blue)" />
+            <div class="item-icon-circle icon-purple">
+              <Palette size={20} weight="duotone" color="#8B5CF6" />
             </div>
             <div>
-              <div class="item-title">Kunci Otomatis (Auto-Lock)</div>
-              <div style="font-size: 0.76rem; color: var(--text-secondary);">Minta PIN setelah tidak ada aktivitas</div>
+              <span class="item-title">Tampilan, Tema & Font</span>
+              <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 1px;">
+                Live chat preview, ukuran huruf & palet warna
+              </div>
             </div>
           </div>
           <div class="item-right">
-            <span class="item-value">
-              {mekaarStore.autoLockMinutes === 0
-                ? 'Segera'
-                : mekaarStore.autoLockMinutes === -1
-                  ? 'Nonaktif'
-                  : `${mekaarStore.autoLockMinutes} Menit`}
-            </span>
+            <span class="item-value">{mekaarStore.fontFamily} • {Math.round(mekaarStore.fontSizeScale * 100)}%</span>
             <div class="arrow-circle">
               <CaretRight size={16} weight="bold" color="#9FB0C9" />
             </div>
@@ -219,25 +153,34 @@
 
         <div class="item-divider"></div>
 
-        <!-- Sembunyikan Notifikasi Darurat -->
-        <div class="setting-item-row">
+        <!-- Tema & Wallpaper Chat -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (mekaarStore.themeMode = mekaarStore.themeMode === 'light' ? 'dark' : 'light')}>
           <div class="item-left">
-            <div class="item-icon-circle icon-orange">
-              <EyeSlash size={20} weight="duotone" color="#EA580C" />
+            <div class="item-icon-circle icon-blue">
+              {#if mekaarStore.themeMode === 'light'}
+                <Sun size={20} weight="duotone" color="var(--brand-blue)" />
+              {:else}
+                <Moon size={20} weight="duotone" color="var(--brand-blue)" />
+              {/if}
             </div>
-            <span class="item-title">Sembunyikan Notifikasi Darurat</span>
+            <span class="item-title">Tema & Wallpaper Chat</span>
           </div>
           <div class="item-right">
-            <span class="item-value">{mekaarStore.disguisedNotifications ? 'Aktif' : 'Nonaktif'}</span>
-            <label class="switch-toggle">
-              <input type="checkbox" bind:checked={mekaarStore.disguisedNotifications} />
-              <span class="slider"></span>
-            </label>
+            <span class="item-value">{mekaarStore.themeMode === 'light' ? 'Mode Terang' : 'Mode Gelap'}</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
           </div>
         </div>
+      </div>
+    </div>
 
-        <div class="item-divider"></div>
-
+    <!-- Section: Privasi & Pesan (Reguler) -->
+    <div class="settings-group">
+      <span class="group-title">Privasi & Pesan</span>
+      <div class="clean-card list-tile-card">
         <!-- Terakhir Dilihat & Online -->
         <!-- svelte-ignore a11y_click_events_have_key_events -->
         <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -278,79 +221,6 @@
               <input type="checkbox" bind:checked={mekaarStore.readReceipts} />
               <span class="slider"></span>
             </label>
-          </div>
-        </div>
-
-        <div class="item-divider"></div>
-
-        <!-- PIN Paksaan (Duress PIN) -->
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="setting-item-row" onclick={() => (showDuressModal = true)}>
-          <div class="item-left">
-            <div class="item-icon-circle icon-orange">
-              <ShieldWarning size={20} weight="duotone" color="#EA580C" />
-            </div>
-            <div>
-              <div class="item-title">PIN Paksaan (Duress Cloak)</div>
-              <div style="font-size: 0.76rem; color: var(--text-secondary);">Aktifkan mode darurat senyap jika dipaksa</div>
-            </div>
-          </div>
-          <div class="item-right">
-            <span class="item-value">{mekaarStore.duressPinCode ? 'Dikonfigurasi' : 'Belum diatur'}</span>
-            <div class="arrow-circle">
-              <CaretRight size={16} weight="bold" color="#9FB0C9" />
-            </div>
-          </div>
-        </div>
-
-        <div class="item-divider"></div>
-
-        <!-- Pembersihan Pesan Terjadwal (Scheduled Wipe) -->
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="setting-item-row" onclick={() => (showScheduledWipeModal = true)}>
-          <div class="item-left">
-            <div class="item-icon-circle icon-blue">
-              <ClockCounterClockwise size={20} weight="duotone" color="var(--brand-blue)" />
-            </div>
-            <div>
-              <div class="item-title">Pembersihan Pesan Terjadwal</div>
-              <div style="font-size: 0.76rem; color: var(--text-secondary);">
-                {mekaarStore.scheduledWipe.mode === 'off'
-                  ? 'Nonaktif'
-                  : `${mekaarStore.scheduledWipe.mode === 'daily' ? 'Setiap Hari' : 'Sekali'} pukul ${mekaarStore.scheduledWipe.time}`}
-              </div>
-            </div>
-          </div>
-          <div class="item-right">
-            <span class="item-value" style="text-transform: capitalize;">{mekaarStore.scheduledWipe.mode}</span>
-            <div class="arrow-circle">
-              <CaretRight size={16} weight="bold" color="#9FB0C9" />
-            </div>
-          </div>
-        </div>
-
-        <div class="item-divider"></div>
-
-        <!-- Perangkat Terhubung (Connected Devices) -->
-        <!-- svelte-ignore a11y_click_events_have_key_events -->
-        <!-- svelte-ignore a11y_no_static_element_interactions -->
-        <div class="setting-item-row" onclick={() => (showConnectedDevicesModal = true)}>
-          <div class="item-left">
-            <div class="item-icon-circle icon-blue-subtle">
-              <Desktop size={20} weight="duotone" color="var(--brand-blue)" />
-            </div>
-            <div>
-              <div class="item-title">Perangkat Terhubung</div>
-              <div style="font-size: 0.76rem; color: var(--text-secondary);">{mekaarStore.connectedDevices.length} sesi aktif E2EE</div>
-            </div>
-          </div>
-          <div class="item-right">
-            <span class="item-value">Kelola</span>
-            <div class="arrow-circle">
-              <CaretRight size={16} weight="bold" color="#9FB0C9" />
-            </div>
           </div>
         </div>
 
@@ -405,6 +275,302 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- Section: Penyimpanan & Data (Storage & Cache Manager) -->
+    <div class="settings-group">
+      <span class="group-title">Penyimpanan & Data</span>
+      <div class="clean-card list-tile-card">
+        <!-- Storage Breakdown Card -->
+        <div class="storage-breakdown-card">
+          <div class="storage-bar-wrap">
+            <div class="bar-segment bar-media" style="width: {mekaarStore.vaultMediaItems.length > 0 ? '45%' : '10%'};" title="Media & Brankas"></div>
+            <div class="bar-segment bar-cache" style="width: 25%;" title="Cache Sementara"></div>
+            <div class="bar-segment bar-db" style="width: {mekaarStore.vaultMediaItems.length > 0 ? '30%' : '65%'};" title="Basis Data SQLCipher"></div>
+          </div>
+
+          <div class="storage-legend-grid">
+            <div class="legend-item">
+              <span class="legend-dot dot-media">●</span>
+              <span class="legend-label">Media: <strong>{(mekaarStore.vaultMediaItems.length * 1.5).toFixed(1)} MB</strong></span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot dot-cache">●</span>
+              <span class="legend-label">Cache: <strong>0.0 MB</strong></span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-dot dot-db">●</span>
+              <span class="legend-label">Database: <strong>{(0.4 + mekaarStore.conversations.length * 0.1).toFixed(1)} MB</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Action: Bersihkan Cache Sementara -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={handleClearCache}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-orange">
+              <Trash size={20} weight="duotone" color="#EA580C" />
+            </div>
+            <div>
+              <div class="item-title">Bersihkan Cache Sementara</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Hapus berkas pratinjau & thumbnail tanpa menghapus riwayat pesan</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Bersihkan</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Entri Sub-Screen Pengaturan Lanjutan -->
+    <div class="settings-group">
+      <span class="group-title">Sistem & Keamanan Ekstrem</span>
+      <div class="clean-card list-tile-card highlight-card">
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (mekaarStore.settingsSubView = 'advanced')}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-purple">
+              <ShieldCheck size={20} weight="duotone" color="#8B5CF6" />
+            </div>
+            <div>
+              <div class="item-title" style="font-weight: 700;">Pengaturan Lanjutan (Advanced)</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary); margin-top: 2px;">
+                Mesh Network, Duress Cloak, Forensik, Sesi Perangkat & Pemusnahan
+              </div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="aegis-badge">Tingkat Lanjut</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Informasi & Panduan -->
+    <div class="settings-group">
+      <span class="group-title">Informasi & Panduan</span>
+      <div class="clean-card list-tile-card">
+        <!-- Kamus Istilah Keamanan (Security Glossary) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showGlossaryModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-purple">
+              <BookOpen size={20} weight="duotone" color="#8B5CF6" />
+            </div>
+            <div>
+              <div class="item-title">Kamus Istilah Keamanan (Security Glossary)</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Penjelasan ramah tentang Mekaar Mesh, E2EE, Call Relay & Stego Photo</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Pelajari</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Tentang MEKAAR -->
+        <div class="setting-item-row">
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue-subtle">
+              <Info size={20} weight="duotone" color="var(--brand-blue)" />
+            </div>
+            <div>
+              <div class="item-title">Tentang MEKAAR Tactical Suite</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Versi 0.1.0 • E2EE Mesh Platform</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="aegis-badge">Produksi</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  {:else}
+    <!-- ==================== SUB-SCREEN: PENGATURAN LANJUTAN (ADVANCED) ==================== -->
+    <div class="advanced-header-banner">
+      <div class="banner-icon-wrap">
+        <ShieldCheck size={26} weight="duotone" color="#0284C7" />
+      </div>
+      <div class="banner-content">
+        <div class="banner-title">Pusat Keamanan & Sistem Lanjutan</div>
+        <div class="banner-desc">
+          Konfigurasi operasional taktis, terowongan jaringan privat, enkripsi anti-paksaan, dan audit forensik digital.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section: Keamanan Ekstrem & Anti-Paksaan -->
+    {#if !mekaarStore.isDuressActive}
+      <div class="settings-group">
+        <span class="group-title">Keamanan Ekstrem & Anti-Paksaan</span>
+        <div class="clean-card list-tile-card">
+          <!-- PIN Paksaan (Duress PIN) -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="setting-item-row" onclick={() => (showDuressModal = true)}>
+            <div class="item-left">
+              <div class="item-icon-circle icon-orange">
+                <ShieldWarning size={20} weight="duotone" color="#EA580C" />
+              </div>
+              <div>
+                <div class="item-title">PIN Paksaan (Duress Cloak)</div>
+                <div style="font-size: 0.76rem; color: var(--text-secondary);">Aktifkan mode darurat senyap jika dipaksa pihak lain</div>
+              </div>
+            </div>
+            <div class="item-right">
+              <span class="item-value">{mekaarStore.duressPinCode ? 'Dikonfigurasi' : 'Belum diatur'}</span>
+              <div class="arrow-circle">
+                <CaretRight size={16} weight="bold" color="#9FB0C9" />
+              </div>
+            </div>
+          </div>
+
+          <div class="item-divider"></div>
+
+          <!-- Proteksi Layar -->
+          <div class="setting-item-row">
+            <div class="item-left">
+              <div class="item-icon-circle icon-teal">
+                <DeviceMobileSlash size={20} weight="duotone" color="#0D9488" />
+              </div>
+              <div>
+                <div class="item-title">Proteksi Layar (Screen Blur)</div>
+                <div style="font-size: 0.76rem; color: var(--text-secondary);">Samarkan layar saat aplikasi diminimize / berpindah task</div>
+              </div>
+            </div>
+            <div class="item-right">
+              <span class="item-value">{mekaarStore.privacyBlurOnUnfocus ? 'Aktif' : 'Nonaktif'}</span>
+              <label class="switch-toggle">
+                <input type="checkbox" bind:checked={mekaarStore.privacyBlurOnUnfocus} />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="item-divider"></div>
+
+          <!-- Sembunyikan Notifikasi Darurat -->
+          <div class="setting-item-row">
+            <div class="item-left">
+              <div class="item-icon-circle icon-orange">
+                <EyeSlash size={20} weight="duotone" color="#EA580C" />
+              </div>
+              <div>
+                <div class="item-title">Sembunyikan Notifikasi Darurat</div>
+                <div style="font-size: 0.76rem; color: var(--text-secondary);">Samarkan judul pesan push agar tidak mencurigakan</div>
+              </div>
+            </div>
+            <div class="item-right">
+              <span class="item-value">{mekaarStore.disguisedNotifications ? 'Aktif' : 'Nonaktif'}</span>
+              <label class="switch-toggle">
+                <input type="checkbox" bind:checked={mekaarStore.disguisedNotifications} />
+                <span class="slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="item-divider"></div>
+
+          <!-- Kunci Otomatis (Inactivity Auto-Lock) -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="setting-item-row" onclick={() => (showAutoLockModal = true)}>
+            <div class="item-left">
+              <div class="item-icon-circle icon-blue">
+                <LockKey size={20} weight="duotone" color="var(--brand-blue)" />
+              </div>
+              <div>
+                <div class="item-title">Kunci Otomatis (Auto-Lock)</div>
+                <div style="font-size: 0.76rem; color: var(--text-secondary);">Minta PIN setelah tidak ada aktivitas</div>
+              </div>
+            </div>
+            <div class="item-right">
+              <span class="item-value">
+                {mekaarStore.autoLockMinutes === 0
+                  ? 'Segera'
+                  : mekaarStore.autoLockMinutes === -1
+                    ? 'Nonaktif'
+                    : `${mekaarStore.autoLockMinutes} Menit`}
+              </span>
+              <div class="arrow-circle">
+                <CaretRight size={16} weight="bold" color="#9FB0C9" />
+              </div>
+            </div>
+          </div>
+
+          <div class="item-divider"></div>
+
+          <!-- Pembersihan Pesan Terjadwal (Scheduled Wipe) -->
+          <!-- svelte-ignore a11y_click_events_have_key_events -->
+          <!-- svelte-ignore a11y_no_static_element_interactions -->
+          <div class="setting-item-row" onclick={() => (showScheduledWipeModal = true)}>
+            <div class="item-left">
+              <div class="item-icon-circle icon-blue">
+                <ClockCounterClockwise size={20} weight="duotone" color="var(--brand-blue)" />
+              </div>
+              <div>
+                <div class="item-title">Pembersihan Pesan Terjadwal</div>
+                <div style="font-size: 0.76rem; color: var(--text-secondary);">
+                  {mekaarStore.scheduledWipe.mode === 'off'
+                    ? 'Nonaktif'
+                    : `${mekaarStore.scheduledWipe.mode === 'daily' ? 'Setiap Hari' : 'Sekali'} pukul ${mekaarStore.scheduledWipe.time}`}
+                </div>
+              </div>
+            </div>
+            <div class="item-right">
+              <span class="item-value" style="text-transform: capitalize;">{mekaarStore.scheduledWipe.mode}</span>
+              <div class="arrow-circle">
+                <CaretRight size={16} weight="bold" color="#9FB0C9" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {/if}
+
+    <!-- Section: Jaringan Privat & Forensik -->
+    <div class="settings-group">
+      <span class="group-title">Jaringan Mesh & Forensik</span>
+      <div class="clean-card list-tile-card">
+        <!-- Mekaar Mesh Network Node -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showTailscaleModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue">
+              <ShareNetwork size={20} weight="duotone" color="var(--brand-blue)" />
+            </div>
+            <div>
+              <div class="item-title">Mekaar Mesh Network</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Jaringan privat terenkripsi • Latensi {mekaarStore.serverStatus.latencyMs}ms</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="aegis-badge">Terhubung</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
 
         <div class="item-divider"></div>
 
@@ -427,248 +593,150 @@
             </label>
           </div>
         </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Perangkat Terhubung (Connected Devices) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showConnectedDevicesModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue-subtle">
+              <Desktop size={20} weight="duotone" color="var(--brand-blue)" />
+            </div>
+            <div>
+              <div class="item-title">Perangkat Terhubung</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">{mekaarStore.connectedDevices.length} sesi aktif E2EE</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">Kelola</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Media Vault & Stego Photo -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showMediaVault = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-blue">
+              <FolderSimpleLock size={20} weight="duotone" color="var(--brand-blue)" />
+            </div>
+            <div>
+              <div class="item-title">Media Vault & Stego Photo</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Penyimpanan berkas aman & sembunyikan pesan di balik foto</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.vaultMediaItems.length} berkas</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Security Audit Log -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (showSecurityAuditModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-purple">
+              <FileText size={20} weight="duotone" color="#8B5CF6" />
+            </div>
+            <div>
+              <div class="item-title">Security Audit Log</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Catatan integritas sistem & riwayat perlindungan perangkat</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value">{mekaarStore.securityLogs.length} kejadian</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
+
+        <div class="item-divider"></div>
+
+        <!-- Digital Evidence Export -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-purple">
+              <Key size={20} weight="duotone" color="#8B5CF6" />
+            </div>
+            <div>
+              <div class="item-title">Digital Evidence Export</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Unduh arsip bukti obrolan dengan tanda tangan digital resmi</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  {/if}
 
-  <!-- Section: Penyimpanan & Data (Storage & Cache Manager) -->
-  <div class="settings-group">
-    <span class="group-title">Penyimpanan & Data</span>
-    <div class="clean-card list-tile-card">
-      <!-- Storage Breakdown Card -->
-      <div class="storage-breakdown-card">
-        <div class="storage-bar-wrap">
-          <div class="bar-segment bar-media" style="width: {mekaarStore.vaultMediaItems.length > 0 ? '45%' : '10%'};" title="Media & Brankas"></div>
-          <div class="bar-segment bar-cache" style="width: 25%;" title="Cache Sementara"></div>
-          <div class="bar-segment bar-db" style="width: {mekaarStore.vaultMediaItems.length > 0 ? '30%' : '65%'};" title="Basis Data SQLCipher"></div>
+    <!-- Section: Zona Bahaya & Pemusnahan (Danger Zone) -->
+    <div class="settings-group">
+      <span class="group-title" style="color: #E11D48;">Zona Bahaya & Darurat</span>
+      <div class="clean-card list-tile-card" style="border-color: #FECDD3;">
+        <!-- Panic Wipe (Pemusnahan Darurat) -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row danger-row" onclick={() => (showForensicWipeModal = true)}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-red">
+              <WarningOctagon size={20} weight="duotone" color="#E11D48" />
+            </div>
+            <div>
+              <div class="item-title" style="color: #E11D48; font-weight: 700;">Panic Wipe (Pemusnahan Darurat)</div>
+              <div style="font-size: 0.76rem; color: #FDA4AF;">Hapus permanen seluruh percakapan, database SQLCipher & kunci kripto</div>
+            </div>
+          </div>
+          <div class="item-right">
+            <span class="item-value" style="color: #E11D48; font-weight: 700;">Hancurkan Data</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#FDA4AF" />
+            </div>
+          </div>
         </div>
 
-        <div class="storage-legend-grid">
-          <div class="legend-item">
-            <span class="legend-dot dot-media">●</span>
-            <span class="legend-label">Media: <strong>{(mekaarStore.vaultMediaItems.length * 1.5).toFixed(1)} MB</strong></span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot dot-cache">●</span>
-            <span class="legend-label">Cache: <strong>0.0 MB</strong></span>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot dot-db">●</span>
-            <span class="legend-label">Database: <strong>{(0.4 + mekaarStore.conversations.length * 0.1).toFixed(1)} MB</strong></span>
-          </div>
-        </div>
-      </div>
+        <div class="item-divider"></div>
 
-      <div class="item-divider"></div>
-
-      <!-- Action: Bersihkan Cache Sementara -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={handleClearCache}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-orange">
-            <Trash size={20} weight="duotone" color="#EA580C" />
+        <!-- Reset Pengenalan Aplikasi -->
+        <!-- svelte-ignore a11y_click_events_have_key_events -->
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div class="setting-item-row" onclick={() => mekaarStore.resetFtueSimulation()}>
+          <div class="item-left">
+            <div class="item-icon-circle icon-orange">
+              <ArrowsClockwise size={20} weight="duotone" color="#EA580C" />
+            </div>
+            <div>
+              <div class="item-title">Reset Pengenalan Aplikasi</div>
+              <div style="font-size: 0.76rem; color: var(--text-secondary);">Mulai ulang panduan awal & orientasi akun baru</div>
+            </div>
           </div>
-          <div>
-            <div class="item-title">Bersihkan Cache Sementara</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Hapus berkas pratinjau & thumbnail tanpa menghapus riwayat pesan</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Bersihkan</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Section: Server Relay teplok-pc & Forensik -->
-  <div class="settings-group">
-    <span class="group-title">Sistem & Keamanan Tingkat Lanjut</span>
-    <div class="clean-card list-tile-card">
-      <!-- Mekaar Mesh Network Node -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (showTailscaleModal = true)}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-blue">
-            <ShareNetwork size={20} weight="duotone" color="var(--brand-blue)" />
-          </div>
-          <div>
-            <div class="item-title">Mekaar Mesh Network</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Jaringan privat terenkripsi • Latensi {mekaarStore.serverStatus.latencyMs}ms</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="aegis-badge">Terhubung</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Media Vault & Stego Photo -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (showMediaVault = true)}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-blue">
-            <FolderSimpleLock size={20} weight="duotone" color="var(--brand-blue)" />
-          </div>
-          <div>
-            <div class="item-title">Media Vault & Stego Photo</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Penyimpanan berkas aman & sembunyikan pesan di balik foto</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="item-value">{mekaarStore.vaultMediaItems.length} berkas</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Security Audit Log -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (showSecurityAuditModal = true)}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-purple">
-            <FileText size={20} weight="duotone" color="#8B5CF6" />
-          </div>
-          <div>
-            <div class="item-title">Security Audit Log</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Catatan integritas sistem & riwayat perlindungan perangkat</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="item-value">{mekaarStore.securityLogs.length} kejadian</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Digital Evidence Export -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (mekaarStore.forensicDialogOpen = true)}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-purple">
-            <Key size={20} weight="duotone" color="#8B5CF6" />
-          </div>
-          <div>
-            <div class="item-title">Digital Evidence Export</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Unduh arsip bukti obrolan dengan tanda tangan digital resmi</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Panic Wipe (Pemusnahan Darurat) -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row danger-row" onclick={() => (showForensicWipeModal = true)}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-red">
-            <WarningOctagon size={20} weight="duotone" color="#E11D48" />
-          </div>
-          <div>
-            <div class="item-title" style="color: #E11D48;">Panic Wipe (Pemusnahan Darurat)</div>
-            <div style="font-size: 0.76rem; color: #FDA4AF;">Hapus permanen seluruh percakapan & kunci saat situasi kritis</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="item-value" style="color: #E11D48; font-weight: 700;">Hancurkan Data</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#FDA4AF" />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Reset Pengenalan Aplikasi -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => mekaarStore.resetFtueSimulation()}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-orange">
-            <ArrowsClockwise size={20} weight="duotone" color="#EA580C" />
-          </div>
-          <div>
-            <div class="item-title">Reset Pengenalan Aplikasi</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Mulai ulang panduan awal & orientasi akun baru</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="item-value" style="color: #EA580C; font-size: 0.8rem; font-weight: 600;">Mulai Ulang</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
+          <div class="item-right">
+            <span class="item-value" style="color: #EA580C; font-size: 0.8rem; font-weight: 600;">Mulai Ulang</span>
+            <div class="arrow-circle">
+              <CaretRight size={16} weight="bold" color="#9FB0C9" />
+            </div>
           </div>
         </div>
       </div>
     </div>
-  </div>
-
-  <!-- Section: Informasi & Panduan -->
-  <div class="settings-group">
-    <span class="group-title">Informasi & Panduan</span>
-    <div class="clean-card list-tile-card">
-      <!-- Kamus Istilah Keamanan (Security Glossary) -->
-      <!-- svelte-ignore a11y_click_events_have_key_events -->
-      <!-- svelte-ignore a11y_no_static_element_interactions -->
-      <div class="setting-item-row" onclick={() => (showGlossaryModal = true)}>
-        <div class="item-left">
-          <div class="item-icon-circle icon-purple">
-            <BookOpen size={20} weight="duotone" color="#8B5CF6" />
-          </div>
-          <div>
-            <div class="item-title">Kamus Istilah Keamanan (Security Glossary)</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Penjelasan ramah tentang Mekaar Mesh, E2EE, Call Relay & Stego Photo</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="item-value" style="color: var(--brand-blue); font-weight: 700;">Pelajari</span>
-          <div class="arrow-circle">
-            <CaretRight size={16} weight="bold" color="#9FB0C9" />
-          </div>
-        </div>
-      </div>
-
-      <div class="item-divider"></div>
-
-      <!-- Tentang MEKAAR -->
-      <div class="setting-item-row">
-        <div class="item-left">
-          <div class="item-icon-circle icon-blue-subtle">
-            <Info size={20} weight="duotone" color="var(--brand-blue)" />
-          </div>
-          <div>
-            <div class="item-title">Tentang MEKAAR Tactical Suite</div>
-            <div style="font-size: 0.76rem; color: var(--text-secondary);">Versi 0.1.0 • E2EE Mesh Platform</div>
-          </div>
-        </div>
-        <div class="item-right">
-          <span class="aegis-badge">Produksi</span>
-        </div>
-      </div>
-    </div>
-  </div>
+  {/if}
 </div>
 
 <!-- Modal Dialog Tampilan, Tema & Font (Appearance Center) -->
@@ -1201,5 +1269,58 @@
     background: #EFF6FF;
     color: var(--brand-blue);
     font-weight: 700;
+  }
+
+  /* Highlight Card for Advanced Settings Entry */
+  .highlight-card {
+    border: 1.5px solid rgba(139, 92, 246, 0.25);
+    background: linear-gradient(135deg, rgba(243, 232, 255, 0.2), var(--bg-surface, #FFFFFF));
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+
+  .highlight-card:active {
+    transform: scale(0.99);
+  }
+
+  /* Advanced Header Banner */
+  .advanced-header-banner {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #F0F9FF, #E0F2FE);
+    border: 1px solid #BAE6FD;
+    border-radius: 16px;
+    margin-bottom: 8px;
+  }
+
+  .banner-icon-wrap {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: #FFFFFF;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px rgba(2, 132, 199, 0.15);
+  }
+
+  .banner-content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .banner-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #0369A1;
+  }
+
+  .banner-desc {
+    font-size: 0.78rem;
+    color: #0C4A6E;
+    line-height: 1.35;
   }
 </style>

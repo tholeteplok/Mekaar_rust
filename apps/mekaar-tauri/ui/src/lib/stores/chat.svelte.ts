@@ -63,6 +63,7 @@ class MekaarStore {
   isDuressActive = $state(false);
   duressPinCode = $state<string>('');
   activeTab = $state<MainTabType>('chat');
+  settingsSubView = $state<'main' | 'advanced'>('main');
   activeRegister = $state<RegisterType>('core');
   selectedConversationId = $state<string | null>(null);
   forensicDialogOpen = $state(false);
@@ -663,6 +664,9 @@ class MekaarStore {
   // Navigasi Tab & Register Otomatis
   setTab(tab: MainTabType) {
     this.activeTab = tab;
+    if (tab !== 'settings') {
+      this.settingsSubView = 'main';
+    }
     if (tab === 'sos') {
       this.activeRegister = 'sos';
     } else if (tab === 'chat' && this.selectedConversationId) {
@@ -670,6 +674,10 @@ class MekaarStore {
     } else {
       this.activeRegister = 'core';
     }
+  }
+
+  setSettingsSubView(view: 'main' | 'advanced') {
+    this.settingsSubView = view;
   }
 
   openConversation(convId: string) {

@@ -64,7 +64,13 @@
       return;
     }
 
-    // 4. User requirement: "jika back dari kontak/profil/pengaturan akan kembali ke home(tab pesan)"
+    // 4. If in Settings advanced sub-screen, return to main settings first
+    if (mekaarStore.activeTab === 'settings' && mekaarStore.settingsSubView !== 'main') {
+      mekaarStore.settingsSubView = 'main';
+      return;
+    }
+
+    // 5. User requirement: "jika back dari kontak/profil/pengaturan akan kembali ke home(tab pesan)"
     if (mekaarStore.activeTab !== 'chat') {
       mekaarStore.activeTab = 'chat';
       return;

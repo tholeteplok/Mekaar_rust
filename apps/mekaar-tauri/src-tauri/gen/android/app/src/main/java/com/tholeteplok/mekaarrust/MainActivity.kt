@@ -1,4 +1,4 @@
-package com.mekaar.app
+package com.tholeteplok.mekaarrust
 
 import android.graphics.Color
 import android.os.Bundle
