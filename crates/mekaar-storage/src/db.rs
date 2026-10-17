@@ -365,6 +365,70 @@ impl EncryptedDatabase {
         Ok(rows)
     }
 
+    /// Memperbarui konten teks pesan yang diedit.
+    pub fn edit_message(&self, message_id: &Uuid, new_content: &str) -> Result<bool, StorageError> {
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+
+        let rows = conn.execute(
+            "UPDATE local_messages SET content = ?1, edited_at = ?2, updated_at = ?2 WHERE id = ?3 AND is_deleted = 0",
+            params![new_content, now, message_id.to_string()],
+        )?;
+
+        Ok(rows > 0)
+    }
+
+    /// Menandai pesan telah ditarik (revoked) untuk semua orang.
+    pub fn revoke_message(&self, message_id: &Uuid) -> Result<bool, StorageError> {
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+
+        let rows = conn.execute(
+            "UPDATE local_messages SET
+                content = '🔒 Pesan ini telah ditarik',
+                media_url = NULL,
+                reactions_json = '{}',
+                updated_at = ?1
+             WHERE id = ?2",
+            params![now, message_id.to_string()],
+        )?;
+
+        Ok(rows > 0)
+    }
+
+    /// Menghapus pesan secara lokal dari database (hapus untuk saya).
+    pub fn delete_message(&self, message_id: &Uuid) -> Result<bool, StorageError> {
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
+        let rows = conn.execute(
+            "DELETE FROM local_messages WHERE id = ?1",
+            params![message_id.to_string()],
+        )?;
+
+        Ok(rows > 0)
+    }
+
+    /// Memperbarui reaksi emoji pada pesan.
+    pub fn update_message_reactions(&self, message_id: &Uuid, reactions_json: &str) -> Result<bool, StorageError> {
+        let conn = self.conn.lock().map_err(|_| StorageError::Database("mutex poisoned".to_string()))?;
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as i64;
+
+        let rows = conn.execute(
+            "UPDATE local_messages SET reactions_json = ?1, updated_at = ?2 WHERE id = ?3",
+            params![reactions_json, now, message_id.to_string()],
+        )?;
+
+        Ok(rows > 0)
+    }
+
     // ── Chat Rooms ─────────────────────────────────────────────────────
 
     /// Mendaftarkan atau memperbarui ruang obrolan.

@@ -28,6 +28,7 @@ use uuid::Uuid;
 #[derive(Deserialize)]
 pub struct WsParams {
     pub user_id: Option<Uuid>,
+    pub format: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -369,14 +370,18 @@ pub async fn ws_handler(
     State(hub): State<Arc<Hub>>,
     Query(params): Query<WsParams>,
 ) -> Response {
-    ws.on_upgrade(move |socket| handle_socket(socket, hub, params.user_id))
+    ws.on_upgrade(move |socket| handle_socket(socket, hub, params.user_id, params.format))
 }
 
 /// Penanganan siklus hidup WebSocket socket: framing biner/teks, auth, dan pump channel.
-async fn handle_socket(socket: WebSocket, hub: Arc<Hub>, initial_user_id: Option<Uuid>) {
+async fn handle_socket(socket: WebSocket, hub: Arc<Hub>, initial_user_id: Option<Uuid>, format_param: Option<String>) {
     let (mut ws_sender, mut ws_receiver) = socket.split();
     // Bounded channel (256) agar satu klien zalim tidak OOM server.
     let (tx, mut rx) = mpsc::channel::<ServerCommand>(256);
+
+    let prefers_json = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(
+        format_param.as_deref() == Some("json")
+    ));
 
     // P0: jangan auto-connect via query pre-auth. Wajib AuthSubscribe dulu.
     // Query hanya jadi petunjuk; koneksi Hub dibuat setelah AuthSubscribe terverifikasi.
@@ -387,17 +392,25 @@ async fn handle_socket(socket: WebSocket, hub: Arc<Hub>, initial_user_id: Option
     let mut current_epoch: Option<u64> = None;
 
     // Task 1: Outgoing pump (Kirim pesan ServerCommand dari channel mpsc ke klien WebSocket)
+    let prefers_json_out = prefers_json.clone();
     let send_task = tokio::spawn(async move {
         while let Some(cmd) = rx.recv().await {
-            // Coba encode dengan Postcard biner untuk efisiensi kuota transmisi
-            let msg = match encode_postcard(&cmd) {
-                Ok(bytes) => Message::Binary(bytes.into()),
-                Err(_) => {
-                    // Fallback ke JSON jika postcard gagal
-                    if let Ok(json_str) = encode_json(&cmd) {
-                        Message::Text(json_str.into())
-                    } else {
-                        continue;
+            let msg = if prefers_json_out.load(std::sync::atomic::Ordering::Relaxed) {
+                if let Ok(json_str) = encode_json(&cmd) {
+                    Message::Text(json_str.into())
+                } else {
+                    continue;
+                }
+            } else {
+                match encode_postcard(&cmd) {
+                    Ok(bytes) => Message::Binary(bytes.into()),
+                    Err(_) => {
+                        // Fallback ke JSON jika postcard gagal
+                        if let Ok(json_str) = encode_json(&cmd) {
+                            Message::Text(json_str.into())
+                        } else {
+                            continue;
+                        }
                     }
                 }
             };
@@ -442,6 +455,7 @@ async fn handle_socket(socket: WebSocket, hub: Arc<Hub>, initial_user_id: Option
                 }
             }
             Message::Text(text) => {
+                prefers_json.store(true, std::sync::atomic::Ordering::Relaxed);
                 // Decode frame JSON teks
                 match decode_json::<ClientCommand>(&text) {
                     Ok(c) => Some(c),

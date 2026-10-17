@@ -476,6 +476,9 @@
                   sizeLabel: sizeLabel || '',
                   isStego: !!isStego
                 };
+                if (msg.attachment?.name.includes('Sekali_Lihat') || msg.attachment?.name.includes('View-Once') || msg.isViewOnce) {
+                  mekaarStore.markViewOnceOpened(activeConv.id, msg.id);
+                }
               }}
               onopenstego={(src, name) => {
                 selectedStegoSrc = src;

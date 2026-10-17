@@ -748,6 +748,11 @@ pub fn send_e2ee_message(
     room_id: String,
     recipient_id: String,
     content: String,
+    msg_type: Option<String>,
+    media_url: Option<String>,
+    reply_to_id: Option<String>,
+    is_view_once: Option<bool>,
+    expires_at: Option<u64>,
     state: State<'_, MekaarAppState>,
 ) -> Result<SendMessageResult, String> {
     let db = require_db(&state)?;
@@ -796,6 +801,23 @@ pub fn send_e2ee_message(
     let (nonce, ciphertext) = encrypt_message(&room_key, content.as_bytes())
         .map_err(|e| e.to_string())?;
 
+    let parsed_msg_type = match msg_type.as_deref() {
+        Some("image") => MessageType::Image,
+        Some("voice") => MessageType::Voice,
+        Some("video") => MessageType::Video,
+        Some("location") => MessageType::Location,
+        Some("system") => MessageType::System,
+        _ => MessageType::Text,
+    };
+
+    let reply_to_uuid = reply_to_id.as_deref().and_then(|id| {
+        let clean = id.trim_start_matches("msg-");
+        Uuid::parse_str(clean).ok()
+    });
+
+    let view_once = is_view_once.unwrap_or(false);
+    let auto_delete = expires_at;
+
     let msg_id = Uuid::new_v4();
     let msg = LocalMessage {
         id: msg_id,
@@ -803,15 +825,15 @@ pub fn send_e2ee_message(
         sender_id: my_id,
         recipient_id: rec_uuid,
         content,
-        media_url: None,
-        msg_type: MessageType::Text,
-        is_view_once: false,
+        media_url,
+        msg_type: parsed_msg_type,
+        is_view_once: view_once,
         is_opened: true,
         opened_at: Some(now),
-        reply_to_id: None,
+        reply_to_id: reply_to_uuid,
         is_deleted: false,
         is_silent_deleted: false,
-        auto_delete_at: None,
+        auto_delete_at: auto_delete,
         edited_at: None,
         reactions: HashMap::new(),
         is_encrypted: true,
@@ -829,9 +851,9 @@ pub fn send_e2ee_message(
         nonce,
         ciphertext,
         timestamp_ms: now,
-        msg_type: MessageType::Text,
-        is_view_once: false,
-        expires_at: None,
+        msg_type: parsed_msg_type,
+        is_view_once: view_once,
+        expires_at: auto_delete,
     };
 
     db.insert_message(&msg).map_err(|e| e.to_string())?;
@@ -905,6 +927,104 @@ pub fn decrypt_incoming_envelope(
 
     let _ = db.insert_message(&msg);
     Ok(msg)
+}
+
+#[tauri::command]
+pub fn edit_e2ee_message(
+    room_id: String,
+    message_id: String,
+    new_content: String,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let _ = room_id;
+    let db = require_db(&state)?;
+    let clean_id = message_id.trim_start_matches("msg-");
+    let msg_uuid = Uuid::parse_str(clean_id).map_err(|e| e.to_string())?;
+    db.edit_message(&msg_uuid, &new_content).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn revoke_e2ee_message(
+    room_id: String,
+    message_id: String,
+    for_everyone: bool,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let _ = room_id;
+    let db = require_db(&state)?;
+    let clean_id = message_id.trim_start_matches("msg-");
+    let msg_uuid = Uuid::parse_str(clean_id).map_err(|e| e.to_string())?;
+    if for_everyone {
+        db.revoke_message(&msg_uuid).map_err(|e| e.to_string())
+    } else {
+        db.delete_message(&msg_uuid).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+pub fn delete_e2ee_message(
+    message_id: String,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let db = require_db(&state)?;
+    let clean_id = message_id.trim_start_matches("msg-");
+    let msg_uuid = Uuid::parse_str(clean_id).map_err(|e| e.to_string())?;
+    db.delete_message(&msg_uuid).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn toggle_reaction_e2ee(
+    room_id: String,
+    message_id: String,
+    emoji: String,
+    state: State<'_, MekaarAppState>,
+) -> Result<HashMap<String, Vec<String>>, String> {
+    let _ = room_id;
+    let db = require_db(&state)?;
+    let clean_id = message_id.trim_start_matches("msg-");
+    let msg_uuid = Uuid::parse_str(clean_id).map_err(|e| e.to_string())?;
+    let my_id = { *state.user_id.lock().map_err(|e| e.to_string())? }.to_string();
+
+    let mut reactions = match db.get_message(&msg_uuid).map_err(|e| e.to_string())? {
+        Some(m) => m.reactions,
+        None => HashMap::new(),
+    };
+
+    let users = reactions.entry(emoji.clone()).or_insert_with(Vec::new);
+    if let Some(pos) = users.iter().position(|u| u == &my_id) {
+        users.remove(pos);
+        if users.is_empty() {
+            reactions.remove(&emoji);
+        }
+    } else {
+        users.push(my_id);
+    }
+
+    let reactions_json = serde_json::to_string(&reactions).unwrap_or_else(|_| "{}".to_string());
+    let _ = db.update_message_reactions(&msg_uuid, &reactions_json);
+
+    Ok(reactions)
+}
+
+#[tauri::command]
+pub fn mark_message_viewed(
+    message_id: String,
+    state: State<'_, MekaarAppState>,
+) -> Result<bool, String> {
+    let db = require_db(&state)?;
+    let clean_id = message_id.trim_start_matches("msg-");
+    let msg_uuid = Uuid::parse_str(clean_id).map_err(|e| e.to_string())?;
+    db.mark_as_viewed(&msg_uuid).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn purge_expired_messages(state: State<'_, MekaarAppState>) -> Result<usize, String> {
+    let db = require_db(&state)?;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis() as u64;
+    db.purge_expired_messages(now).map_err(|e| e.to_string())
 }
 
 #[tauri::command]

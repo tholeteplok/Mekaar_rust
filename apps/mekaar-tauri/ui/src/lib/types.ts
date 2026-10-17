@@ -80,6 +80,8 @@ export interface MessageModel {
   attachment?: AttachmentModel;
   isEdited?: boolean;
   isRevoked?: boolean;
+  isViewOnce?: boolean;
+  isOpened?: boolean;
 }
 
 export interface RoomParticipantPreferences {

@@ -53,15 +53,18 @@
     reader.readAsDataURL(file);
   }
 
+  let isViewOnce = $state(false);
+
   function sendStandardImage() {
     onSelectAttachment({
       id: `att-${Date.now()}`,
       kind: 'image',
-      name: 'Foto_Dokumentasi_Lapangan.png',
-      sizeLabel: '1.2 MB • Terenkripsi E2EE',
+      name: isViewOnce ? 'Foto_Sekali_Lihat.png' : 'Foto_Dokumentasi_Lapangan.png',
+      sizeLabel: isViewOnce ? '1.2 MB • Sekali Lihat (View-Once)' : '1.2 MB • Terenkripsi E2EE',
       urlOrPreview: stegoCarrierPreview || createSyntheticCarrierImage('Foto Lapangan', 'Dokumentasi Situasi'),
       encryptedChecksum: 'SHA256: 88F1-CC40-1120-E9AB'
     });
+    isViewOnce = false;
     onclose();
   }
 
@@ -269,6 +272,12 @@
           <label class="btn-change-carrier">
             Pilih Foto Galeri
             <input type="file" accept="image/*" onchange={handleImageFileSelect} style="display: none;" />
+          </label>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin: 10px 0; padding: 10px; background: var(--bg-surface, #F8FAFC); border: 1px solid var(--border-subtle, #E2E8F0); border-radius: 8px;">
+          <input type="checkbox" id="view-once-chk" bind:checked={isViewOnce} style="cursor: pointer;" />
+          <label for="view-once-chk" style="font-size: 0.85rem; font-weight: 600; cursor: pointer; color: var(--text-primary);">
+            🔒 Pesan Sekali Lihat (View-Once)
           </label>
         </div>
         <button type="button" class="btn-primary-send" onclick={sendStandardImage}>

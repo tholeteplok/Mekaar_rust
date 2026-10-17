@@ -680,6 +680,7 @@ class MekaarStore {
     if (conv) {
       conv.unreadCount = 0;
     }
+    this.loadMessagesForRoom(convId);
   }
 
   closeConversation() {
@@ -757,7 +758,8 @@ class MekaarStore {
       if (this.wsInstance) {
         this.wsInstance.close();
       }
-      const ws = new WebSocket(wsUrl);
+      const targetWsUrl = wsUrl.includes('?') ? `${wsUrl}&format=json` : `${wsUrl}?format=json`;
+      const ws = new WebSocket(targetWsUrl);
       ws.onopen = async () => {
         // Daftarkan session identitas via AuthSubscribe sesuai mekaar-proto
         const pubKeyRes = await safeInvoke<number[]>('get_identity_public_key');
@@ -782,17 +784,19 @@ class MekaarStore {
 
       ws.onmessage = async (event) => {
         try {
-          const payload = JSON.parse(event.data);
+          const rawData = event.data instanceof Blob ? await event.data.text() : event.data;
+          const payload = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
 
           if (payload?.subscribed_ack) {
             this.serverStatus.wsConnected = true;
             this.serverStatus.online = true;
-          } else if (payload?.delivery_receipt) {
-            const msgId = payload.delivery_receipt.message_id;
+          } else if (payload?.delivery_receipt || payload?.delivery_ack) {
+            const msgId = payload?.delivery_receipt?.message_id || payload?.delivery_ack?.message_id;
+            const newStatus = payload?.delivery_ack ? 'read' : 'delivered';
             for (const cId in this.messagesByConv) {
               const m = this.messagesByConv[cId].find((item) => item.id === msgId);
               if (m) {
-                m.status = 'delivered';
+                m.status = newStatus;
                 break;
               }
             }
@@ -802,14 +806,31 @@ class MekaarStore {
               id: string;
               roomId: string;
               senderId: string;
+              recipientId: string;
               content: string;
+              mediaUrl?: string | null;
+              msgType?: string;
+              isViewOnce?: boolean;
+              replyToId?: string | null;
+              autoDeleteAt?: number | null;
+              createdAt: number;
+              status: string;
             }>('decrypt_incoming_envelope', { envelope: env });
 
-            const senderContact = this.contacts.find((c) => c.id === env.sender_id);
+            const senderContact = this.contacts.find((c) => c.id === env.sender_id || `@${c.username.replace('@', '')}` === `@${env.sender_id}`);
             const senderName = senderContact?.displayName || `User ${env.sender_id.slice(0, 6)}`;
             const convId = env.room_id ? `conv-${env.room_id}` : 'conv-1';
 
-            this.receiveIncomingMessage(convId, senderName, decrypted?.content || '[Pesan Terenkripsi]');
+            this.receiveIncomingMessage(
+              convId,
+              env.sender_id,
+              senderName,
+              decrypted?.content || '[Pesan Terenkripsi]',
+              env.message_id,
+              decrypted?.msgType,
+              decrypted?.isViewOnce,
+              decrypted?.autoDeleteAt || env.expires_at
+            );
 
             // Kirim konfirmasi tanda terima nyata (DeliveryAck) ke relay server
             if (ws.readyState === WebSocket.OPEN) {
@@ -869,6 +890,13 @@ class MekaarStore {
     const recipient = conv?.participants.find((p) => p.userId !== this.currentUser.id);
     const recipientId = recipient?.userId || '44444444-4444-4444-4444-444444444444';
 
+    const msgType = attachment?.kind ?? 'text';
+    const mediaUrl = attachment?.urlOrPreview;
+    const isViewOnce = attachment?.kind === 'image' && (attachment.name.includes('View-Once') || attachment.name.includes('Sekali Lihat'));
+    const expiresAt = conv?.disappearingSeconds && conv.disappearingSeconds > 0
+      ? Date.now() + (conv.disappearingSeconds * 1000)
+      : undefined;
+
     // 1. Enkripsi E2EE XChaCha20-Poly1305 & simpan ke database lokal SQLCipher via Rust IPC
     const sendRes = await safeInvoke<{
       message: {
@@ -888,11 +916,18 @@ class MekaarStore {
         ciphertext: number[];
         timestamp_ms: number;
         msg_type: string;
+        is_view_once: boolean;
+        expires_at?: number;
       };
     }>('send_e2ee_message', {
       roomId: convId,
       recipientId,
-      content
+      content,
+      msgType,
+      mediaUrl,
+      replyToId: replyTo?.id,
+      isViewOnce,
+      expiresAt
     });
 
     const msgId = sendRes?.envelope?.message_id || sendRes?.message?.id || `msg-${Date.now()}`;
@@ -1099,21 +1134,180 @@ class MekaarStore {
     this.vaultMediaItems = this.vaultMediaItems.filter((m) => m.id !== id);
   }
 
-  receiveIncomingMessage(convId: string, senderName: string, text: string) {
+  async loadMessagesForRoom(convId: string) {
+    try {
+      const dbMsgs = await safeInvoke<Array<{
+        id: string;
+        room_id: string;
+        sender_id: string;
+        recipient_id: string;
+        content: string;
+        media_url?: string | null;
+        msg_type: string;
+        is_view_once: boolean;
+        is_opened: boolean;
+        opened_at?: number | null;
+        reply_to_id?: string | null;
+        is_deleted: boolean;
+        is_silent_deleted: boolean;
+        auto_delete_at?: number | null;
+        edited_at?: number | null;
+        reactions: Record<string, string[]>;
+        is_encrypted: boolean;
+        created_at: number;
+        updated_at: number;
+        status: string;
+      }>>('get_messages', { roomId: convId });
+
+      if (dbMsgs && dbMsgs.length > 0) {
+        const conv = this.conversations.find((c) => c.id === convId);
+        const mapped: MessageModel[] = dbMsgs.map((m) => {
+          const isSelf = m.sender_id === this.currentUser.id;
+          const contact = this.contacts.find((c) => c.id === m.sender_id);
+          const senderName = isSelf ? this.currentUser.displayName : (contact?.displayName || conv?.title || 'Kontak');
+          const time = new Date(m.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+          let status: MessageModel['status'] = 'sent';
+          if (m.status === 'delivered') status = 'delivered';
+          else if (m.status === 'read') status = 'read';
+          else if (m.status === 'queued') status = 'sending';
+
+          let att: MessageModel['attachment'] = undefined;
+          if (m.msg_type === 'image') {
+            att = {
+              id: `att-${m.id}`,
+              kind: 'image',
+              name: m.is_view_once ? 'Foto Sekali Lihat' : 'Foto Terenkripsi',
+              sizeLabel: 'E2EE Image',
+              urlOrPreview: m.media_url || ''
+            };
+          } else if (m.msg_type === 'voice') {
+            att = {
+              id: `att-${m.id}`,
+              kind: 'voice',
+              name: 'Pesan Suara',
+              sizeLabel: 'Opus E2EE',
+              urlOrPreview: 'voice',
+              durationSec: 8
+            };
+          } else if (m.msg_type === 'location') {
+            att = {
+              id: `att-${m.id}`,
+              kind: 'location',
+              name: 'Lokasi Terenkripsi',
+              sizeLabel: 'GPS E2EE',
+              urlOrPreview: m.media_url || 'geo:-7.5583,110.8566'
+            };
+          }
+
+          return {
+            id: m.id,
+            conversationId: convId,
+            senderId: m.sender_id,
+            senderName,
+            text: m.content,
+            timestamp: time,
+            isSelf,
+            status,
+            replyToId: m.reply_to_id || undefined,
+            isEdited: !!m.edited_at,
+            isRevoked: m.content === '🔒 Pesan ini telah ditarik',
+            reactions: m.reactions || {},
+            attachment: att,
+            disappearingSeconds: conv?.disappearingSeconds,
+            expiresAt: m.auto_delete_at ? `${Math.max(1, Math.round((m.auto_delete_at - Date.now()) / 60000))}m` : undefined
+          };
+        });
+
+        this.messagesByConv[convId] = mapped;
+      }
+    } catch (e) {
+      console.warn('[MekaarStore] loadMessagesForRoom error:', e);
+    }
+  }
+
+  receiveIncomingMessage(
+    convId: string,
+    senderId: string,
+    senderName: string,
+    text: string,
+    msgId?: string,
+    msgType?: string,
+    isViewOnce?: boolean,
+    expiresAtMs?: number | null
+  ) {
     const now = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    const realMsgId = msgId || `msg-${Date.now()}`;
+
+    // 1. Dapatkan atau auto-create conversation
+    let conv = this.conversations.find((c) => c.id === convId);
+    if (!conv) {
+      conv = {
+        id: convId,
+        title: senderName,
+        subtitle: text,
+        avatarColor: '#3B82F6',
+        isGroup: false,
+        unreadCount: this.selectedConversationId === convId ? 0 : 1,
+        lastTimestamp: now,
+        isOnline: true,
+        isTyping: false,
+        isPinned: false,
+        isMuted: false,
+        disappearingSeconds: expiresAtMs ? Math.max(0, Math.round((expiresAtMs - Date.now()) / 1000)) : 0,
+        chatTheme: 'classic',
+        participants: [
+          { userId: this.currentUser.id, displayName: this.currentUser.displayName, role: 'admin', muted: false },
+          { userId: senderId, displayName: senderName, role: 'member', muted: false }
+        ]
+      };
+      this.conversations = [conv, ...this.conversations];
+    } else {
+      conv.subtitle = text;
+      conv.lastTimestamp = now;
+      if (this.selectedConversationId !== convId) {
+        conv.unreadCount += 1;
+      }
+    }
+
+    let att: MessageModel['attachment'] = undefined;
+    if (msgType === 'image') {
+      att = {
+        id: `att-${realMsgId}`,
+        kind: 'image',
+        name: isViewOnce ? 'Foto Sekali Lihat' : 'Foto Masuk',
+        sizeLabel: 'E2EE Foto',
+        urlOrPreview: ''
+      };
+    } else if (msgType === 'voice') {
+      att = {
+        id: `att-${realMsgId}`,
+        kind: 'voice',
+        name: 'Pesan Suara',
+        sizeLabel: 'Opus E2EE',
+        urlOrPreview: 'voice',
+        durationSec: 8
+      };
+    }
+
     const msg: MessageModel = {
-      id: `msg-${Date.now()}`,
+      id: realMsgId,
       conversationId: convId,
-      senderId: 'peer-remote',
+      senderId,
       senderName,
       text,
       timestamp: now,
       isSelf: false,
-      status: 'read',
-      reactions: {}
+      status: this.selectedConversationId === convId ? 'read' : 'delivered',
+      reactions: {},
+      attachment: att,
+      disappearingSeconds: conv.disappearingSeconds || undefined,
+      expiresAt: expiresAtMs ? `${Math.max(1, Math.round((expiresAtMs - Date.now()) / 60000))}m` : undefined,
     };
+
     const existing = this.messagesByConv[convId] ?? [];
-    this.messagesByConv[convId] = [...existing, msg];
+    if (!existing.some((m) => m.id === realMsgId)) {
+      this.messagesByConv[convId] = [...existing, msg];
+    }
   }
 
   toggleReaction(convId: string, msgId: string, emoji: string) {
@@ -1132,6 +1326,12 @@ class MekaarStore {
     } else {
       msg.reactions[emoji] = [...current, this.currentUser.id];
     }
+
+    safeInvoke('toggle_reaction_e2ee', {
+      roomId: convId,
+      messageId: msgId,
+      emoji
+    }).catch(() => {});
   }
 
   editMessage(convId: string, msgId: string, newText: string) {
@@ -1169,6 +1369,25 @@ class MekaarStore {
       messageId: msgId,
       forEveryone
     }).catch(() => {});
+  }
+
+  deleteMessageForMe(convId: string, msgId: string) {
+    const list = this.messagesByConv[convId];
+    if (!list) return;
+    this.messagesByConv[convId] = list.filter((m) => m.id !== msgId);
+    safeInvoke('delete_e2ee_message', { messageId: msgId }).catch(() => {});
+  }
+
+  markViewOnceOpened(convId: string, msgId: string) {
+    const list = this.messagesByConv[convId];
+    if (!list) return;
+    const msg = list.find((m) => m.id === msgId);
+    if (!msg) return;
+    msg.text = '🔒 Pesan sekali lihat telah dibuka';
+    if (msg.attachment) {
+      msg.attachment.urlOrPreview = '';
+    }
+    safeInvoke('mark_message_viewed', { messageId: msgId }).catch(() => {});
   }
 
   pinMessage(convId: string, msgId: string | null) {
@@ -1990,6 +2209,10 @@ class MekaarStore {
             ]
           };
         });
+
+        for (const r of backendRooms) {
+          void this.loadMessagesForRoom(r.id);
+        }
       }
 
       // 3. Kontak
